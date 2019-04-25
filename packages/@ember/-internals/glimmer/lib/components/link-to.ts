@@ -764,7 +764,6 @@ if (EMBER_GLIMMER_ANGLE_BRACKET_BUILT_INS) {
       '_models',
       '_query',
       'tagName',
-      'loading',
       'loadingHref',
       function computeLinkToComponentHref(this: any) {
         if (this.tagName !== 'a') {
