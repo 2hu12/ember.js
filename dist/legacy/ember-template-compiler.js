@@ -6,7 +6,7 @@
  *            Portions Copyright 2008-2011 Apple Inc. All rights reserved.
  * @license   Licensed under MIT license
  *            See https://raw.github.com/emberjs/ember.js/master/LICENSE
- * @version   3.11.0-with-dist-build+8b433301
+ * @version   3.11.0-with-dist-build+9c225ae1
  */
 
 /*globals process */
@@ -372,7 +372,7 @@ enifed("@ember/-internals/environment", ["exports", "@ember/deprecated-features"
     return ENV;
   }
 });
-enifed("@ember/-internals/utils", ["exports", "@ember/polyfills"], function (_exports, _polyfills) {
+enifed("@ember/-internals/utils", ["exports", "@ember/polyfills", "@ember/canary-features", "@ember/debug"], function (_exports, _polyfills, _canaryFeatures, _debug) {
   "use strict";
 
   _exports.symbol = symbol;
@@ -398,7 +398,7 @@ enifed("@ember/-internals/utils", ["exports", "@ember/polyfills"], function (_ex
   _exports.isProxy = isProxy;
   _exports.setProxy = setProxy;
   _exports.isEmberArray = isEmberArray;
-  _exports.EMBER_ARRAY = _exports.Cache = _exports.HAS_NATIVE_PROXY = _exports.HAS_NATIVE_SYMBOL = _exports.ROOT = _exports.checkHasSuper = _exports.GUID_KEY = _exports.getOwnPropertyDescriptors = _exports.NAME_KEY = void 0;
+  _exports.setWithMandatorySetter = _exports.teardownMandatorySetter = _exports.setupMandatorySetter = _exports.EMBER_ARRAY = _exports.Cache = _exports.HAS_NATIVE_PROXY = _exports.HAS_NATIVE_SYMBOL = _exports.ROOT = _exports.checkHasSuper = _exports.GUID_KEY = _exports.getOwnPropertyDescriptors = _exports.NAME_KEY = void 0;
 
   /**
     Strongly hint runtimes to intern the provided string.
@@ -1099,6 +1099,112 @@ enifed("@ember/-internals/utils", ["exports", "@ember/polyfills"], function (_ex
   function isEmberArray(obj) {
     return obj && obj[EMBER_ARRAY];
   }
+
+  var setupMandatorySetter;
+  _exports.setupMandatorySetter = setupMandatorySetter;
+  var teardownMandatorySetter;
+  _exports.teardownMandatorySetter = teardownMandatorySetter;
+  var setWithMandatorySetter;
+  _exports.setWithMandatorySetter = setWithMandatorySetter;
+
+  if (true
+  /* DEBUG */
+  && _canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    var MANDATORY_SETTERS = new WeakMap();
+
+    var getPropertyDescriptor = function (obj, keyName) {
+      var current = obj;
+
+      while (current !== null) {
+        var desc = Object.getOwnPropertyDescriptor(current, keyName);
+
+        if (desc !== undefined) {
+          return desc;
+        }
+
+        current = Object.getPrototypeOf(current);
+      }
+
+      return;
+    };
+
+    var _propertyIsEnumerable = function (obj, key) {
+      return Object.prototype.propertyIsEnumerable.call(obj, key);
+    };
+
+    _exports.setupMandatorySetter = setupMandatorySetter = function (obj, keyName) {
+      var desc = getPropertyDescriptor(obj, keyName) || {};
+
+      if (desc.get || desc.set) {
+        // if it has a getter or setter, we can't install the mandatory setter.
+        // native setters are allowed, we have to assume that they will resolve
+        // to tracked properties.
+        return;
+      }
+
+      if (desc && (!desc.configurable || !desc.writable)) {
+        // if it isn't writable anyways, so we shouldn't provide the setter.
+        // if it isn't configurable, we can't overwrite it anyways.
+        return;
+      }
+
+      var setters = MANDATORY_SETTERS.get(obj);
+
+      if (setters === undefined) {
+        setters = {};
+        MANDATORY_SETTERS.set(obj, setters);
+      }
+
+      desc.hadOwnProperty = Object.hasOwnProperty.call(obj, keyName);
+      setters[keyName] = desc;
+      Object.defineProperty(obj, keyName, {
+        configurable: true,
+        enumerable: _propertyIsEnumerable(obj, keyName),
+        get: function () {
+          if (desc.get) {
+            return desc.get.call(this);
+          } else {
+            return desc.value;
+          }
+        },
+        set: function (value) {
+          true && !false && (0, _debug.assert)("You attempted to update " + this + "." + String(keyName) + " to \"" + String(value) + "\", but it is being tracked by a tracking context, such as a template, computed property, or observer. In order to make sure the context updates properly, you must invalidate the property when updating it. You can mark the property as `@tracked`, or use `@ember/object#set` to do this.");
+        }
+      });
+    };
+
+    _exports.teardownMandatorySetter = teardownMandatorySetter = function (obj, keyName) {
+      var setters = MANDATORY_SETTERS.get(obj);
+
+      if (setters !== undefined && setters[keyName] !== undefined) {
+        Object.defineProperty(obj, keyName, setters[keyName]);
+        setters[keyName] = undefined;
+      }
+    };
+
+    _exports.setWithMandatorySetter = setWithMandatorySetter = function (obj, keyName, value) {
+      var setters = MANDATORY_SETTERS.get(obj);
+
+      if (setters !== undefined && setters[keyName] !== undefined) {
+        var setter = setters[keyName];
+
+        if (setter.set) {
+          setter.set.call(obj, value);
+        } else {
+          setter.value = value; // If the object didn't have own property before, it would have changed
+          // the enumerability after setting the value the first time.
+
+          if (!setter.hadOwnProperty) {
+            var desc = getPropertyDescriptor(obj, keyName);
+            desc.enumerable = true;
+            Object.defineProperty(obj, keyName, desc);
+          }
+        }
+      } else {
+        obj[keyName] = value;
+      }
+    };
+  }
   /*
    This package will be eagerly parsed and should have no dependencies on external
    packages.
@@ -1140,7 +1246,7 @@ enifed("@ember/canary-features/index", ["exports", "@ember/-internals/environmen
     EMBER_GLIMMER_ANGLE_BRACKET_NESTED_LOOKUP: true,
     EMBER_ROUTING_BUILD_ROUTEINFO_METADATA: true,
     EMBER_NATIVE_DECORATOR_SUPPORT: true,
-    EMBER_GLIMMER_FN_HELPER: null,
+    EMBER_GLIMMER_FN_HELPER: true,
     EMBER_CUSTOM_COMPONENT_ARG_PROXY: null,
     EMBER_GLIMMER_ON_MODIFIER: null
   };
@@ -9568,7 +9674,7 @@ enifed("ember/version", ["exports"], function (_exports) {
   "use strict";
 
   _exports.default = void 0;
-  var _default = "3.11.0-with-dist-build+8b433301";
+  var _default = "3.11.0-with-dist-build+9c225ae1";
   _exports.default = _default;
 });
 enifed("handlebars", ["exports"], function (_exports) {

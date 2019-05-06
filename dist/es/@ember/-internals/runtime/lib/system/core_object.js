@@ -4,9 +4,10 @@
 import { FACTORY_FOR } from '@ember/-internals/container';
 import { assign, _WeakSet as WeakSet } from '@ember/polyfills';
 import { guidFor, getName, setName, makeArray, HAS_NATIVE_PROXY, isInternalSymbol } from '@ember/-internals/utils';
+import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 import { schedule } from '@ember/runloop';
 import { meta, peekMeta, deleteMeta } from '@ember/-internals/meta';
-import { PROXY_CONTENT, finishChains, sendEvent, Mixin, applyMixin, defineProperty, descriptorForProperty, classToString, isClassicDecorator, DEBUG_INJECTION_FUNCTIONS } from '@ember/-internals/metal';
+import { PROXY_CONTENT, finishChains, sendEvent, Mixin, activateObserver, applyMixin, defineProperty, descriptorForProperty, classToString, isClassicDecorator, DEBUG_INJECTION_FUNCTIONS } from '@ember/-internals/metal';
 import ActionHandler from '../mixins/action_handler';
 import { assert } from '@ember/debug';
 import { DEBUG } from '@glimmer/env';
@@ -79,10 +80,22 @@ function initialize(obj, properties) {
     initCalled.add(obj);
   }
 
-  obj.init(properties); // re-enable chains
-
+  obj.init(properties);
   m.unsetInitializing();
-  finishChains(m);
+
+  if (EMBER_METAL_TRACKED_PROPERTIES) {
+    let observerEvents = m.observerEvents();
+
+    if (observerEvents !== undefined) {
+      for (let i = 0; i < observerEvents.length; i++) {
+        activateObserver(obj, observerEvents[i]);
+      }
+    }
+  } else {
+    // re-enable chains
+    finishChains(m);
+  }
+
   sendEvent(obj, 'init', undefined, undefined, undefined, m);
 }
 /**

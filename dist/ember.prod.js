@@ -6,7 +6,7 @@
  *            Portions Copyright 2008-2011 Apple Inc. All rights reserved.
  * @license   Licensed under MIT license
  *            See https://raw.github.com/emberjs/ember.js/master/LICENSE
- * @version   3.11.0-with-dist-build+8b433301
+ * @version   3.11.0-with-dist-build+9c225ae1
  */
 
 /*globals process */
@@ -2862,9 +2862,9 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
 
       if (false
       /* DEBUG */
-      ) {
-          (0, _metal.watchKey)(parentValue, propertyKey);
-        }
+      && !_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        (0, _metal.watchKey)(parentValue, propertyKey);
+      }
     }
 
     compute() {
@@ -2879,21 +2879,16 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
           this.tag.inner.didCompute(parentValue);
         }
 
-      let parent = null;
-      let tracker = null;
+      let ret;
 
       if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-        parent = (0, _metal.getCurrentTracker)();
-        tracker = (0, _metal.setCurrentTracker)();
-      }
-
-      let ret = (0, _metal.get)(parentValue, propertyKey);
-
-      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-        (0, _metal.setCurrentTracker)(parent);
-        let tag = tracker.combine();
-        if (parent) parent.add(tag);
+        let tag = (0, _metal.track)(() => {
+          ret = (0, _metal.get)(parentValue, propertyKey);
+        });
+        (0, _metal.consume)(tag);
         this.propertyTag.inner.update(tag);
+      } else {
+        ret = (0, _metal.get)(parentValue, propertyKey);
       }
 
       return ret;
@@ -2944,9 +2939,9 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
 
         if (false
         /* DEBUG */
-        ) {
-            (0, _metal.watchKey)(parentValue, propertyKey);
-          }
+        && !_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+          (0, _metal.watchKey)(parentValue, propertyKey);
+        }
 
         if (false
         /* DEBUG */
@@ -2954,22 +2949,16 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
             this.tag.inner.didCompute(parentValue);
           }
 
-        let parent = null;
-        let tracker = null;
+        let ret;
 
         if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-          parent = (0, _metal.getCurrentTracker)();
-          tracker = (0, _metal.setCurrentTracker)();
-        }
-
-        let ret = (0, _metal.get)(parentValue, propertyKey);
-
-        if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-          (0, _metal.setCurrentTracker)(parent);
-          let tag = tracker.combine();
-          if (parent) parent.add(tag);
+          let tag = (0, _metal.track)(() => {
+            ret = (0, _metal.get)(parentValue, propertyKey);
+          });
+          (0, _metal.consume)(tag);
           propertyTag.inner.update(tag);
         } else {
+          ret = (0, _metal.get)(parentValue, propertyKey);
           propertyTag.inner.update((0, _metal.tagForProperty)(parentValue, propertyKey));
         }
 
@@ -9137,13 +9126,8 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
           let handler = {
             get(_target, prop) {
               false && !(typeof prop === 'string') && (0, _debug.assert)('args can only be strings', typeof prop === 'string');
-              let tracker = (0, _metal.getCurrentTracker)();
               let ref = capturedArgs.named.get(prop);
-
-              if (tracker) {
-                tracker.add(ref.tag);
-              }
-
+              (0, _metal.consume)(ref.tag);
               return ref.value();
             }
 
@@ -9164,12 +9148,7 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
             Object.defineProperty(namedArgsProxy, name, {
               get() {
                 let ref = capturedArgs.named.get(name);
-                let tracker = (0, _metal.getCurrentTracker)();
-
-                if (tracker) {
-                  tracker.add(ref.tag);
-                }
-
+                (0, _metal.consume)(ref.tag);
                 return ref.value();
               }
 
@@ -9977,6 +9956,77 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
   }
 
   const context = buildUntouchableThis('`fn` helper');
+  /**
+  @module ember
+  */
+
+  /**
+    The `fn` helper allows you to ensure a function that you are passing off
+    to another component, helper, or modifier has access to arguments that are
+    available in the template.
+  
+    For example, if you have an `each` helper looping over a number of items, you
+    may need to pass a function that expects to receive the item as an argument
+    to a component invoked within the loop. Here's how you could use the `fn`
+    helper to pass both the function and its arguments together:
+  
+      ```app/templates/components/items-listing.hbs
+    {{#each @items as |item|}}
+      <DisplayItem @item=item @select={{fn this.handleSelected item}} />
+    {{/each}}
+    ```
+  
+    ```app/components/items-list.js
+    import Component from '@glimmer/component';
+    import { action } from '@ember/object';
+  
+    export default class ItemsList extends Component {
+      @action
+      handleSelected(item) {
+        // ...snip...
+      }
+    }
+    ```
+  
+    In this case the `display-item` component will receive a normal function
+    that it can invoke. When it invokes the function, the `handleSelected`
+    function will receive the `item` and any arguments passed, thanks to the
+    `fn` helper.
+  
+    Let's take look at what that means in a couple circumstances:
+  
+    - When invoked as `this.args.select()` the `handleSelected` function will
+      receive the `item` from the loop as its first and only argument.
+    - When invoked as `this.args.selected('foo')` the `handleSelected` function
+      will receive the `item` from the loop as its first argument and the
+      string `'foo'` as its second argument.
+  
+    In the example above, we used `@action` to ensure that `handleSelected` is
+    properly bound to the `items-list`, but let's explore what happens if we
+    left out `@action`:
+  
+    ```app/components/items-list.js
+    import Component from '@glimmer/component';
+  
+    export default class ItemsList extends Component {
+      handleSelected(item) {
+        // ...snip...
+      }
+    }
+    ```
+  
+    In this example, when `handleSelected` is invoked inside the `display-item`
+    component, it will **not** have access to the component instance. In other
+    words, it will have no `this` context, so please make sure your functions
+    are bound (via `@action` or other means) before passing into `fn`!
+  
+    See also [partial application](https://en.wikipedia.org/wiki/Partial_application).
+  
+    @method fn
+    @for Ember.Templates.helpers
+    @public
+    @since 3.11.0
+  */
 
   function fnHelper({
     positional
@@ -10033,16 +10083,16 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
   
     ```handlebars
     {{get person factName}}
-    <button {{action (action (mut factName)) "height"}}>Show height</button>
-    <button {{action (action (mut factName)) "weight"}}>Show weight</button>
+    <button {{action (fn (mut factName)) "height"}}>Show height</button>
+    <button {{action (fn (mut factName)) "weight"}}>Show weight</button>
     ```
   
     The `{{get}}` helper can also respect mutable values itself. For example:
   
     ```handlebars
     {{input value=(mut (get person factName)) type="text"}}
-    <button {{action (action (mut factName)) "height"}}>Show height</button>
-    <button {{action (action (mut factName)) "weight"}}>Show weight</button>
+    <button {{action (fn (mut factName)) "height"}}>Show height</button>
+    <button {{action (fn (mut factName)) "weight"}}>Show weight</button>
     ```
   
     Would allow the user to swap what fact is being displayed, and also edit
@@ -10414,7 +10464,7 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
     To specify that a parameter is mutable, when invoking the child `Component`:
   
     ```handlebars
-    <MyChild @childClickCount={{action (mut totalClicks)}} />
+    <MyChild @childClickCount={{fn (mut totalClicks)}} />
     ```
   
      or
@@ -10438,20 +10488,20 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
     Note that for curly components (`{{my-component}}`) the bindings are already mutable,
     making the `mut` unnecessary.
   
-    Additionally, the `mut` helper can be combined with the `action` helper to
+    Additionally, the `mut` helper can be combined with the `fn` helper to
     mutate a value. For example:
   
     ```handlebars
-    <MyChild @childClickCount={{this.totalClicks}} @click-count-change={{action (mut totalClicks))}} />
+    <MyChild @childClickCount={{this.totalClicks}} @click-count-change={{fn (mut totalClicks))}} />
     ```
   
     or
   
     ```handlebars
-    {{my-child childClickCount=totalClicks click-count-change=(action (mut totalClicks))}}
+    {{my-child childClickCount=totalClicks click-count-change=(fn (mut totalClicks))}}
     ```
   
-    The child `Component` would invoke the action with the new click value:
+    The child `Component` would invoke the function with the new click value:
   
     ```javascript
     // my-child.js
@@ -10462,17 +10512,15 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
     });
     ```
   
-    The `mut` helper changes the `totalClicks` value to what was provided as the action argument.
+    The `mut` helper changes the `totalClicks` value to what was provided as the `fn` argument.
   
-    The `mut` helper, when used with `action`, will return a function that
-    sets the value passed to `mut` to its first argument. This works like any other
-    closure action and interacts with the other features `action` provides.
-    As an example, we can create a button that increments a value passing the value
-    directly to the `action`:
+    The `mut` helper, when used with `fn`, will return a function that
+    sets the value passed to `mut` to its first argument. As an example, we can create a
+    button that increments a value passing the value directly to the `fn`:
   
     ```handlebars
     {{! inc helper is not provided by Ember }}
-    <button onclick={{action (mut count) (inc count)}}>
+    <button onclick={{fn (mut count) (inc count)}}>
       Increment count
     </button>
     ```
@@ -10480,7 +10528,7 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
     You can also use the `value` option:
   
     ```handlebars
-    <input value={{name}} oninput={{action (mut name) value="target.value"}}>
+    <input value={{name}} oninput={{fn (mut name) value="target.value"}}>
     ```
   
     @method mut
@@ -12155,9 +12203,11 @@ enifed("@ember/-internals/glimmer", ["exports", "node-module", "@ember/-internal
     fn: undefined
   };
 
-  if (_canaryFeatures.EMBER_GLIMMER_FN_HELPER) {
-    BUILTINS_HELPERS.fn = fn;
-  }
+  if (true
+  /* EMBER_GLIMMER_FN_HELPER */
+  ) {
+      BUILTINS_HELPERS.fn = fn;
+    }
 
   const BUILTIN_MODIFIERS = {
     action: {
@@ -12879,6 +12929,7 @@ enifed("@ember/-internals/meta/lib/meta", ["exports", "@ember/-internals/utils",
         metaCalls: 0,
         metaInstantiated: 0,
         matchingListenersCalls: 0,
+        observerEventsCalls: 0,
         addToListenersCalls: 0,
         removeFromListenersCalls: 0,
         removeAllListenersCalls: 0,
@@ -12886,7 +12937,9 @@ enifed("@ember/-internals/meta/lib/meta", ["exports", "@ember/-internals/utils",
         listenersFlattened: 0,
         parentListenersUsed: 0,
         flattenedListenersCalls: 0,
-        reopensAfterFlatten: 0
+        reopensAfterFlatten: 0,
+        readableLazyChainsCalls: 0,
+        writableLazyChainsCalls: 0
       };
     }
   /**
@@ -13192,6 +13245,36 @@ enifed("@ember/-internals/meta/lib/meta", ["exports", "@ember/-internals/utils",
 
     readableTag() {
       return this._tag;
+    }
+
+    writableLazyChainsFor(key) {
+      if (false
+      /* DEBUG */
+      ) {
+          counters.writableLazyChainsCalls++;
+        }
+
+      let lazyChains = this._getOrCreateOwnMap('_lazyChains');
+
+      if (!(key in lazyChains)) {
+        lazyChains[key] = [];
+      }
+
+      return lazyChains[key];
+    }
+
+    readableLazyChainsFor(key) {
+      if (false
+      /* DEBUG */
+      ) {
+          counters.readableLazyChainsCalls++;
+        }
+
+      let lazyChains = this._lazyChains;
+
+      if (lazyChains !== undefined) {
+        return lazyChains[key];
+      }
     }
 
     writableChainWatchers(create) {
@@ -13528,6 +13611,40 @@ enifed("@ember/-internals/meta/lib/meta", ["exports", "@ember/-internals/utils",
       return result;
     }
 
+    observerEvents() {
+      let listeners = this.flattenedListeners();
+      let result;
+
+      if (false
+      /* DEBUG */
+      ) {
+          counters.observerEventsCalls++;
+        }
+
+      if (listeners !== undefined) {
+        for (let index = 0; index < listeners.length; index++) {
+          let listener = listeners[index]; // REMOVE listeners are placeholders that tell us not to
+          // inherit, so they never match. Only ADD and ONCE can match.
+
+          if ((listener.kind === 0
+          /* ADD */
+          || listener.kind === 1
+          /* ONCE */
+          ) && listener.event.indexOf(':change') !== -1) {
+            if (result === undefined) {
+              // we create this array only after we've found a listener that
+              // matches to avoid allocations when no matches are found.
+              result = [];
+            }
+
+            result.push(listener.event);
+          }
+        }
+      }
+
+      return result;
+    }
+
   }
 
   _exports.Meta = Meta;
@@ -13778,6 +13895,7 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
   _exports.defineProperty = defineProperty;
   _exports.isElementDescriptor = isElementDescriptor;
   _exports.nativeDescDecorator = nativeDescDecorator;
+  _exports.descriptorForDecorator = descriptorForDecorator;
   _exports.descriptorForProperty = descriptorForProperty;
   _exports.isClassicDecorator = isClassicDecorator;
   _exports.setClassicDecorator = setClassicDecorator;
@@ -13785,6 +13903,7 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
   _exports.unwatchKey = unwatchKey;
   _exports.finishChains = finishChains;
   _exports.removeChainWatcher = removeChainWatcher;
+  _exports.getChainTagsForKey = getChainTagsForKey;
   _exports.watchPath = watchPath;
   _exports.unwatchPath = unwatchPath;
   _exports.isWatching = isWatching;
@@ -13795,7 +13914,9 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
   _exports.setProperties = setProperties;
   _exports.expandProperties = expandProperties;
   _exports.addObserver = addObserver;
+  _exports.activateObserver = activateObserver;
   _exports.removeObserver = removeObserver;
+  _exports.flushInvalidActiveObservers = flushInvalidActiveObservers;
   _exports.mixin = mixin;
   _exports.observer = observer;
   _exports.applyMixin = applyMixin;
@@ -13803,9 +13924,9 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
   _exports.tagForProperty = tagForProperty;
   _exports.tagFor = tagFor;
   _exports.markObjectAsDirty = markObjectAsDirty;
+  _exports.consume = consume;
   _exports.tracked = tracked;
-  _exports.getCurrentTracker = getCurrentTracker;
-  _exports.setCurrentTracker = setCurrentTracker;
+  _exports.track = track;
   _exports.addNamespace = addNamespace;
   _exports.classToString = classToString;
   _exports.findNamespace = findNamespace;
@@ -13815,7 +13936,7 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
   _exports.removeNamespace = removeNamespace;
   _exports.isNamespaceSearchDisabled = isSearchDisabled;
   _exports.setNamespaceSearchDisabled = setSearchDisabled;
-  _exports.NAMESPACES_BY_ID = _exports.NAMESPACES = _exports.Tracker = _exports.assertNotRendered = _exports.didRender = _exports.runInTransaction = _exports.DEBUG_INJECTION_FUNCTIONS = _exports.aliasMethod = _exports.Mixin = _exports.Libraries = _exports.libraries = _exports.ChainNode = _exports.PROPERTY_DID_CHANGE = _exports.PROXY_CONTENT = _exports.ComputedProperty = _exports._globalsComputed = void 0;
+  _exports.NAMESPACES_BY_ID = _exports.NAMESPACES = _exports.Tracker = _exports.assertNotRendered = _exports.didRender = _exports.runInTransaction = _exports.UNKNOWN_PROPERTY_TAG = _exports.DEBUG_INJECTION_FUNCTIONS = _exports.aliasMethod = _exports.Mixin = _exports.Libraries = _exports.libraries = _exports.ChainNode = _exports.PROPERTY_DID_CHANGE = _exports.PROXY_CONTENT = _exports.ComputedProperty = _exports._globalsComputed = void 0;
   const COMPUTED_PROPERTY_CACHED_VALUES = new WeakMap();
   const COMPUTED_PROPERTY_LAST_REVISION = _canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES ? new WeakMap() : undefined;
   /**
@@ -13839,11 +13960,6 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
 
     if (cache === undefined) {
       cache = new Map();
-
-      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-        COMPUTED_PROPERTY_LAST_REVISION.set(obj, new Map());
-      }
-
       COMPUTED_PROPERTY_CACHED_VALUES.set(obj, cache);
     }
 
@@ -13863,8 +13979,14 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
 
   if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
     setLastRevisionFor = (obj, key, revision) => {
-      let lastRevision = COMPUTED_PROPERTY_LAST_REVISION.get(obj);
-      lastRevision.set(key, revision);
+      let cache = COMPUTED_PROPERTY_LAST_REVISION.get(obj);
+
+      if (cache === undefined) {
+        cache = new Map();
+        COMPUTED_PROPERTY_LAST_REVISION.set(obj, cache);
+      }
+
+      cache.set(key, revision);
     };
 
     getLastRevisionFor = (obj, key) => {
@@ -13938,6 +14060,114 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
 
   function isPath(path) {
     return typeof path === 'string' && firstDotIndexCache.get(path) !== -1;
+  }
+
+  const UNKNOWN_PROPERTY_TAG = (0, _utils.symbol)('UNKNOWN_PROPERTY_TAG');
+  _exports.UNKNOWN_PROPERTY_TAG = UNKNOWN_PROPERTY_TAG;
+
+  function makeTag() {
+    return _reference.DirtyableTag.create();
+  }
+
+  function tagForProperty(object, propertyKey, _meta) {
+    let objectType = typeof object;
+
+    if (objectType !== 'function' && (objectType !== 'object' || object === null)) {
+      return _reference.CONSTANT_TAG;
+    }
+
+    let meta$$1 = _meta === undefined ? (0, _meta2.meta)(object) : _meta;
+
+    if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      if (!(propertyKey in object) && typeof object[UNKNOWN_PROPERTY_TAG] === 'function') {
+        return object[UNKNOWN_PROPERTY_TAG](propertyKey);
+      }
+    } else if ((0, _utils.isProxy)(object)) {
+      return tagFor(object, meta$$1);
+    }
+
+    let tags = meta$$1.writableTags();
+    let tag = tags[propertyKey];
+
+    if (tag) {
+      return tag;
+    }
+
+    if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      let pair = (0, _reference.combine)([makeTag(), _reference.UpdatableTag.create(_reference.CONSTANT_TAG)]);
+
+      if (false
+      /* DEBUG */
+      ) {
+          if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+            (0, _utils.setupMandatorySetter)(object, propertyKey);
+          }
+
+          pair._propertyKey = propertyKey;
+        }
+
+      return tags[propertyKey] = pair;
+    } else {
+      return tags[propertyKey] = makeTag();
+    }
+  }
+
+  function tagFor(object, _meta) {
+    if (typeof object === 'object' && object !== null) {
+      let meta$$1 = _meta === undefined ? (0, _meta2.meta)(object) : _meta;
+
+      if (!meta$$1.isMetaDestroyed()) {
+        return meta$$1.writableTag(makeTag);
+      }
+    }
+
+    return _reference.CONSTANT_TAG;
+  }
+
+  let dirty;
+  let update;
+
+  if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    dirty = tag => {
+      tag.inner.first.inner.dirty();
+    };
+
+    update = (outer, inner) => {
+      outer.inner.lastChecked = 0;
+      outer.inner.second.inner.update(inner);
+    };
+  } else {
+    dirty = tag => {
+      tag.inner.dirty();
+    };
+  }
+
+  function markObjectAsDirty(obj, propertyKey, _meta) {
+    let meta$$1 = _meta === undefined ? (0, _meta2.meta)(obj) : _meta;
+    let objectTag = meta$$1.readableTag();
+
+    if (objectTag !== undefined) {
+      if ((0, _utils.isProxy)(obj)) {
+        objectTag.inner.first.inner.dirty();
+      } else {
+        objectTag.inner.dirty();
+      }
+    }
+
+    let tags = meta$$1.readableTags();
+    let propertyTag = tags !== undefined ? tags[propertyKey] : undefined;
+
+    if (propertyTag !== undefined) {
+      dirty(propertyTag);
+    }
+
+    if (objectTag !== undefined || propertyTag !== undefined) {
+      ensureRunloop();
+    }
+  }
+
+  function ensureRunloop() {
+    _runloop.backburner.ensureInstance();
   }
 
   const AFTER_OBSERVERS = ':change';
@@ -14194,94 +14424,6 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
 
   }
 
-  function makeTag() {
-    return _reference.DirtyableTag.create();
-  }
-
-  function tagForProperty(object, propertyKey, _meta) {
-    let objectType = typeof object;
-
-    if (objectType !== 'function' && (objectType !== 'object' || object === null)) {
-      return _reference.CONSTANT_TAG;
-    }
-
-    let meta$$1 = _meta === undefined ? (0, _meta2.meta)(object) : _meta;
-
-    if ((0, _utils.isProxy)(object)) {
-      return tagFor(object, meta$$1);
-    }
-
-    let tags = meta$$1.writableTags();
-    let tag = tags[propertyKey];
-
-    if (tag) {
-      return tag;
-    }
-
-    if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-      let pair = (0, _reference.combine)([makeTag(), _reference.UpdatableTag.create(_reference.CONSTANT_TAG)]);
-      return tags[propertyKey] = pair;
-    } else {
-      return tags[propertyKey] = makeTag();
-    }
-  }
-
-  function tagFor(object, _meta) {
-    if (typeof object === 'object' && object !== null) {
-      let meta$$1 = _meta === undefined ? (0, _meta2.meta)(object) : _meta;
-
-      if (!meta$$1.isMetaDestroyed()) {
-        return meta$$1.writableTag(makeTag);
-      }
-    }
-
-    return _reference.CONSTANT_TAG;
-  }
-
-  let dirty;
-  let update;
-
-  if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-    dirty = tag => {
-      tag.inner.first.inner.dirty();
-    };
-
-    update = (outer, inner) => {
-      outer.inner.second.inner.update(inner);
-    };
-  } else {
-    dirty = tag => {
-      tag.inner.dirty();
-    };
-  }
-
-  function markObjectAsDirty(obj, propertyKey, meta$$1) {
-    let objectTag = meta$$1.readableTag();
-
-    if (objectTag !== undefined) {
-      if ((0, _utils.isProxy)(obj)) {
-        objectTag.inner.first.inner.dirty();
-      } else {
-        objectTag.inner.dirty();
-      }
-    }
-
-    let tags = meta$$1.readableTags();
-    let propertyTag = tags !== undefined ? tags[propertyKey] : undefined;
-
-    if (propertyTag !== undefined) {
-      dirty(propertyTag);
-    }
-
-    if (objectTag !== undefined || propertyTag !== undefined) {
-      ensureRunloop();
-    }
-  }
-
-  function ensureRunloop() {
-    _runloop.backburner.ensureInstance();
-  }
-
   let runInTransaction;
   _exports.runInTransaction = runInTransaction;
   let didRender;
@@ -14501,28 +14643,26 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
       return;
     }
 
-    let possibleDesc = descriptorForProperty(obj, keyName, meta$$1);
+    if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      let possibleDesc = descriptorForProperty(obj, keyName, meta$$1);
 
-    if (possibleDesc !== undefined && typeof possibleDesc.didChange === 'function') {
-      possibleDesc.didChange(obj, keyName);
+      if (possibleDesc !== undefined && typeof possibleDesc.didChange === 'function') {
+        possibleDesc.didChange(obj, keyName);
+      }
+
+      if (meta$$1 !== null && meta$$1.peekWatching(keyName) > 0) {
+        dependentKeysDidChange(obj, keyName, meta$$1);
+        chainsDidChange(obj, keyName, meta$$1);
+        notifyObservers(obj, keyName, meta$$1);
+      }
     }
 
-    if (meta$$1 !== null && meta$$1.peekWatching(keyName) > 0) {
-      dependentKeysDidChange(obj, keyName, meta$$1);
-      chainsDidChange(obj, keyName, meta$$1);
-      notifyObservers(obj, keyName, meta$$1);
+    if (meta$$1 !== null) {
+      markObjectAsDirty(obj, keyName, meta$$1);
     }
 
     if (PROPERTY_DID_CHANGE in obj) {
       obj[PROPERTY_DID_CHANGE](keyName);
-    }
-
-    if (meta$$1 !== null) {
-      if (meta$$1.isSourceDestroying()) {
-        return;
-      }
-
-      markObjectAsDirty(obj, keyName, meta$$1);
     }
 
     if (false
@@ -14824,7 +14964,13 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
           value
         });
       } else {
-        obj[keyName] = data;
+        if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES && false
+        /* DEBUG */
+        ) {
+            (0, _utils.setWithMandatorySetter)(obj, keyName, data);
+          } else {
+          obj[keyName] = data;
+        }
       }
     } else {
       value = desc; // fallback to ES5
@@ -14860,8 +15006,10 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
         possibleDesc.willWatch(obj, keyName, meta$$1);
       }
 
-      if (typeof obj.willWatchProperty === 'function') {
-        obj.willWatchProperty(keyName);
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        if (typeof obj.willWatchProperty === 'function') {
+          obj.willWatchProperty(keyName);
+        }
       }
 
       if (false
@@ -15010,7 +15158,10 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
       }
     }
 
-    eachProxyArrayWillChange(array, startIdx, removeAmt, addAmt);
+    if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      eachProxyArrayWillChange(array, startIdx, removeAmt, addAmt);
+    }
+
     sendEvent(array, '@array:before', [array, startIdx, removeAmt, addAmt]);
     return array;
   }
@@ -15037,7 +15188,11 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
     }
 
     notifyPropertyChange(array, '[]', meta$$1);
-    eachProxyArrayDidChange(array, startIdx, removeAmt, addAmt);
+
+    if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      eachProxyArrayDidChange(array, startIdx, removeAmt, addAmt);
+    }
+
     sendEvent(array, '@array:change', [array, startIdx, removeAmt, addAmt]);
     let cache = peekCacheFor(array);
 
@@ -15064,317 +15219,6 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
     }
 
     return array;
-  } // For some reason TS can't infer that these two functions are compatible-ish,
-  // so we need to corece the type
-
-
-  let symbol$1 = _utils.HAS_NATIVE_SYMBOL ? Symbol : _utils.symbol;
-  /**
-    An object that that tracks @tracked properties that were consumed.
-  
-    @private
-  */
-
-  class Tracker {
-    constructor() {
-      this.tags = new Set();
-      this.last = null;
-    }
-
-    add(tag) {
-      this.tags.add(tag);
-      this.last = tag;
-    }
-
-    get size() {
-      return this.tags.size;
-    }
-
-    combine() {
-      if (this.tags.size === 0) {
-        return _reference.CONSTANT_TAG;
-      } else if (this.tags.size === 1) {
-        return this.last;
-      } else {
-        let tags = [];
-        this.tags.forEach(tag => tags.push(tag));
-        return (0, _reference.combine)(tags);
-      }
-    }
-
-  }
-
-  _exports.Tracker = Tracker;
-
-  function tracked(...args) {
-    false && !!(isElementDescriptor(args.slice(0, 3)) && args.length === 5 && args[4] === true) && (0, _debug.assert)("@tracked can only be used directly as a native decorator. If you're using tracked in classic classes, add parenthesis to call it like a function: tracked()", !(isElementDescriptor(args.slice(0, 3)) && args.length === 5 && args[4] === true));
-
-    if (!isElementDescriptor(args)) {
-      let propertyDesc = args[0];
-      false && !(args.length === 0 || typeof propertyDesc === 'object' && propertyDesc !== null) && (0, _debug.assert)("tracked() may only receive an options object containing 'value' or 'initializer', received " + propertyDesc, args.length === 0 || typeof propertyDesc === 'object' && propertyDesc !== null);
-
-      if (false
-      /* DEBUG */
-      && propertyDesc) {
-        let keys = Object.keys(propertyDesc);
-        false && !(keys.length <= 1 && (keys[0] === undefined || keys[0] === 'value' || keys[0] === 'initializer')) && (0, _debug.assert)("The options object passed to tracked() may only contain a 'value' or 'initializer' property, not both. Received: [" + keys + "]", keys.length <= 1 && (keys[0] === undefined || keys[0] === 'value' || keys[0] === 'initializer'));
-        false && !(!('initializer' in propertyDesc) || typeof propertyDesc.initializer === 'function') && (0, _debug.assert)("The initializer passed to tracked must be a function. Received " + propertyDesc.initializer, !('initializer' in propertyDesc) || typeof propertyDesc.initializer === 'function');
-      }
-
-      let initializer = propertyDesc ? propertyDesc.initializer : undefined;
-      let value = propertyDesc ? propertyDesc.value : undefined;
-
-      let decorator = function (target, key, _desc, _meta, isClassicDecorator$$1) {
-        false && !isClassicDecorator$$1 && (0, _debug.assert)("You attempted to set a default value for " + key + " with the @tracked({ value: 'default' }) syntax. You can only use this syntax with classic classes. For native classes, you can use class initializers: @tracked field = 'default';", isClassicDecorator$$1);
-        let fieldDesc = {
-          initializer: initializer || (() => value)
-        };
-        return descriptorForField([target, key, fieldDesc]);
-      };
-
-      setClassicDecorator(decorator);
-      return decorator;
-    }
-
-    false && !Boolean(true
-    /* EMBER_NATIVE_DECORATOR_SUPPORT */
-    ) && (0, _debug.assert)('Native decorators are not enabled without the EMBER_NATIVE_DECORATOR_SUPPORT flag', Boolean(true));
-    return descriptorForField(args);
-  }
-
-  if (false
-  /* DEBUG */
-  ) {
-      // Normally this isn't a classic decorator, but we want to throw a helpful
-      // error in development so we need it to treat it like one
-      setClassicDecorator(tracked);
-    }
-
-  function descriptorForField([_target, key, desc]) {
-    false && !(!desc || !desc.value && !desc.get && !desc.set) && (0, _debug.assert)("You attempted to use @tracked on " + key + ", but that element is not a class field. @tracked is only usable on class fields. Native getters and setters will autotrack add any tracked fields they encounter, so there is no need mark getters and setters with @tracked.", !desc || !desc.value && !desc.get && !desc.set);
-    let initializer = desc ? desc.initializer : undefined;
-    let secretKey = symbol$1(key);
-    return {
-      enumerable: true,
-      configurable: true,
-
-      get() {
-        let propertyTag = tagForProperty(this, key);
-        if (CURRENT_TRACKER) CURRENT_TRACKER.add(propertyTag); // If the field has never been initialized, we should initialize it
-
-        if (!(secretKey in this)) {
-          this[secretKey] = typeof initializer === 'function' ? initializer.call(this) : undefined;
-        }
-
-        let value = this[secretKey]; // Add the tag of the returned value if it is an array, since arrays
-        // should always cause updates if they are consumed and then changed
-
-        if (Array.isArray(value) || (0, _utils.isEmberArray)(value)) {
-          update(propertyTag, tagFor(value));
-        }
-
-        return this[secretKey];
-      },
-
-      set(newValue) {
-        tagFor(this).inner['dirty']();
-        dirty(tagForProperty(this, key));
-        this[secretKey] = newValue;
-        propertyDidChange();
-      }
-
-    };
-  }
-  /**
-    @private
-  
-    Whenever a tracked computed property is entered, the current tracker is
-    saved off and a new tracker is replaced.
-  
-    Any tracked properties consumed are added to the current tracker.
-  
-    When a tracked computed property is exited, the tracker's tags are
-    combined and added to the parent tracker.
-  
-    The consequence is that each tracked computed property has a tag
-    that corresponds to the tracked properties consumed inside of
-    itself, including child tracked computed properties.
-  */
-
-
-  let CURRENT_TRACKER = null;
-
-  function getCurrentTracker() {
-    return CURRENT_TRACKER;
-  }
-
-  function setCurrentTracker(tracker = new Tracker()) {
-    return CURRENT_TRACKER = tracker;
-  }
-
-  let propertyDidChange = ensureRunloop;
-  /**
-  @module @ember/object
-  */
-
-  const PROXY_CONTENT = (0, _utils.symbol)('PROXY_CONTENT');
-  _exports.PROXY_CONTENT = PROXY_CONTENT;
-  let getPossibleMandatoryProxyValue;
-
-  if (false
-  /* DEBUG */
-  && _utils.HAS_NATIVE_PROXY) {
-    getPossibleMandatoryProxyValue = function getPossibleMandatoryProxyValue(obj, keyName) {
-      let content = obj[PROXY_CONTENT];
-
-      if (content === undefined) {
-        return obj[keyName];
-      } else {
-        /* global Reflect */
-        return Reflect.get(content, keyName, obj);
-      }
-    };
-  } // ..........................................................
-  // GET AND SET
-  //
-  // If we are on a platform that supports accessors we can use those.
-  // Otherwise simulate accessors by looking up the property directly on the
-  // object.
-
-  /**
-    Gets the value of a property on an object. If the property is computed,
-    the function will be invoked. If the property is not defined but the
-    object implements the `unknownProperty` method then that will be invoked.
-  
-    ```javascript
-    import { get } from '@ember/object';
-    get(obj, "name");
-    ```
-  
-    If you plan to run on IE8 and older browsers then you should use this
-    method anytime you want to retrieve a property on an object that you don't
-    know for sure is private. (Properties beginning with an underscore '_'
-    are considered private.)
-  
-    On all newer browsers, you only need to use this method to retrieve
-    properties if the property might not be defined on the object and you want
-    to respect the `unknownProperty` handler. Otherwise you can ignore this
-    method.
-  
-    Note that if the object itself is `undefined`, this method will throw
-    an error.
-  
-    @method get
-    @for @ember/object
-    @static
-    @param {Object} obj The object to retrieve from.
-    @param {String} keyName The property key to retrieve
-    @return {Object} the property value or `null`.
-    @public
-  */
-
-
-  function get(obj, keyName) {
-    false && !(arguments.length === 2) && (0, _debug.assert)("Get must be called with two arguments; an object and a property key", arguments.length === 2);
-    false && !(obj !== undefined && obj !== null) && (0, _debug.assert)("Cannot call get with '" + keyName + "' on an undefined object.", obj !== undefined && obj !== null);
-    false && !(typeof keyName === 'string' || typeof keyName === 'number' && !isNaN(keyName)) && (0, _debug.assert)("The key provided to get must be a string or number, you passed " + keyName, typeof keyName === 'string' || typeof keyName === 'number' && !isNaN(keyName));
-    false && !(typeof keyName !== 'string' || keyName.lastIndexOf('this.', 0) !== 0) && (0, _debug.assert)("'this' in paths is not supported", typeof keyName !== 'string' || keyName.lastIndexOf('this.', 0) !== 0);
-    let type = typeof obj;
-    let isObject = type === 'object';
-    let isFunction = type === 'function';
-    let isObjectLike = isObject || isFunction;
-
-    if (isPath(keyName)) {
-      return isObjectLike ? _getPath(obj, keyName) : undefined;
-    }
-
-    let value;
-
-    if (isObjectLike) {
-      let tracker = null;
-
-      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-        tracker = getCurrentTracker();
-
-        if (tracker !== null) {
-          tracker.add(tagForProperty(obj, keyName));
-        }
-      }
-
-      let descriptor = descriptorForProperty(obj, keyName);
-
-      if (descriptor !== undefined) {
-        return descriptor.get(obj, keyName);
-      }
-
-      if (false
-      /* DEBUG */
-      && _utils.HAS_NATIVE_PROXY) {
-        value = getPossibleMandatoryProxyValue(obj, keyName);
-      } else {
-        value = obj[keyName];
-      } // Add the tag of the returned value if it is an array, since arrays
-      // should always cause updates if they are consumed and then changed
-
-
-      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES && tracker !== null && (Array.isArray(value) || (0, _utils.isEmberArray)(value))) {
-        tracker.add(tagFor(value));
-      }
-    } else {
-      value = obj[keyName];
-    }
-
-    if (value === undefined) {
-      if (isObject && !(keyName in obj) && typeof obj.unknownProperty === 'function') {
-        return obj.unknownProperty(keyName);
-      }
-    }
-
-    return value;
-  }
-
-  function _getPath(root, path) {
-    let obj = root;
-    let parts = typeof path === 'string' ? path.split('.') : path;
-
-    for (let i = 0; i < parts.length; i++) {
-      if (obj === undefined || obj === null || obj.isDestroyed) {
-        return undefined;
-      }
-
-      obj = get(obj, parts[i]);
-    }
-
-    return obj;
-  }
-  /**
-    Retrieves the value of a property from an Object, or a default value in the
-    case that the property returns `undefined`.
-  
-    ```javascript
-    import { getWithDefault } from '@ember/object';
-    getWithDefault(person, 'lastName', 'Doe');
-    ```
-  
-    @method getWithDefault
-    @for @ember/object
-    @static
-    @param {Object} obj The object to retrieve from.
-    @param {String} keyName The name of the property to retrieve
-    @param {Object} defaultValue The value to return if the property value is undefined
-    @return {Object} The property value or the defaultValue.
-    @public
-  */
-
-
-  function getWithDefault(root, key, defaultValue) {
-    let value = get(root, key);
-
-    if (value === undefined) {
-      return defaultValue;
-    }
-
-    return value;
   }
 
   const EMPTY_ARRAY = Object.freeze([]);
@@ -15436,6 +15280,8 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
   function removeArrayObserver(array, target, opts) {
     return arrayObserversHelper(array, target, opts, removeListener, true);
   }
+
+  const ACTIVE_OBSERVERS = new Map();
   /**
   @module @ember/object
   */
@@ -15451,10 +15297,19 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
     @public
   */
 
-
   function addObserver(obj, path, target, method) {
-    addListener(obj, changeEvent(path), target, method);
-    watch(obj, path);
+    let eventName = changeEvent(path);
+    addListener(obj, eventName, target, method);
+
+    if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      let meta$$1 = (0, _meta2.peekMeta)(obj);
+
+      if (meta$$1 === null || !(meta$$1.isPrototypeMeta(obj) || meta$$1.isInitializing())) {
+        activateObserver(obj, eventName);
+      }
+    } else {
+      watch(obj, path);
+    }
   }
   /**
     @method removeObserver
@@ -15469,8 +15324,119 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
 
 
   function removeObserver(obj, path, target, method) {
-    unwatch(obj, path);
-    removeListener(obj, changeEvent(path), target, method);
+    let eventName = changeEvent(path);
+
+    if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      let meta$$1 = (0, _meta2.peekMeta)(obj);
+
+      if (meta$$1 === null || !(meta$$1.isPrototypeMeta(obj) || meta$$1.isInitializing())) {
+        deactivateObserver(obj, eventName);
+      }
+    } else {
+      unwatch(obj, path);
+    }
+
+    removeListener(obj, eventName, target, method);
+  }
+
+  function getOrCreateActiveObserversFor(target) {
+    if (!ACTIVE_OBSERVERS.has(target)) {
+      ACTIVE_OBSERVERS.set(target, new Map());
+    }
+
+    return ACTIVE_OBSERVERS.get(target);
+  }
+
+  function activateObserver(target, eventName) {
+    let activeObservers = getOrCreateActiveObserversFor(target);
+
+    if (activeObservers.has(eventName)) {
+      activeObservers.get(eventName).count++;
+    } else {
+      let [path] = eventName.split(':');
+      let tag = getChainTagsForKey(target, path);
+      activeObservers.set(eventName, {
+        count: 1,
+        path,
+        tag,
+        lastRevision: tag.value()
+      });
+    }
+  }
+
+  function deactivateObserver(target, eventName) {
+    let activeObservers = ACTIVE_OBSERVERS.get(target);
+
+    if (activeObservers !== undefined) {
+      let observer = activeObservers.get(eventName);
+      observer.count--;
+
+      if (observer.count === 0) {
+        activeObservers.delete(eventName);
+
+        if (activeObservers.size === 0) {
+          ACTIVE_OBSERVERS.delete(target);
+        }
+      }
+    }
+  }
+  /**
+   * Primarily used for cases where we are redefining a class, e.g. mixins/reopen
+   * being applied later. Revalidates all the observers, resetting their tags.
+   *
+   * @private
+   * @param target
+   */
+
+
+  function revalidateObservers(target) {
+    if (!ACTIVE_OBSERVERS.has(target)) {
+      return;
+    }
+
+    ACTIVE_OBSERVERS.get(target).forEach(observer => {
+      observer.tag = getChainTagsForKey(target, observer.path);
+      observer.lastRevision = observer.tag.value();
+    });
+  }
+
+  let lastKnownRevision = 0;
+
+  function flushInvalidActiveObservers(shouldSchedule = true) {
+    if (lastKnownRevision === _reference.CURRENT_TAG.value()) {
+      return;
+    }
+
+    lastKnownRevision = _reference.CURRENT_TAG.value();
+    ACTIVE_OBSERVERS.forEach((activeObservers, target) => {
+      let meta$$1 = (0, _meta2.peekMeta)(target);
+
+      if (meta$$1 && (meta$$1.isSourceDestroying() || meta$$1.isMetaDestroyed())) {
+        ACTIVE_OBSERVERS.delete(target);
+        return;
+      }
+
+      activeObservers.forEach((observer, eventName) => {
+        if (!observer.tag.validate(observer.lastRevision)) {
+          let sendObserver = () => {
+            try {
+              sendEvent(target, eventName, [target, observer.path]);
+            } finally {
+              observer.tag = getChainTagsForKey(target, observer.path);
+              observer.lastRevision = observer.tag.value();
+            }
+          };
+
+          if (shouldSchedule) {
+            (0, _runloop.schedule)('actions', sendObserver);
+          } else {
+            // TODO: we need to schedule eagerly in exactly one location (_internalReset),
+            // for query params. We should get rid of this ASAP
+            sendObserver();
+          }
+        }
+      });
+    });
   }
 
   function eachProxyFor(array) {
@@ -16150,6 +16116,12 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
     };
   }
 
+  function DESCRIPTOR_SETTER_FUNCTION(name, descriptor) {
+    return function CPSETTER_FUNCTION(value) {
+      return descriptor.set(this, name, value);
+    };
+  }
+
   function makeComputedDecorator(desc, DecoratorClass) {
     let decorator = function COMPUTED_DECORATOR(target, key, propertyDesc, maybeMeta, isClassicDecorator$$1) {
       false && !(true
@@ -16158,16 +16130,446 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
       false && !(isClassicDecorator$$1 || !propertyDesc || !propertyDesc.get || propertyDesc.get.toString().indexOf('CPGETTER_FUNCTION') === -1) && (0, _debug.assert)("Only one computed property decorator can be applied to a class field or accessor, but '" + key + "' was decorated twice. You may have added the decorator to both a getter and setter, which is unecessary.", isClassicDecorator$$1 || !propertyDesc || !propertyDesc.get || propertyDesc.get.toString().indexOf('CPGETTER_FUNCTION') === -1);
       let meta$$1 = arguments.length === 3 ? (0, _meta2.meta)(target) : maybeMeta;
       desc.setup(target, key, propertyDesc, meta$$1);
-      return {
+      let computedDesc = {
         enumerable: desc.enumerable,
         configurable: desc.configurable,
         get: DESCRIPTOR_GETTER_FUNCTION(key, desc)
       };
+
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        computedDesc.set = DESCRIPTOR_SETTER_FUNCTION(key, desc);
+      }
+
+      return computedDesc;
     };
 
     setClassicDecorator(decorator, desc);
     Object.setPrototypeOf(decorator, DecoratorClass.prototype);
     return decorator;
+  } // For some reason TS can't infer that these two functions are compatible-ish,
+  // so we need to corece the type
+
+
+  let symbol$1 = _utils.HAS_NATIVE_SYMBOL ? Symbol : _utils.symbol;
+  /**
+    An object that that tracks @tracked properties that were consumed.
+  
+    @private
+  */
+
+  class Tracker {
+    constructor() {
+      this.tags = new Set();
+      this.last = null;
+    }
+
+    add(tag) {
+      this.tags.add(tag);
+      this.last = tag;
+    }
+
+    get size() {
+      return this.tags.size;
+    }
+
+    combine() {
+      if (this.tags.size === 0) {
+        return _reference.CONSTANT_TAG;
+      } else if (this.tags.size === 1) {
+        return this.last;
+      } else {
+        let tags = [];
+        this.tags.forEach(tag => tags.push(tag));
+        return (0, _reference.combine)(tags);
+      }
+    }
+
+  }
+
+  _exports.Tracker = Tracker;
+
+  function tracked(...args) {
+    false && !!(isElementDescriptor(args.slice(0, 3)) && args.length === 5 && args[4] === true) && (0, _debug.assert)("@tracked can only be used directly as a native decorator. If you're using tracked in classic classes, add parenthesis to call it like a function: tracked()", !(isElementDescriptor(args.slice(0, 3)) && args.length === 5 && args[4] === true));
+
+    if (!isElementDescriptor(args)) {
+      let propertyDesc = args[0];
+      false && !(args.length === 0 || typeof propertyDesc === 'object' && propertyDesc !== null) && (0, _debug.assert)("tracked() may only receive an options object containing 'value' or 'initializer', received " + propertyDesc, args.length === 0 || typeof propertyDesc === 'object' && propertyDesc !== null);
+
+      if (false
+      /* DEBUG */
+      && propertyDesc) {
+        let keys = Object.keys(propertyDesc);
+        false && !(keys.length <= 1 && (keys[0] === undefined || keys[0] === 'value' || keys[0] === 'initializer')) && (0, _debug.assert)("The options object passed to tracked() may only contain a 'value' or 'initializer' property, not both. Received: [" + keys + "]", keys.length <= 1 && (keys[0] === undefined || keys[0] === 'value' || keys[0] === 'initializer'));
+        false && !(!('initializer' in propertyDesc) || typeof propertyDesc.initializer === 'function') && (0, _debug.assert)("The initializer passed to tracked must be a function. Received " + propertyDesc.initializer, !('initializer' in propertyDesc) || typeof propertyDesc.initializer === 'function');
+      }
+
+      let initializer = propertyDesc ? propertyDesc.initializer : undefined;
+      let value = propertyDesc ? propertyDesc.value : undefined;
+
+      let decorator = function (target, key, _desc, _meta, isClassicDecorator$$1) {
+        false && !isClassicDecorator$$1 && (0, _debug.assert)("You attempted to set a default value for " + key + " with the @tracked({ value: 'default' }) syntax. You can only use this syntax with classic classes. For native classes, you can use class initializers: @tracked field = 'default';", isClassicDecorator$$1);
+        let fieldDesc = {
+          initializer: initializer || (() => value)
+        };
+        return descriptorForField([target, key, fieldDesc]);
+      };
+
+      setClassicDecorator(decorator);
+      return decorator;
+    }
+
+    false && !Boolean(true
+    /* EMBER_NATIVE_DECORATOR_SUPPORT */
+    ) && (0, _debug.assert)('Native decorators are not enabled without the EMBER_NATIVE_DECORATOR_SUPPORT flag', Boolean(true));
+    return descriptorForField(args);
+  }
+
+  if (false
+  /* DEBUG */
+  ) {
+      // Normally this isn't a classic decorator, but we want to throw a helpful
+      // error in development so we need it to treat it like one
+      setClassicDecorator(tracked);
+    }
+
+  function descriptorForField([_target, key, desc]) {
+    false && !(!desc || !desc.value && !desc.get && !desc.set) && (0, _debug.assert)("You attempted to use @tracked on " + key + ", but that element is not a class field. @tracked is only usable on class fields. Native getters and setters will autotrack add any tracked fields they encounter, so there is no need mark getters and setters with @tracked.", !desc || !desc.value && !desc.get && !desc.set);
+    let initializer = desc ? desc.initializer : undefined;
+    let secretKey = symbol$1(key);
+    return {
+      enumerable: true,
+      configurable: true,
+
+      get() {
+        let propertyTag = tagForProperty(this, key);
+        if (CURRENT_TRACKER) CURRENT_TRACKER.add(propertyTag); // If the field has never been initialized, we should initialize it
+
+        if (!(secretKey in this)) {
+          this[secretKey] = typeof initializer === 'function' ? initializer.call(this) : undefined;
+        }
+
+        let value = this[secretKey]; // Add the tag of the returned value if it is an array, since arrays
+        // should always cause updates if they are consumed and then changed
+
+        if (Array.isArray(value) || (0, _utils.isEmberArray)(value)) {
+          update(propertyTag, tagForProperty(value, '[]'));
+        }
+
+        return this[secretKey];
+      },
+
+      set(newValue) {
+        markObjectAsDirty(this, key);
+        this[secretKey] = newValue;
+
+        if (propertyDidChange !== null) {
+          propertyDidChange();
+        }
+      }
+
+    };
+  }
+  /**
+    @private
+  
+    Whenever a tracked computed property is entered, the current tracker is
+    saved off and a new tracker is replaced.
+  
+    Any tracked properties consumed are added to the current tracker.
+  
+    When a tracked computed property is exited, the tracker's tags are
+    combined and added to the parent tracker.
+  
+    The consequence is that each tracked computed property has a tag
+    that corresponds to the tracked properties consumed inside of
+    itself, including child tracked computed properties.
+  */
+
+
+  let CURRENT_TRACKER = null;
+
+  function track(callback) {
+    let parent = CURRENT_TRACKER;
+    let current = new Tracker();
+    CURRENT_TRACKER = current;
+
+    try {
+      callback();
+    } finally {
+      CURRENT_TRACKER = parent;
+    }
+
+    return current.combine();
+  }
+
+  function consume(tag) {
+    if (CURRENT_TRACKER !== null) {
+      CURRENT_TRACKER.add(tag);
+    }
+  }
+
+  function isTracking() {
+    return CURRENT_TRACKER !== null;
+  }
+
+  let propertyDidChange = null;
+  /**
+  @module @ember/object
+  */
+
+  const PROXY_CONTENT = (0, _utils.symbol)('PROXY_CONTENT');
+  _exports.PROXY_CONTENT = PROXY_CONTENT;
+  let getPossibleMandatoryProxyValue;
+
+  if (false
+  /* DEBUG */
+  && _utils.HAS_NATIVE_PROXY) {
+    getPossibleMandatoryProxyValue = function getPossibleMandatoryProxyValue(obj, keyName) {
+      let content = obj[PROXY_CONTENT];
+
+      if (content === undefined) {
+        return obj[keyName];
+      } else {
+        /* global Reflect */
+        return Reflect.get(content, keyName, obj);
+      }
+    };
+  } // ..........................................................
+  // GET AND SET
+  //
+  // If we are on a platform that supports accessors we can use those.
+  // Otherwise simulate accessors by looking up the property directly on the
+  // object.
+
+  /**
+    Gets the value of a property on an object. If the property is computed,
+    the function will be invoked. If the property is not defined but the
+    object implements the `unknownProperty` method then that will be invoked.
+  
+    ```javascript
+    import { get } from '@ember/object';
+    get(obj, "name");
+    ```
+  
+    If you plan to run on IE8 and older browsers then you should use this
+    method anytime you want to retrieve a property on an object that you don't
+    know for sure is private. (Properties beginning with an underscore '_'
+    are considered private.)
+  
+    On all newer browsers, you only need to use this method to retrieve
+    properties if the property might not be defined on the object and you want
+    to respect the `unknownProperty` handler. Otherwise you can ignore this
+    method.
+  
+    Note that if the object itself is `undefined`, this method will throw
+    an error.
+  
+    @method get
+    @for @ember/object
+    @static
+    @param {Object} obj The object to retrieve from.
+    @param {String} keyName The property key to retrieve
+    @return {Object} the property value or `null`.
+    @public
+  */
+
+
+  function get(obj, keyName) {
+    false && !(arguments.length === 2) && (0, _debug.assert)("Get must be called with two arguments; an object and a property key", arguments.length === 2);
+    false && !(obj !== undefined && obj !== null) && (0, _debug.assert)("Cannot call get with '" + keyName + "' on an undefined object.", obj !== undefined && obj !== null);
+    false && !(typeof keyName === 'string' || typeof keyName === 'number' && !isNaN(keyName)) && (0, _debug.assert)("The key provided to get must be a string or number, you passed " + keyName, typeof keyName === 'string' || typeof keyName === 'number' && !isNaN(keyName));
+    false && !(typeof keyName !== 'string' || keyName.lastIndexOf('this.', 0) !== 0) && (0, _debug.assert)("'this' in paths is not supported", typeof keyName !== 'string' || keyName.lastIndexOf('this.', 0) !== 0);
+    let type = typeof obj;
+    let isObject = type === 'object';
+    let isFunction = type === 'function';
+    let isObjectLike = isObject || isFunction;
+
+    if (isPath(keyName)) {
+      return isObjectLike ? _getPath(obj, keyName) : undefined;
+    }
+
+    let value;
+
+    if (isObjectLike) {
+      let tracking = isTracking();
+
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        if (tracking) {
+          consume(tagForProperty(obj, keyName));
+        }
+      }
+
+      let descriptor = descriptorForProperty(obj, keyName);
+
+      if (descriptor !== undefined) {
+        return descriptor.get(obj, keyName);
+      }
+
+      if (false
+      /* DEBUG */
+      && _utils.HAS_NATIVE_PROXY) {
+        value = getPossibleMandatoryProxyValue(obj, keyName);
+      } else {
+        value = obj[keyName];
+      } // Add the tag of the returned value if it is an array, since arrays
+      // should always cause updates if they are consumed and then changed
+
+
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES && tracking && (Array.isArray(value) || (0, _utils.isEmberArray)(value))) {
+        consume(tagForProperty(value, '[]'));
+      }
+    } else {
+      value = obj[keyName];
+    }
+
+    if (value === undefined) {
+      if (isObject && !(keyName in obj) && typeof obj.unknownProperty === 'function') {
+        return obj.unknownProperty(keyName);
+      }
+    }
+
+    return value;
+  }
+
+  function _getPath(root, path) {
+    let obj = root;
+    let parts = typeof path === 'string' ? path.split('.') : path;
+
+    for (let i = 0; i < parts.length; i++) {
+      if (obj === undefined || obj === null || obj.isDestroyed) {
+        return undefined;
+      }
+
+      obj = get(obj, parts[i]);
+    }
+
+    return obj;
+  }
+  /**
+    Retrieves the value of a property from an Object, or a default value in the
+    case that the property returns `undefined`.
+  
+    ```javascript
+    import { getWithDefault } from '@ember/object';
+    getWithDefault(person, 'lastName', 'Doe');
+    ```
+  
+    @method getWithDefault
+    @for @ember/object
+    @static
+    @param {Object} obj The object to retrieve from.
+    @param {String} keyName The name of the property to retrieve
+    @param {Object} defaultValue The value to return if the property value is undefined
+    @return {Object} The property value or the defaultValue.
+    @public
+  */
+
+
+  function getWithDefault(root, key, defaultValue) {
+    let value = get(root, key);
+
+    if (value === undefined) {
+      return defaultValue;
+    }
+
+    return value;
+  }
+
+  function finishLazyChains(obj, key, value) {
+    let meta$$1 = (0, _meta2.peekMeta)(obj);
+    let lazyTags = meta$$1 !== null ? meta$$1.readableLazyChainsFor(key) : undefined;
+
+    if (lazyTags === undefined) {
+      return;
+    }
+
+    if (value === null || typeof value !== 'object' && typeof value !== 'function') {
+      lazyTags.clear();
+      return;
+    }
+
+    while (lazyTags.length > 0) {
+      let [path, tag] = lazyTags.pop();
+      tag.inner.update(getChainTagsForKey(value, path));
+    }
+  }
+
+  function getChainTagsForKeys(obj, keys) {
+    let chainTags = [];
+
+    for (let i = 0; i < keys.length; i++) {
+      chainTags.push(getChainTagsForKey(obj, keys[i]));
+    }
+
+    return (0, _reference.combine)(chainTags);
+  }
+
+  function getChainTagsForKey(obj, key) {
+    let chainTags = [];
+    let current = obj;
+    let segments = key.split('.'); // prevent closures
+
+    let segment, descriptor;
+
+    while (segments.length > 0) {
+      segment = segments.shift();
+
+      if (segment === '@each' && segments.length > 0) {
+        false && !(Array.isArray(current) || (0, _utils.isEmberArray)(current)) && (0, _debug.assert)("When using @each, the value you are attempting to watch must be an array, was: " + current.toString(), Array.isArray(current) || (0, _utils.isEmberArray)(current));
+        segment = segments.shift(); // Push the tags for each item's property
+
+        let tags = current.map(item => {
+          false && !(typeof item === 'object') && (0, _debug.assert)("When using @each to observe the array `" + current.toString() + "`, the items in the array must be objects", typeof item === 'object');
+          return tagForProperty(item, segment);
+        }); // Push the tag for the array length itself
+
+        chainTags.push(...tags, tagForProperty(current, '[]')); // There shouldn't be any more segments after an `@each`, so break
+
+        false && !(segments.length === 0) && (0, _debug.assert)("When using @each, you can only chain one property level deep", segments.length === 0);
+        break;
+      }
+
+      let propertyTag = tagForProperty(current, segment);
+      chainTags.push(propertyTag);
+      descriptor = descriptorForProperty(current, segment);
+
+      if (descriptor === undefined) {
+        // TODO: Assert that current[segment] isn't an undecorated, non-MANDATORY_SETTER getter
+        if (!(segment in current) && typeof current.unknownProperty === 'function') {
+          current = current.unknownProperty(segment);
+        } else {
+          current = current[segment];
+        }
+      } else {
+        let lastRevision = getLastRevisionFor(current, segment);
+
+        if (propertyTag.validate(lastRevision)) {
+          if (typeof descriptor.altKey === 'string') {
+            // it's an alias, so just get the altkey without tracking
+            track(() => {
+              current = get(obj, descriptor.altKey);
+            });
+          } else {
+            current = peekCacheFor(current).get(segment);
+          }
+        } else if (segments.length > 0) {
+          let placeholderTag = _reference.UpdatableTag.create(_reference.CONSTANT_TAG);
+
+          (0, _meta2.meta)(current).writableLazyChainsFor(segment).push([segments.join('.'), placeholderTag]);
+          chainTags.push(placeholderTag);
+          break;
+        }
+      }
+
+      let currentType = typeof current;
+
+      if (current === null || currentType !== 'object' && currentType !== 'function') {
+        // we've hit the end of the chain for now, break out
+        break;
+      }
+    }
+
+    return (0, _reference.combine)(chainTags);
   }
   /**
   @module @ember/object
@@ -16241,7 +16643,7 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
     }
   }
 
-  let setWithMandatorySetter;
+  let setWithMandatorySetter$1;
   let makeEnumerable;
   /**
    @module @ember/object
@@ -16310,7 +16712,11 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
       if (false
       /* DEBUG */
       ) {
-          setWithMandatorySetter(meta$$1, obj, keyName, value);
+          if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+            (0, _utils.setWithMandatorySetter)(obj, keyName, value);
+          } else {
+            setWithMandatorySetter$1(obj, keyName, value, meta$$1);
+          }
         } else {
         obj[keyName] = value;
       }
@@ -16326,7 +16732,7 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
   if (false
   /* DEBUG */
   ) {
-      setWithMandatorySetter = (meta$$1, obj, keyName, value) => {
+      setWithMandatorySetter$1 = (obj, keyName, value, meta$$1) => {
         if (meta$$1 !== null && meta$$1.peekWatching(keyName) > 0) {
           makeEnumerable(obj, keyName);
           meta$$1.writeValue(obj, keyName, value);
@@ -16622,10 +17028,6 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
       if (args.length > 0) {
         this._property(...args);
       }
-
-      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-        this._auto = false;
-      }
     }
 
     setup(obj, keyName, propertyDesc, meta$$1) {
@@ -16823,12 +17225,6 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
         propertyTag = tagForProperty(obj, keyName);
 
         if (cache.has(keyName)) {
-          // special-case for computed with no dependent keys used to
-          // trigger cacheable behavior.
-          if (!this._auto && (!this._dependentKeys || this._dependentKeys.length === 0)) {
-            return cache.get(keyName);
-          }
-
           let lastRevision = getLastRevisionFor(obj, keyName);
 
           if (propertyTag.validate(lastRevision)) {
@@ -16841,42 +17237,53 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
         }
       }
 
-      let parent;
-      let tracker;
+      let ret;
 
       if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-        parent = getCurrentTracker();
-        tracker = setCurrentTracker();
-      }
+        false && !!(0, _meta2.meta)(obj).isMetaDestroyed() && (0, _debug.assert)("Attempted to access the computed " + obj + "." + keyName + " on a destroyed object, which is not allowed", !(0, _meta2.meta)(obj).isMetaDestroyed()); // Create a tracker that absorbs any trackable actions inside the CP
 
-      let ret = this._getter.call(obj, keyName);
+        let tag = track(() => {
+          ret = this._getter.call(obj, keyName);
+        });
+        finishLazyChains(obj, keyName, ret);
+        let upstreamTags = [];
 
-      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-        setCurrentTracker(parent);
-        let tag = tracker.combine();
-
-        if (parent) {
-          parent.add(tag); // Add the tag of the returned value if it is an array, since arrays
-          // should always cause updates if they are consumed and then changed
-
-          if (Array.isArray(ret) || (0, _utils.isEmberArray)(ret)) {
-            parent.add(tagFor(ret));
-          }
+        if (this._auto === true) {
+          upstreamTags.push(tag);
         }
 
-        update(propertyTag, tag);
+        if (this._dependentKeys !== undefined) {
+          upstreamTags.push(getChainTagsForKeys(obj, this._dependentKeys));
+        }
+
+        if (upstreamTags.length > 0) {
+          update(propertyTag, (0, _reference.combine)(upstreamTags));
+        }
+
         setLastRevisionFor(obj, keyName, propertyTag.value());
+        consume(propertyTag); // Add the tag of the returned value if it is an array, since arrays
+        // should always cause updates if they are consumed and then changed
+
+        if (Array.isArray(ret) || (0, _utils.isEmberArray)(ret)) {
+          consume(tagForProperty(ret, '[]'));
+        }
+      } else {
+        ret = this._getter.call(obj, keyName);
       }
 
       cache.set(keyName, ret);
-      let meta$$1 = (0, _meta2.meta)(obj);
-      let chainWatchers = meta$$1.readableChainWatchers();
 
-      if (chainWatchers !== undefined) {
-        chainWatchers.revalidate(keyName);
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        let meta$$1 = (0, _meta2.meta)(obj);
+        let chainWatchers = meta$$1.readableChainWatchers();
+
+        if (chainWatchers !== undefined) {
+          chainWatchers.revalidate(keyName);
+        }
+
+        addDependentKeys(this, obj, keyName, meta$$1);
       }
 
-      addDependentKeys(this, obj, keyName, meta$$1);
       return ret;
     }
 
@@ -16893,7 +17300,21 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
         return this.volatileSet(obj, keyName, value);
       }
 
-      return this.setWithSuspend(obj, keyName, value);
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        let ret = this._set(obj, keyName, value);
+
+        finishLazyChains(obj, keyName, ret);
+        let propertyTag = tagForProperty(obj, keyName);
+
+        if (this._dependentKeys !== undefined) {
+          update(propertyTag, getChainTagsForKeys(obj, this._dependentKeys));
+        }
+
+        setLastRevisionFor(obj, keyName, propertyTag.value());
+        return ret;
+      } else {
+        return this.setWithSuspend(obj, keyName, value);
+      }
     }
 
     _throwReadOnlyError(obj, keyName) {
@@ -16941,18 +17362,12 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
 
       let meta$$1 = (0, _meta2.meta)(obj);
 
-      if (!hadCachedValue) {
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES && !hadCachedValue) {
         addDependentKeys(this, obj, keyName, meta$$1);
       }
 
       cache.set(keyName, ret);
       notifyPropertyChange(obj, keyName, meta$$1);
-
-      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
-        let propertyTag = tagForProperty(obj, keyName);
-        setLastRevisionFor(obj, keyName, propertyTag.value());
-      }
-
       return ret;
     }
     /* called before property is overridden */
@@ -16977,7 +17392,6 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
   if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
     ComputedProperty.prototype.auto = function () {
       this._auto = true;
-      return this;
     };
   } // TODO: This class can be svelted once `meta` has been deprecated
 
@@ -17092,30 +17506,55 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
     constructor(altKey) {
       super();
       this.altKey = altKey;
-      this._dependentKeys = [altKey];
+
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        this._dependentKeys = [altKey];
+      }
     }
 
     setup(obj, keyName, propertyDesc, meta$$1) {
       false && !(this.altKey !== keyName) && (0, _debug.assert)("Setting alias '" + keyName + "' on self", this.altKey !== keyName);
       super.setup(obj, keyName, propertyDesc, meta$$1);
 
-      if (meta$$1.peekWatching(keyName) > 0) {
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES && meta$$1.peekWatching(keyName) > 0) {
         this.consume(obj, keyName, meta$$1);
       }
     }
 
     teardown(obj, keyName, meta$$1) {
-      this.unconsume(obj, keyName, meta$$1);
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        this.unconsume(obj, keyName, meta$$1);
+      }
+
       super.teardown(obj, keyName, meta$$1);
     }
 
     willWatch(obj, keyName, meta$$1) {
-      this.consume(obj, keyName, meta$$1);
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        this.consume(obj, keyName, meta$$1);
+      }
     }
 
     get(obj, keyName) {
-      let ret = get(obj, this.altKey);
-      this.consume(obj, keyName, (0, _meta2.meta)(obj));
+      let ret;
+
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        let propertyTag = tagForProperty(obj, keyName); // We don't use the tag since CPs are not automatic, we just want to avoid
+        // anything tracking while we get the altKey
+
+        track(() => {
+          ret = get(obj, this.altKey);
+        });
+        let altPropertyTag = getChainTagsForKey(obj, this.altKey);
+        update(propertyTag, altPropertyTag);
+        consume(propertyTag);
+        finishLazyChains(obj, keyName, ret);
+        setLastRevisionFor(obj, keyName, propertyTag.value());
+      } else {
+        ret = get(obj, this.altKey);
+        this.consume(obj, keyName, (0, _meta2.meta)(obj));
+      }
+
       return ret;
     }
 
@@ -18137,6 +18576,12 @@ enifed("@ember/-internals/metal", ["exports", "@ember/canary-features", "@ember/
       defineProperty(obj, key, desc, value, meta$$1);
     }
 
+    if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      if (!meta$$1.isPrototypeMeta(obj)) {
+        revalidateObservers(obj);
+      }
+    }
+
     return obj;
   }
   /**
@@ -18852,8 +19297,9 @@ enifed("@ember/-internals/routing/lib/ext/controller", ["exports", "@ember/-inte
       @private
     */
     _qpChanged(controller, _prop) {
-      let prop = _prop.substr(0, _prop.length - 3);
+      let dotIndex = _prop.indexOf('.[]');
 
+      let prop = dotIndex === -1 ? _prop : _prop.slice(0, dotIndex);
       let delegate = controller._qpDelegate;
       let value = (0, _metal.get)(controller, prop);
       delegate(prop, value);
@@ -20137,6 +20583,7 @@ enifed("@ember/-internals/routing/lib/services/router", ["exports", "@ember/-int
      Like any service, it can also be injected into helpers, routes, etc.
   
      @public
+     @extends Service
      @class RouterService
    */
 
@@ -21170,7 +21617,7 @@ enifed("@ember/-internals/routing/lib/system/route-info", [], function () {
     @public
   */
 });
-enifed("@ember/-internals/routing/lib/system/route", ["exports", "@ember/-internals/metal", "@ember/-internals/owner", "@ember/-internals/runtime", "@ember/debug", "@ember/deprecated-features", "@ember/polyfills", "@ember/runloop", "@ember/string", "router_js", "@ember/-internals/routing/lib/utils", "@ember/-internals/routing/lib/system/generate_controller"], function (_exports, _metal, _owner, _runtime, _debug, _deprecatedFeatures, _polyfills, _runloop, _string, _router_js, _utils, _generate_controller) {
+enifed("@ember/-internals/routing/lib/system/route", ["exports", "@ember/-internals/metal", "@ember/-internals/owner", "@ember/-internals/runtime", "@ember/canary-features", "@ember/debug", "@ember/deprecated-features", "@ember/polyfills", "@ember/runloop", "@ember/string", "router_js", "@ember/-internals/routing/lib/utils", "@ember/-internals/routing/lib/system/generate_controller"], function (_exports, _metal, _owner, _runtime, _canaryFeatures, _debug, _deprecatedFeatures, _polyfills, _runloop, _string, _router_js, _utils, _generate_controller) {
   "use strict";
 
   _exports.defaultSerialize = defaultSerialize;
@@ -21472,7 +21919,13 @@ enifed("@ember/-internals/routing/lib/system/route", ["exports", "@ember/-intern
     _internalReset(isExiting, transition) {
       let controller = this.controller;
       controller._qpDelegate = (0, _metal.get)(this, '_qp.states.inactive');
-      this.resetController(controller, isExiting, transition);
+      this.resetController(controller, isExiting, transition); // TODO: Once tags are enabled by default, we should refactor QP changes to
+      // use autotracking. This will likely be a large refactor, and for now we
+      // just need to trigger observers eagerly.
+
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        (0, _metal.flushInvalidActiveObservers)(false);
+      }
     }
     /**
       @private
@@ -21971,6 +22424,13 @@ enifed("@ember/-internals/routing/lib/system/route", ["exports", "@ember/-intern
 
       if (this._environment.options.shouldRender) {
         this.renderTemplate(controller, context);
+      } // TODO: Once tags are enabled by default, we should refactor QP changes to
+      // use autotracking. This will likely be a large refactor, and for now we
+      // just need to trigger observers eagerly.
+
+
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        (0, _metal.flushInvalidActiveObservers)(false);
       }
     }
     /*
@@ -26329,7 +26789,7 @@ enifed("@ember/-internals/runtime/lib/is-equal", ["exports"], function (_exports
     return a === b;
   }
 });
-enifed("@ember/-internals/runtime/lib/mixins/-proxy", ["exports", "@glimmer/reference", "@ember/-internals/meta", "@ember/-internals/metal", "@ember/-internals/utils", "@ember/debug"], function (_exports, _reference, _meta, _metal, _utils, _debug) {
+enifed("@ember/-internals/runtime/lib/mixins/-proxy", ["exports", "@glimmer/reference", "@ember/-internals/meta", "@ember/-internals/metal", "@ember/-internals/utils", "@ember/canary-features", "@ember/debug"], function (_exports, _reference, _meta, _metal, _utils, _canaryFeatures, _debug) {
   "use strict";
 
   _exports.contentFor = contentFor;
@@ -26338,17 +26798,6 @@ enifed("@ember/-internals/runtime/lib/mixins/-proxy", ["exports", "@glimmer/refe
   /**
   @module ember
   */
-  function contentPropertyDidChange(content, contentKey) {
-    let key = contentKey.slice(8); // remove "content."
-
-    if (key in this) {
-      return;
-    } // if shadowed in proxy
-
-
-    (0, _metal.notifyPropertyChange)(this, key);
-  }
-
   function contentFor(proxy, m) {
     let content = (0, _metal.get)(proxy, 'content');
     let tag = (m === undefined ? (0, _meta.meta)(proxy) : m).readableTag();
@@ -26398,13 +26847,32 @@ enifed("@ember/-internals/runtime/lib/mixins/-proxy", ["exports", "@glimmer/refe
     }),
 
     willWatchProperty(key) {
-      let contentKey = "content." + key;
-      (0, _metal.addObserver)(this, contentKey, null, contentPropertyDidChange);
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        let contentKey = "content." + key;
+        (0, _metal.addObserver)(this, contentKey, null, '_contentPropertyDidChange');
+      }
     },
 
     didUnwatchProperty(key) {
-      let contentKey = "content." + key;
-      (0, _metal.removeObserver)(this, contentKey, null, contentPropertyDidChange);
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        let contentKey = "content." + key;
+        (0, _metal.removeObserver)(this, contentKey, null, '_contentPropertyDidChange');
+      }
+    },
+
+    _contentPropertyDidChange(content, contentKey) {
+      let key = contentKey.slice(8); // remove "content."
+
+      if (key in this) {
+        return;
+      } // if shadowed in proxy
+
+
+      (0, _metal.notifyPropertyChange)(this, key);
+    },
+
+    [_metal.UNKNOWN_PROPERTY_TAG](key) {
+      return (0, _metal.getChainTagsForKey)(this, "content." + key);
     },
 
     unknownProperty(key) {
@@ -29500,7 +29968,7 @@ enifed("@ember/-internals/runtime/lib/mixins/target_action_support", ["exports",
     return null;
   }
 });
-enifed("@ember/-internals/runtime/lib/system/array_proxy", ["exports", "@ember/-internals/metal", "@ember/-internals/runtime/lib/system/object", "@ember/-internals/runtime/lib/mixins/array", "@ember/debug"], function (_exports, _metal, _object, _array, _debug) {
+enifed("@ember/-internals/runtime/lib/system/array_proxy", ["exports", "@ember/-internals/metal", "@ember/canary-features", "@ember/-internals/runtime/lib/system/object", "@ember/-internals/runtime/lib/mixins/array", "@ember/debug"], function (_exports, _metal, _canaryFeatures, _object, _array, _debug) {
   "use strict";
 
   _exports.default = void 0;
@@ -29591,6 +30059,12 @@ enifed("@ember/-internals/runtime/lib/system/array_proxy", ["exports", "@ember/-
       this._length = 0;
       this._arrangedContent = null;
 
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        this._arrangedContentIsUpdating = false;
+        this._arrangedContentTag = (0, _metal.getChainTagsForKey)(this, 'arrangedContent');
+        this._arrangedContentRevision = this._arrangedContentTag.value();
+      }
+
       this._addArrangedContentArrayObsever();
     }
 
@@ -29648,6 +30122,10 @@ enifed("@ember/-internals/runtime/lib/system/array_proxy", ["exports", "@ember/-
 
 
     objectAt(idx) {
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        this._revalidate();
+      }
+
       if (this._objects === null) {
         this._objects = [];
       }
@@ -29673,6 +30151,10 @@ enifed("@ember/-internals/runtime/lib/system/array_proxy", ["exports", "@ember/-
 
 
     get length() {
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        this._revalidate();
+      }
+
       if (this._lengthDirty) {
         let arrangedContent = (0, _metal.get)(this, 'arrangedContent');
         this._length = arrangedContent ? (0, _metal.get)(arrangedContent, 'length') : 0;
@@ -29704,29 +30186,37 @@ enifed("@ember/-internals/runtime/lib/system/array_proxy", ["exports", "@ember/-
     }
 
     [_metal.PROPERTY_DID_CHANGE](key) {
-      if (key === 'arrangedContent') {
-        let oldLength = this._objects === null ? 0 : this._objects.length;
-        let arrangedContent = (0, _metal.get)(this, 'arrangedContent');
-        let newLength = arrangedContent ? (0, _metal.get)(arrangedContent, 'length') : 0;
-
-        this._removeArrangedContentArrayObsever();
-
-        this.arrayContentWillChange(0, oldLength, newLength);
-
-        this._invalidate();
-
-        this.arrayContentDidChange(0, oldLength, newLength);
-
-        this._addArrangedContentArrayObsever();
-      } else if (key === 'content') {
-        this._invalidate();
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        this._revalidate();
+      } else {
+        if (key === 'arrangedContent') {
+          this._updateArrangedContentArray();
+        } else if (key === 'content') {
+          this._invalidate();
+        }
       }
+    }
+
+    _updateArrangedContentArray() {
+      let oldLength = this._objects === null ? 0 : this._objects.length;
+      let arrangedContent = (0, _metal.get)(this, 'arrangedContent');
+      let newLength = arrangedContent ? (0, _metal.get)(arrangedContent, 'length') : 0;
+
+      this._removeArrangedContentArrayObsever();
+
+      this.arrayContentWillChange(0, oldLength, newLength);
+
+      this._invalidate();
+
+      this.arrayContentDidChange(0, oldLength, newLength);
+
+      this._addArrangedContentArrayObsever();
     }
 
     _addArrangedContentArrayObsever() {
       let arrangedContent = (0, _metal.get)(this, 'arrangedContent');
 
-      if (arrangedContent) {
+      if (arrangedContent && !arrangedContent.isDestroyed) {
         false && !(arrangedContent !== this) && (0, _debug.assert)("Can't set ArrayProxy's content to itself", arrangedContent !== this);
         false && !((0, _array.isArray)(arrangedContent) || arrangedContent.isDestroyed) && (0, _debug.assert)("ArrayProxy expects an Array or ArrayProxy, but you passed " + typeof arrangedContent, (0, _array.isArray)(arrangedContent) || arrangedContent.isDestroyed);
         (0, _metal.addArrayObserver)(arrangedContent, this, ARRAY_OBSERVER_MAPPING);
@@ -29767,6 +30257,23 @@ enifed("@ember/-internals/runtime/lib/system/array_proxy", ["exports", "@ember/-
   }
 
   _exports.default = ArrayProxy;
+
+  let _revalidate;
+
+  if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    _revalidate = function () {
+      if (!this._arrangedContentIsUpdating && !this._arrangedContentTag.validate(this._arrangedContentRevision)) {
+        this._arrangedContentIsUpdating = true;
+
+        this._updateArrangedContentArray();
+
+        this._arrangedContentIsUpdating = false;
+        this._arrangedContentTag = (0, _metal.getChainTagsForKey)(this, 'arrangedContent');
+        this._arrangedContentRevision = this._arrangedContentTag.value();
+      }
+    };
+  }
+
   ArrayProxy.reopen(_array.MutableArray, {
     /**
       The array that the proxy pretends to be. In the default `ArrayProxy`
@@ -29775,10 +30282,11 @@ enifed("@ember/-internals/runtime/lib/system/array_proxy", ["exports", "@ember/-
        @property arrangedContent
       @public
     */
-    arrangedContent: (0, _metal.alias)('content')
+    arrangedContent: (0, _metal.alias)('content'),
+    _revalidate
   });
 });
-enifed("@ember/-internals/runtime/lib/system/core_object", ["exports", "@ember/-internals/container", "@ember/polyfills", "@ember/-internals/utils", "@ember/runloop", "@ember/-internals/meta", "@ember/-internals/metal", "@ember/-internals/runtime/lib/mixins/action_handler", "@ember/debug"], function (_exports, _container, _polyfills, _utils, _runloop, _meta, _metal, _action_handler, _debug) {
+enifed("@ember/-internals/runtime/lib/system/core_object", ["exports", "@ember/-internals/container", "@ember/polyfills", "@ember/-internals/utils", "@ember/canary-features", "@ember/runloop", "@ember/-internals/meta", "@ember/-internals/metal", "@ember/-internals/runtime/lib/mixins/action_handler", "@ember/debug"], function (_exports, _container, _polyfills, _utils, _canaryFeatures, _runloop, _meta, _metal, _action_handler, _debug) {
   "use strict";
 
   _exports.default = void 0;
@@ -29861,10 +30369,22 @@ enifed("@ember/-internals/runtime/lib/system/core_object", ["exports", "@ember/-
         initCalled.add(obj);
       }
 
-    obj.init(properties); // re-enable chains
-
+    obj.init(properties);
     m.unsetInitializing();
-    (0, _metal.finishChains)(m);
+
+    if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      let observerEvents = m.observerEvents();
+
+      if (observerEvents !== undefined) {
+        for (let i = 0; i < observerEvents.length; i++) {
+          (0, _metal.activateObserver)(obj, observerEvents[i]);
+        }
+      }
+    } else {
+      // re-enable chains
+      (0, _metal.finishChains)(m);
+    }
+
     (0, _metal.sendEvent)(obj, 'init', undefined, undefined, undefined, m);
   }
   /**
@@ -31060,7 +31580,7 @@ enifed("@ember/-internals/runtime/lib/type-of", ["exports", "@ember/-internals/r
     return ret;
   }
 });
-enifed("@ember/-internals/utils", ["exports", "@ember/polyfills"], function (_exports, _polyfills) {
+enifed("@ember/-internals/utils", ["exports", "@ember/polyfills", "@ember/canary-features", "@ember/debug"], function (_exports, _polyfills, _canaryFeatures, _debug) {
   "use strict";
 
   _exports.symbol = symbol;
@@ -31086,7 +31606,7 @@ enifed("@ember/-internals/utils", ["exports", "@ember/polyfills"], function (_ex
   _exports.isProxy = isProxy;
   _exports.setProxy = setProxy;
   _exports.isEmberArray = isEmberArray;
-  _exports.EMBER_ARRAY = _exports.Cache = _exports.HAS_NATIVE_PROXY = _exports.HAS_NATIVE_SYMBOL = _exports.ROOT = _exports.checkHasSuper = _exports.GUID_KEY = _exports.getOwnPropertyDescriptors = _exports.NAME_KEY = void 0;
+  _exports.setWithMandatorySetter = _exports.teardownMandatorySetter = _exports.setupMandatorySetter = _exports.EMBER_ARRAY = _exports.Cache = _exports.HAS_NATIVE_PROXY = _exports.HAS_NATIVE_SYMBOL = _exports.ROOT = _exports.checkHasSuper = _exports.GUID_KEY = _exports.getOwnPropertyDescriptors = _exports.NAME_KEY = void 0;
 
   /**
     Strongly hint runtimes to intern the provided string.
@@ -31792,6 +32312,115 @@ enifed("@ember/-internals/utils", ["exports", "@ember/polyfills"], function (_ex
 
   function isEmberArray(obj) {
     return obj && obj[EMBER_ARRAY];
+  }
+
+  let setupMandatorySetter;
+  _exports.setupMandatorySetter = setupMandatorySetter;
+  let teardownMandatorySetter;
+  _exports.teardownMandatorySetter = teardownMandatorySetter;
+  let setWithMandatorySetter;
+  _exports.setWithMandatorySetter = setWithMandatorySetter;
+
+  if (false
+  /* DEBUG */
+  && _canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    let MANDATORY_SETTERS = new WeakMap();
+
+    let getPropertyDescriptor = function (obj, keyName) {
+      let current = obj;
+
+      while (current !== null) {
+        let desc = Object.getOwnPropertyDescriptor(current, keyName);
+
+        if (desc !== undefined) {
+          return desc;
+        }
+
+        current = Object.getPrototypeOf(current);
+      }
+
+      return;
+    };
+
+    let propertyIsEnumerable = function (obj, key) {
+      return Object.prototype.propertyIsEnumerable.call(obj, key);
+    };
+
+    _exports.setupMandatorySetter = setupMandatorySetter = function (obj, keyName) {
+      let desc = getPropertyDescriptor(obj, keyName) || {};
+
+      if (desc.get || desc.set) {
+        // if it has a getter or setter, we can't install the mandatory setter.
+        // native setters are allowed, we have to assume that they will resolve
+        // to tracked properties.
+        return;
+      }
+
+      if (desc && (!desc.configurable || !desc.writable)) {
+        // if it isn't writable anyways, so we shouldn't provide the setter.
+        // if it isn't configurable, we can't overwrite it anyways.
+        return;
+      }
+
+      let setters = MANDATORY_SETTERS.get(obj);
+
+      if (setters === undefined) {
+        setters = {};
+        MANDATORY_SETTERS.set(obj, setters);
+      }
+
+      desc.hadOwnProperty = Object.hasOwnProperty.call(obj, keyName);
+      setters[keyName] = desc;
+      Object.defineProperty(obj, keyName, {
+        configurable: true,
+        enumerable: propertyIsEnumerable(obj, keyName),
+
+        get() {
+          if (desc.get) {
+            return desc.get.call(this);
+          } else {
+            return desc.value;
+          }
+        },
+
+        set(value) {
+          false && !false && (0, _debug.assert)("You attempted to update " + this + "." + String(keyName) + " to \"" + String(value) + "\", but it is being tracked by a tracking context, such as a template, computed property, or observer. In order to make sure the context updates properly, you must invalidate the property when updating it. You can mark the property as `@tracked`, or use `@ember/object#set` to do this.");
+        }
+
+      });
+    };
+
+    _exports.teardownMandatorySetter = teardownMandatorySetter = function (obj, keyName) {
+      let setters = MANDATORY_SETTERS.get(obj);
+
+      if (setters !== undefined && setters[keyName] !== undefined) {
+        Object.defineProperty(obj, keyName, setters[keyName]);
+        setters[keyName] = undefined;
+      }
+    };
+
+    _exports.setWithMandatorySetter = setWithMandatorySetter = function (obj, keyName, value) {
+      let setters = MANDATORY_SETTERS.get(obj);
+
+      if (setters !== undefined && setters[keyName] !== undefined) {
+        let setter = setters[keyName];
+
+        if (setter.set) {
+          setter.set.call(obj, value);
+        } else {
+          setter.value = value; // If the object didn't have own property before, it would have changed
+          // the enumerability after setting the value the first time.
+
+          if (!setter.hadOwnProperty) {
+            let desc = getPropertyDescriptor(obj, keyName);
+            desc.enumerable = true;
+            Object.defineProperty(obj, keyName, desc);
+          }
+        }
+      } else {
+        obj[keyName] = value;
+      }
+    };
   }
   /*
    This package will be eagerly parsed and should have no dependencies on external
@@ -34100,7 +34729,7 @@ enifed("@ember/-internals/views/lib/views/states/has_element", ["exports", "@emb
 
   _exports.default = _default2;
 });
-enifed("@ember/-internals/views/lib/views/states/in_dom", ["exports", "@ember/polyfills", "@ember/-internals/metal", "@ember/error", "@ember/-internals/views/lib/views/states/has_element"], function (_exports, _polyfills, _metal, _error, _has_element) {
+enifed("@ember/-internals/views/lib/views/states/in_dom", ["exports", "@ember/-internals/utils", "@ember/polyfills", "@ember/canary-features", "@ember/error", "@ember/-internals/views/lib/views/states/has_element"], function (_exports, _utils, _polyfills, _canaryFeatures, _error, _has_element) {
   "use strict";
 
   _exports.default = void 0;
@@ -34113,8 +34742,24 @@ enifed("@ember/-internals/views/lib/views/states/in_dom", ["exports", "@ember/po
       if (false
       /* DEBUG */
       ) {
-          (0, _metal.addObserver)(view, 'elementId', () => {
-            throw new _error.default("Changing a view's elementId after creation is not allowed");
+          let elementId = view.elementId;
+
+          if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+            (0, _utils.teardownMandatorySetter)(view, 'elementId');
+          }
+
+          Object.defineProperty(view, 'elementId', {
+            configurable: true,
+            enumerable: true,
+
+            get() {
+              return elementId;
+            },
+
+            set() {
+              throw new _error.default("Changing a view's elementId after creation is not allowed");
+            }
+
           });
         }
     },
@@ -36171,7 +36816,7 @@ enifed("@ember/canary-features/index", ["exports", "@ember/-internals/environmen
     EMBER_GLIMMER_ANGLE_BRACKET_NESTED_LOOKUP: true,
     EMBER_ROUTING_BUILD_ROUTEINFO_METADATA: true,
     EMBER_NATIVE_DECORATOR_SUPPORT: true,
-    EMBER_GLIMMER_FN_HELPER: null,
+    EMBER_GLIMMER_FN_HELPER: true,
     EMBER_CUSTOM_COMPONENT_ARG_PROXY: null,
     EMBER_GLIMMER_ON_MODIFIER: null
   };
@@ -37086,6 +37731,10 @@ enifed("@ember/engine/index", ["exports", "@ember/engine/lib/engine-parent", "@e
 
     return properties;
   }
+  /**
+  @module @ember/engine
+  */
+
   /**
     The `Engine` class contains core functionality for both applications and
     engines.
@@ -39634,7 +40283,7 @@ enifed("@ember/object/lib/computed/computed_macros", ["exports", "@ember/-intern
     });
   }
 });
-enifed("@ember/object/lib/computed/reduce_computed_macros", ["exports", "@ember/debug", "@ember/-internals/metal", "@ember/-internals/runtime"], function (_exports, _debug, _metal, _runtime) {
+enifed("@ember/object/lib/computed/reduce_computed_macros", ["exports", "@ember/canary-features", "@ember/debug", "@ember/-internals/metal", "@ember/-internals/runtime"], function (_exports, _canaryFeatures, _debug, _metal, _runtime) {
   "use strict";
 
   _exports.sum = sum;
@@ -41035,52 +41684,75 @@ enifed("@ember/object/lib/computed/reduce_computed_macros", ["exports", "@ember/
   function propertySort(itemsKey, sortPropertiesKey) {
     let activeObserversMap = new WeakMap();
     let sortPropertyDidChangeMap = new WeakMap();
-    return (0, _metal.computed)(sortPropertiesKey + ".[]", function (key) {
-      let sortProperties = (0, _metal.get)(this, sortPropertiesKey);
-      false && !((0, _runtime.isArray)(sortProperties) && sortProperties.every(s => typeof s === 'string')) && (0, _debug.assert)("The sort definition for '" + key + "' on " + this + " must be a function or an array of strings", (0, _runtime.isArray)(sortProperties) && sortProperties.every(s => typeof s === 'string')); // Add/remove property observers as required.
 
-      let activeObservers = activeObserversMap.get(this);
+    if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      let cp = (0, _metal.computed)(itemsKey + ".[]", sortPropertiesKey + ".[]", function (key) {
+        let sortProperties = (0, _metal.get)(this, sortPropertiesKey);
+        false && !((0, _runtime.isArray)(sortProperties) && sortProperties.every(s => typeof s === 'string')) && (0, _debug.assert)("The sort definition for '" + key + "' on " + this + " must be a function or an array of strings", (0, _runtime.isArray)(sortProperties) && sortProperties.every(s => typeof s === 'string'));
+        let itemsKeyIsAtThis = itemsKey === '@this';
+        let normalizedSortProperties = normalizeSortProperties(sortProperties);
+        let items = itemsKeyIsAtThis ? this : (0, _metal.get)(this, itemsKey);
 
-      if (!sortPropertyDidChangeMap.has(this)) {
-        sortPropertyDidChangeMap.set(this, function () {
-          (0, _metal.notifyPropertyChange)(this, key);
-        });
-      }
+        if (!(0, _runtime.isArray)(items)) {
+          return (0, _runtime.A)();
+        }
 
-      let sortPropertyDidChange = sortPropertyDidChangeMap.get(this);
+        if (normalizedSortProperties.length === 0) {
+          return (0, _runtime.A)(items.slice());
+        } else {
+          return sortByNormalizedSortProperties(items, normalizedSortProperties);
+        }
+      }).readOnly();
+      (0, _metal.descriptorForDecorator)(cp).auto();
+      return cp;
+    } else {
+      return (0, _metal.computed)(sortPropertiesKey + ".[]", function (key) {
+        let sortProperties = (0, _metal.get)(this, sortPropertiesKey);
+        false && !((0, _runtime.isArray)(sortProperties) && sortProperties.every(s => typeof s === 'string')) && (0, _debug.assert)("The sort definition for '" + key + "' on " + this + " must be a function or an array of strings", (0, _runtime.isArray)(sortProperties) && sortProperties.every(s => typeof s === 'string')); // Add/remove property observers as required.
 
-      if (activeObservers !== undefined) {
-        activeObservers.forEach(path => (0, _metal.removeObserver)(this, path, sortPropertyDidChange));
-      }
+        let activeObservers = activeObserversMap.get(this);
 
-      let itemsKeyIsAtThis = itemsKey === '@this';
-      let normalizedSortProperties = normalizeSortProperties(sortProperties);
+        if (!sortPropertyDidChangeMap.has(this)) {
+          sortPropertyDidChangeMap.set(this, function () {
+            (0, _metal.notifyPropertyChange)(this, key);
+          });
+        }
 
-      if (normalizedSortProperties.length === 0) {
-        let path = itemsKeyIsAtThis ? "[]" : itemsKey + ".[]";
-        (0, _metal.addObserver)(this, path, sortPropertyDidChange);
-        activeObservers = [path];
-      } else {
-        activeObservers = normalizedSortProperties.map(([prop]) => {
-          let path = itemsKeyIsAtThis ? "@each." + prop : itemsKey + ".@each." + prop;
+        let sortPropertyDidChange = sortPropertyDidChangeMap.get(this);
+
+        if (activeObservers !== undefined) {
+          activeObservers.forEach(path => (0, _metal.removeObserver)(this, path, sortPropertyDidChange));
+        }
+
+        let itemsKeyIsAtThis = itemsKey === '@this';
+        let normalizedSortProperties = normalizeSortProperties(sortProperties);
+
+        if (normalizedSortProperties.length === 0) {
+          let path = itemsKeyIsAtThis ? "[]" : itemsKey + ".[]";
           (0, _metal.addObserver)(this, path, sortPropertyDidChange);
-          return path;
-        });
-      }
+          activeObservers = [path];
+        } else {
+          activeObservers = normalizedSortProperties.map(([prop]) => {
+            let path = itemsKeyIsAtThis ? "@each." + prop : itemsKey + ".@each." + prop;
+            (0, _metal.addObserver)(this, path, sortPropertyDidChange);
+            return path;
+          });
+        }
 
-      activeObserversMap.set(this, activeObservers);
-      let items = itemsKeyIsAtThis ? this : (0, _metal.get)(this, itemsKey);
+        activeObserversMap.set(this, activeObservers);
+        let items = itemsKeyIsAtThis ? this : (0, _metal.get)(this, itemsKey);
 
-      if (!(0, _runtime.isArray)(items)) {
-        return (0, _runtime.A)();
-      }
+        if (!(0, _runtime.isArray)(items)) {
+          return (0, _runtime.A)();
+        }
 
-      if (normalizedSortProperties.length === 0) {
-        return (0, _runtime.A)(items.slice());
-      } else {
-        return sortByNormalizedSortProperties(items, normalizedSortProperties);
-      }
-    }).readOnly();
+        if (normalizedSortProperties.length === 0) {
+          return (0, _runtime.A)(items.slice());
+        } else {
+          return sortByNormalizedSortProperties(items, normalizedSortProperties);
+        }
+      }).readOnly();
+    }
   }
 
   function normalizeSortProperties(sortProperties) {
@@ -41271,7 +41943,7 @@ enifed("@ember/polyfills/lib/weak_set", ["exports"], function (_exports) {
 
   _exports.default = _default;
 });
-enifed("@ember/runloop/index", ["exports", "@ember/debug", "@ember/-internals/error-handling", "backburner"], function (_exports, _debug, _errorHandling, _backburner) {
+enifed("@ember/runloop/index", ["exports", "@ember/debug", "@ember/-internals/error-handling", "@ember/-internals/metal", "backburner", "@ember/canary-features"], function (_exports, _debug, _errorHandling, _metal, _backburner, _canaryFeatures) {
   "use strict";
 
   _exports.getCurrentRunLoop = getCurrentRunLoop;
@@ -41302,6 +41974,22 @@ enifed("@ember/runloop/index", ["exports", "@ember/debug", "@ember/-internals/er
 
   function onEnd(current, next) {
     currentRunLoop = next;
+
+    if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+      (0, _metal.flushInvalidActiveObservers)();
+    }
+  }
+
+  let flush;
+
+  if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    flush = function (queueName, next) {
+      if (queueName === 'render' || queueName === _rsvpErrorQueue) {
+        (0, _metal.flushInvalidActiveObservers)();
+      }
+
+      next();
+    };
   }
 
   const _rsvpErrorQueue = ("" + Math.random() + Date.now()).replace('.', '');
@@ -41330,7 +42018,8 @@ enifed("@ember/runloop/index", ["exports", "@ember/debug", "@ember/-internals/er
     onBegin,
     onEnd,
     onErrorTarget: _errorHandling.onErrorTarget,
-    onErrorMethod: 'onerror'
+    onErrorMethod: 'onerror',
+    flush
   });
   /**
    @module @ember/runloop
@@ -55238,7 +55927,7 @@ enifed("ember/version", ["exports"], function (_exports) {
   "use strict";
 
   _exports.default = void 0;
-  var _default = "3.11.0-with-dist-build+8b433301";
+  var _default = "3.11.0-with-dist-build+9c225ae1";
   _exports.default = _default;
 });
 /*global enifed, module */

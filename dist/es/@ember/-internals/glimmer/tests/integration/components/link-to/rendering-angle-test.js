@@ -1,4 +1,4 @@
-import { moduleFor, ApplicationTestCase, RenderingTestCase, runTask } from 'internal-test-helpers';
+import { moduleFor, ApplicationTestCase, RenderingTestCase, runTask, runLoopSettled } from 'internal-test-helpers';
 import { EMBER_GLIMMER_ANGLE_BRACKET_BUILT_INS } from '@ember/canary-features';
 import Controller from '@ember/controller';
 import { set } from '@ember/-internals/metal';
@@ -8,7 +8,8 @@ if (EMBER_GLIMMER_ANGLE_BRACKET_BUILT_INS) {
   moduleFor('<LinkTo /> component (rendering tests)', class extends ApplicationTestCase {
     async [`@test throws a useful error if you invoke it wrong`](assert) {
       this.addTemplate('application', `<LinkTo id='the-link'>Index</LinkTo>`);
-      await assert.rejectsAssertion(this.visit('/'), /You must provide at least one of the `@route`, `@model`, `@models` or `@query` argument to `<LinkTo>`/);
+      assert.throwsAssertion(() => runTask(() => this.visit('/')), /You must provide at least one of the `@route`, `@model`, `@models` or `@query` argument to `<LinkTo>`/);
+      await runLoopSettled();
     }
 
     ['@test should be able to be inserted in DOM when the router is not present']() {

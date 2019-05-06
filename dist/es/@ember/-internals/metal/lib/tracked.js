@@ -5,7 +5,7 @@ import { DEBUG } from '@glimmer/env';
 import { combine, CONSTANT_TAG } from '@glimmer/reference';
 import { isElementDescriptor } from './decorator';
 import { setClassicDecorator } from './descriptor_map';
-import { dirty, ensureRunloop, tagFor, tagForProperty, update } from './tags';
+import { markObjectAsDirty, tagForProperty, update } from './tags';
 // For some reason TS can't infer that these two functions are compatible-ish,
 // so we need to corece the type
 let symbol = (HAS_NATIVE_SYMBOL ? Symbol : emberSymbol);
@@ -90,15 +90,16 @@ function descriptorForField([_target, key, desc]) {
             // Add the tag of the returned value if it is an array, since arrays
             // should always cause updates if they are consumed and then changed
             if (Array.isArray(value) || isEmberArray(value)) {
-                update(propertyTag, tagFor(value));
+                update(propertyTag, tagForProperty(value, '[]'));
             }
             return this[secretKey];
         },
         set(newValue) {
-            tagFor(this).inner['dirty']();
-            dirty(tagForProperty(this, key));
+            markObjectAsDirty(this, key);
             this[secretKey] = newValue;
-            propertyDidChange();
+            if (propertyDidChange !== null) {
+                propertyDidChange();
+            }
         },
     };
 }
@@ -118,13 +119,27 @@ function descriptorForField([_target, key, desc]) {
   itself, including child tracked computed properties.
 */
 let CURRENT_TRACKER = null;
-export function getCurrentTracker() {
-    return CURRENT_TRACKER;
+export function track(callback) {
+    let parent = CURRENT_TRACKER;
+    let current = new Tracker();
+    CURRENT_TRACKER = current;
+    try {
+        callback();
+    }
+    finally {
+        CURRENT_TRACKER = parent;
+    }
+    return current.combine();
 }
-export function setCurrentTracker(tracker = new Tracker()) {
-    return (CURRENT_TRACKER = tracker);
+export function consume(tag) {
+    if (CURRENT_TRACKER !== null) {
+        CURRENT_TRACKER.add(tag);
+    }
 }
-let propertyDidChange = ensureRunloop;
+export function isTracking() {
+    return CURRENT_TRACKER !== null;
+}
+let propertyDidChange = null;
 export function setPropertyDidChange(cb) {
     propertyDidChange = cb;
 }

@@ -7,8 +7,8 @@ import { assert } from '@ember/debug';
 import { DEBUG } from '@glimmer/env';
 import { descriptorForProperty } from './descriptor_map';
 import { isPath } from './path_cache';
-import { tagFor, tagForProperty } from './tags';
-import { getCurrentTracker } from './tracked';
+import { tagForProperty } from './tags';
+import { consume, isTracking } from './tracked';
 export const PROXY_CONTENT = symbol('PROXY_CONTENT');
 export let getPossibleMandatoryProxyValue;
 if (DEBUG && HAS_NATIVE_PROXY) {
@@ -74,11 +74,10 @@ export function get(obj, keyName) {
     }
     let value;
     if (isObjectLike) {
-        let tracker = null;
+        let tracking = isTracking();
         if (EMBER_METAL_TRACKED_PROPERTIES) {
-            tracker = getCurrentTracker();
-            if (tracker !== null) {
-                tracker.add(tagForProperty(obj, keyName));
+            if (tracking) {
+                consume(tagForProperty(obj, keyName));
             }
         }
         let descriptor = descriptorForProperty(obj, keyName);
@@ -94,9 +93,9 @@ export function get(obj, keyName) {
         // Add the tag of the returned value if it is an array, since arrays
         // should always cause updates if they are consumed and then changed
         if (EMBER_METAL_TRACKED_PROPERTIES &&
-            tracker !== null &&
+            tracking &&
             (Array.isArray(value) || isEmberArray(value))) {
-            tracker.add(tagFor(value));
+            consume(tagForProperty(value, '[]'));
         }
     }
     else {

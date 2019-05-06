@@ -2,10 +2,10 @@ import { ENV } from '@ember/-internals/environment';
 import { Mixin, mixin, get, set } from '@ember/-internals/metal';
 import EmberObject from '../../lib/system/object';
 import Evented from '../../lib/mixins/evented';
-import { moduleFor, AbstractTestCase } from 'internal-test-helpers';
+import { moduleFor, AbstractTestCase, runLoopSettled } from 'internal-test-helpers';
 import { FUNCTION_PROTOTYPE_EXTENSIONS } from '@ember/deprecated-features';
 moduleFor('Function.prototype.observes() helper', class extends AbstractTestCase {
-  ['@test global observer helper takes multiple params'](assert) {
+  async ['@test global observer helper takes multiple params'](assert) {
     if (!FUNCTION_PROTOTYPE_EXTENSIONS || !ENV.EXTEND_PROTOTYPES.Function) {
       assert.ok('undefined' === typeof Function.prototype.observes, 'Function.prototype helper disabled');
       return;
@@ -23,7 +23,9 @@ moduleFor('Function.prototype.observes() helper', class extends AbstractTestCase
     let obj = mixin({}, MyMixin);
     assert.equal(get(obj, 'count'), 0, 'should not invoke observer immediately');
     set(obj, 'bar', 'BAZ');
+    await runLoopSettled();
     set(obj, 'baz', 'BAZ');
+    await runLoopSettled();
     assert.equal(get(obj, 'count'), 2, 'should invoke observer after change');
   }
 
@@ -51,7 +53,7 @@ moduleFor('Function.prototype.on() helper', class extends AbstractTestCase {
     assert.equal(get(obj, 'count'), 2, 'should invoke listeners when events trigger');
   }
 
-  ['@test can be chained with observes'](assert) {
+  async ['@test can be chained with observes'](assert) {
     if (!FUNCTION_PROTOTYPE_EXTENSIONS || !ENV.EXTEND_PROTOTYPES.Function) {
       assert.ok('Function.prototype helper disabled');
       return;
@@ -71,6 +73,7 @@ moduleFor('Function.prototype.on() helper', class extends AbstractTestCase {
     assert.equal(get(obj, 'count'), 0, 'should not invoke listener immediately');
     set(obj, 'bay', 'BAY');
     obj.trigger('bar');
+    await runLoopSettled();
     assert.equal(get(obj, 'count'), 2, 'should invoke observer and listener');
   }
 

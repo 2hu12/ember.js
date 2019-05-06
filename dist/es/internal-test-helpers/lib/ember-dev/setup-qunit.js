@@ -25,19 +25,23 @@ export default function setupQUnit({ runningProdBuild }) {
         });
     };
     QUnit.assert.rejects = async function (promise, expected, message) {
-        let threw = false;
+        let error;
+        let prevOnError = Ember.onerror;
+        Ember.onerror = (e) => {
+            error = e;
+        };
         try {
             await promise;
         }
         catch (e) {
-            threw = true;
-            QUnit.assert.throws(() => {
-                throw e;
-            }, expected, message);
+            error = e;
         }
-        if (!threw) {
-            QUnit.assert.ok(false, `expected an error to be thrown: ${expected}`);
-        }
+        QUnit.assert.throws(() => {
+            if (error) {
+                throw error;
+            }
+        }, expected, message);
+        Ember.onerror = prevOnError;
     };
     QUnit.assert.throwsAssertion = function (block, expected, message) {
         if (!DEBUG) {

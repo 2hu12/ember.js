@@ -16,6 +16,10 @@ moduleFor('Loading/Error Substates', class extends ApplicationTestCase {
     this.addTemplate('index', 'INDEX');
   }
 
+  visit(...args) {
+    return runTask(() => super.visit(...args));
+  }
+
   getController(name) {
     return this.applicationInstance.lookup(`controller:${name}`);
   }
@@ -438,7 +442,7 @@ moduleFor('Loading/Error Substates - nested routes', class extends ApplicationTe
       }
 
     }));
-    let promise = this.visit('/grandma/mom').then(() => {
+    let promise = runTask(() => this.visit('/grandma/mom')).then(() => {
       text = this.$('#app').text();
       assert.equal(text, 'GRANDMA MOM', `Grandma.mom loaded text is displayed`);
       assert.equal(this.currentPath, 'grandma.mom.index', `currentPath reflects final state`);
@@ -686,7 +690,7 @@ moduleFor('Loading/Error Substates - nested routes', class extends ApplicationTe
       }
 
     }));
-    let promise = this.visit('/grandma/mom/sally').then(() => {
+    let promise = runTask(() => this.visit('/grandma/mom/sally')).then(() => {
       text = this.$('#app').text();
       assert.equal(text, 'GRANDMA MOM SALLY', `Sally template displayed`);
     });
@@ -715,15 +719,14 @@ moduleFor('Loading/Error Substates - nested routes', class extends ApplicationTe
       }
 
     }));
-    return this.visit('/grandma/mom/sally').then(() => {
-      assert.equal(this.currentPath, 'grandma.mom.sally', 'Initial route fully loaded');
-      let promise = this.visit('/grandma/puppies').then(() => {
-        assert.equal(this.currentPath, 'grandma.puppies', 'Finished transition');
-      });
-      assert.equal(this.currentPath, 'grandma.loading', `in pivot route's child loading state`);
-      deferred.resolve();
-      return promise;
+    await this.visit('/grandma/mom/sally');
+    assert.equal(this.currentPath, 'grandma.mom.sally', 'Initial route fully loaded');
+    let promise = runTask(() => this.visit('/grandma/puppies')).then(() => {
+      assert.equal(this.currentPath, 'grandma.puppies', 'Finished transition');
     });
+    assert.equal(this.currentPath, 'grandma.loading', `in pivot route's child loading state`);
+    deferred.resolve();
+    return promise;
   }
 
   async [`@test Error events that aren't bubbled don't throw application assertions`](assert) {
@@ -801,7 +804,7 @@ moduleFor('Loading/Error Substates - nested routes', class extends ApplicationTe
       }
 
     }));
-    let promise = this.visit('/grandma').then(() => {
+    let promise = runTask(() => this.visit('/grandma')).then(() => {
       assert.equal(this.currentPath, 'memere.index', 'Transition should be complete');
     });
     let memereController = this.getController('memere');

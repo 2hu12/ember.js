@@ -3,21 +3,10 @@
 */
 import { combine, CONSTANT_TAG, DirtyableTag, UpdatableTag } from '@glimmer/reference';
 import { meta } from '@ember/-internals/meta';
-import { get, set, addObserver, removeObserver, notifyPropertyChange, defineProperty, Mixin, tagFor, computed } from '@ember/-internals/metal';
+import { get, set, addObserver, removeObserver, notifyPropertyChange, defineProperty, Mixin, tagFor, computed, UNKNOWN_PROPERTY_TAG, getChainTagsForKey } from '@ember/-internals/metal';
 import { setProxy } from '@ember/-internals/utils';
+import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 import { assert } from '@ember/debug';
-
-function contentPropertyDidChange(content, contentKey) {
-  let key = contentKey.slice(8); // remove "content."
-
-  if (key in this) {
-    return;
-  } // if shadowed in proxy
-
-
-  notifyPropertyChange(this, key);
-}
-
 export function contentFor(proxy, m) {
   let content = get(proxy, 'content');
   let tag = (m === undefined ? meta(proxy) : m).readableTag();
@@ -66,13 +55,32 @@ export default Mixin.create({
   }),
 
   willWatchProperty(key) {
-    let contentKey = `content.${key}`;
-    addObserver(this, contentKey, null, contentPropertyDidChange);
+    if (!EMBER_METAL_TRACKED_PROPERTIES) {
+      let contentKey = `content.${key}`;
+      addObserver(this, contentKey, null, '_contentPropertyDidChange');
+    }
   },
 
   didUnwatchProperty(key) {
-    let contentKey = `content.${key}`;
-    removeObserver(this, contentKey, null, contentPropertyDidChange);
+    if (!EMBER_METAL_TRACKED_PROPERTIES) {
+      let contentKey = `content.${key}`;
+      removeObserver(this, contentKey, null, '_contentPropertyDidChange');
+    }
+  },
+
+  _contentPropertyDidChange(content, contentKey) {
+    let key = contentKey.slice(8); // remove "content."
+
+    if (key in this) {
+      return;
+    } // if shadowed in proxy
+
+
+    notifyPropertyChange(this, key);
+  },
+
+  [UNKNOWN_PROPERTY_TAG](key) {
+    return getChainTagsForKey(this, `content.${key}`);
   },
 
   unknownProperty(key) {

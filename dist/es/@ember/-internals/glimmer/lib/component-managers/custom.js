@@ -1,4 +1,4 @@
-import { getCurrentTracker } from '@ember/-internals/metal';
+import { consume } from '@ember/-internals/metal';
 import { HAS_NATIVE_PROXY } from '@ember/-internals/utils';
 import { EMBER_CUSTOM_COMPONENT_ARG_PROXY } from '@ember/canary-features';
 import { assert } from '@ember/debug';
@@ -71,11 +71,8 @@ export default class CustomComponentManager extends AbstractComponentManager {
                 let handler = {
                     get(_target, prop) {
                         assert('args can only be strings', typeof prop === 'string');
-                        let tracker = getCurrentTracker();
                         let ref = capturedArgs.named.get(prop);
-                        if (tracker) {
-                            tracker.add(ref.tag);
-                        }
+                        consume(ref.tag);
                         return ref.value();
                     },
                 };
@@ -92,10 +89,7 @@ export default class CustomComponentManager extends AbstractComponentManager {
                     Object.defineProperty(namedArgsProxy, name, {
                         get() {
                             let ref = capturedArgs.named.get(name);
-                            let tracker = getCurrentTracker();
-                            if (tracker) {
-                                tracker.add(ref.tag);
-                            }
+                            consume(ref.tag);
                             return ref.value();
                         },
                     });

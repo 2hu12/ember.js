@@ -1,6 +1,8 @@
 import { assert } from '@ember/debug';
 import { onErrorTarget } from '@ember/-internals/error-handling';
+import { flushInvalidActiveObservers } from '@ember/-internals/metal';
 import Backburner from 'backburner';
+import { EMBER_METAL_TRACKED_PROPERTIES } from '@ember/canary-features';
 let currentRunLoop = null;
 export function getCurrentRunLoop() {
   return currentRunLoop;
@@ -12,6 +14,22 @@ function onBegin(current) {
 
 function onEnd(current, next) {
   currentRunLoop = next;
+
+  if (EMBER_METAL_TRACKED_PROPERTIES) {
+    flushInvalidActiveObservers();
+  }
+}
+
+let flush;
+
+if (EMBER_METAL_TRACKED_PROPERTIES) {
+  flush = function (queueName, next) {
+    if (queueName === 'render' || queueName === _rsvpErrorQueue) {
+      flushInvalidActiveObservers();
+    }
+
+    next();
+  };
 }
 
 export const _rsvpErrorQueue = `${Math.random()}${Date.now()}`.replace('.', '');
@@ -37,7 +55,8 @@ export const backburner = new Backburner(queues, {
   onBegin,
   onEnd,
   onErrorTarget,
-  onErrorMethod: 'onerror'
+  onErrorMethod: 'onerror',
+  flush
 });
 /**
  @module @ember/runloop

@@ -4,11 +4,10 @@ function _applyDecoratedDescriptor(target, property, decorators, descriptor, con
 
 function _initializerWarningHelper(descriptor, context) { throw new Error('Decorating class property failed. Please ensure that ' + 'proposal-class-properties is enabled and set to use loose mode. ' + 'To use proposal-class-properties in spec mode with decorators, wait for ' + 'the next major version of decorators in stage 2.'); }
 
-import { computed, defineProperty, get, set, tagForProperty, tracked, notifyPropertyChange } from '../..';
+import { computed, defineProperty, get, set, tagForProperty, tracked, track, notifyPropertyChange } from '../..';
 import { EMBER_METAL_TRACKED_PROPERTIES, EMBER_NATIVE_DECORATOR_SUPPORT } from '@ember/canary-features';
 import { EMBER_ARRAY } from '@ember/-internals/utils';
 import { AbstractTestCase, moduleFor } from 'internal-test-helpers';
-import { track } from './support';
 
 if (EMBER_METAL_TRACKED_PROPERTIES && EMBER_NATIVE_DECORATOR_SUPPORT) {
   moduleFor('@tracked get validation', class extends AbstractTestCase {
@@ -192,7 +191,7 @@ if (EMBER_METAL_TRACKED_PROPERTIES && EMBER_NATIVE_DECORATOR_SUPPORT) {
 
       }
 
-      defineProperty(EmberObject.prototype, 'full', computed('name', function () {
+      defineProperty(EmberObject.prototype, 'full', computed('name.first', 'name.last', function () {
         let name = get(this, 'name');
         return `${name.first} ${name.last}`;
       }));
@@ -350,7 +349,7 @@ if (EMBER_METAL_TRACKED_PROPERTIES && EMBER_NATIVE_DECORATOR_SUPPORT) {
       let snapshot = tag.value();
       let emberArray = get(obj, 'emberArray');
       assert.equal(tag.validate(snapshot), true);
-      set(emberArray, 'foo', 123);
+      notifyPropertyChange(emberArray, '[]');
       assert.equal(tag.validate(snapshot), false, 'invalid after setting a property on the object');
     }
 

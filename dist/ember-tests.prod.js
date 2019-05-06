@@ -6,7 +6,7 @@
  *            Portions Copyright 2008-2011 Apple Inc. All rights reserved.
  * @license   Licensed under MIT license
  *            See https://raw.github.com/emberjs/ember.js/master/LICENSE
- * @version   3.11.0-with-dist-build+8b433301
+ * @version   3.11.0-with-dist-build+9c225ae1
  */
 
 /*globals process */
@@ -1871,6 +1871,7 @@ enifed("@ember/-internals/extension-support/tests/data_adapter_test", ["@ember/r
 
       }));
       this.add('model:post', PostClass);
+      let release;
       return this.visit('/').then(() => {
         adapter = this.applicationInstance.lookup('data-adapter:main');
 
@@ -1883,7 +1884,9 @@ enifed("@ember/-internals/extension-support/tests/data_adapter_test", ["@ember/r
           assert.equal(records[0].columnValues.title, 'Post Modified');
         }
 
-        let release = adapter.watchRecords('post', recordsAdded, recordsUpdated);
+        release = adapter.watchRecords('post', recordsAdded, recordsUpdated);
+        return (0, _internalTestHelpers.runLoopSettled)();
+      }).then(() => {
         release();
         (0, _metal.set)(post, 'title', 'New Title');
         assert.equal(updatesCalled, 1, 'Release function removes observers');
@@ -2051,6 +2054,42 @@ enifed("@ember/-internals/glimmer/tests/integration/application/engine-test", ["
   }
 
   function _taggedTemplateLiteralLoose(strings, raw) { if (!raw) { raw = strings.slice(0); } strings.raw = raw; return strings; }
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   (0, _internalTestHelpers.moduleFor)('Application test: engine rendering', class extends _internalTestHelpers.ApplicationTestCase {
     get routerOptions() {
@@ -2704,21 +2743,42 @@ enifed("@ember/-internals/glimmer/tests/integration/application/engine-test", ["
     }
 
     ['@test query params in customized controllerName have stickiness by default between model'](assert) {
-      assert.expect(2);
-      let tmpl = '{{#link-to "blog.author" 1337 class="author-1337"}}Author 1337{{/link-to}}{{#link-to "blog.author" 1 class="author-1"}}Author 1{{/link-to}}';
-      this.setupAppAndRoutableEngine();
-      this.additionalEngineRegistrations(function () {
-        this.register('template:author', (0, _helpers.compile)(tmpl));
-      });
-      return this.visit('/blog/author/1?official=true').then(() => {
-        let suffix1 = '/blog/author/1?official=true';
-        let href1 = this.element.querySelector('.author-1').href;
-        let suffix1337 = '/blog/author/1337';
-        let href1337 = this.element.querySelector('.author-1337').href; // check if link ends with the suffix
+      var _this = this;
 
-        assert.ok(this.stringsEndWith(href1, suffix1), href1 + " ends with " + suffix1);
-        assert.ok(this.stringsEndWith(href1337, suffix1337), href1337 + " ends with " + suffix1337);
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var tmpl, suffix1, href1, suffix1337, href1337;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              assert.expect(2);
+              tmpl = '{{#link-to "blog.author" 1337 class="author-1337"}}Author 1337{{/link-to}}{{#link-to "blog.author" 1 class="author-1"}}Author 1{{/link-to}}';
+
+              _this.setupAppAndRoutableEngine();
+
+              _this.additionalEngineRegistrations(function () {
+                this.register('template:author', (0, _helpers.compile)(tmpl));
+              });
+
+              _context.next = 6;
+              return _this.visit('/blog/author/1?official=true');
+
+            case 6:
+              suffix1 = '/blog/author/1?official=true';
+              href1 = _this.element.querySelector('.author-1').href;
+              suffix1337 = '/blog/author/1337';
+              href1337 = _this.element.querySelector('.author-1337').href; // check if link ends with the suffix
+
+              assert.ok(_this.stringsEndWith(href1, suffix1), href1 + " ends with " + suffix1);
+              assert.ok(_this.stringsEndWith(href1337, suffix1337), href1337 + " ends with " + suffix1337);
+
+            case 12:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     ['@test visit() routable engine which errors on init'](assert) {
@@ -3599,9 +3659,11 @@ enifed("@ember/-internals/glimmer/tests/integration/application/rendering-test",
               return _this.visit('/');
 
             case 11:
-              assert.rejectsAssertion(_this.visit('/routeWithError'), expectedBacktrackingMessage);
+              assert.throwsAssertion(() => (0, _internalTestHelpers.runTask)(() => _this.visit('/routeWithError')), expectedBacktrackingMessage);
+              _context.next = 14;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-            case 12:
+            case 14:
             case "end":
               return _context.stop();
           }
@@ -9185,7 +9247,7 @@ enifed("@ember/-internals/glimmer/tests/integration/components/contextual-compon
   }]));
   (0, _internalTestHelpers.moduleFor)('Components test: contextual components -- mutable params', ContextualComponentMutableParamsTest);
 });
-enifed("@ember/-internals/glimmer/tests/integration/components/curly-components-test", ["internal-test-helpers", "@ember/runloop", "@ember/-internals/metal", "@ember/service", "@ember/-internals/runtime", "@ember/-internals/views", "@ember/-internals/glimmer/tests/utils/helpers"], function (_internalTestHelpers, _runloop, _metal, _service, _runtime, _views, _helpers) {
+enifed("@ember/-internals/glimmer/tests/integration/components/curly-components-test", ["internal-test-helpers", "@ember/runloop", "@ember/-internals/metal", "@ember/canary-features", "@ember/service", "@ember/-internals/runtime", "@ember/-internals/views", "@ember/-internals/glimmer/tests/utils/helpers"], function (_internalTestHelpers, _runloop, _metal, _canaryFeatures, _service, _runtime, _views, _helpers) {
   "use strict";
 
   function _templateObject55() {
@@ -9739,6 +9801,44 @@ enifed("@ember/-internals/glimmer/tests/integration/components/curly-components-
   }
 
   function _taggedTemplateLiteralLoose(strings, raw) { if (!raw) { raw = strings.slice(0); } strings.raw = raw; return strings; }
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+  /* globals EmberDev */
+
 
   (0, _internalTestHelpers.moduleFor)('Components test: curly components', class extends _internalTestHelpers.RenderingTestCase {
     ['@test it can render a basic component']() {
@@ -11807,16 +11907,10 @@ enifed("@ember/-internals/glimmer/tests/integration/components/curly-components-
       assert.equal(outer.parentView, this.context, 'x-outer receives the ambient scope as its parentView');
     }
 
-    ["@test when a property is changed during children's rendering"](assert) {
-      let outer, middle;
+    ["@test when a property is changed during children's rendering"]() {
+      let middle;
       this.registerComponent('x-outer', {
         ComponentClass: _helpers.Component.extend({
-          init() {
-            this._super(...arguments);
-
-            outer = this;
-          },
-
           value: 1
         }),
         template: '{{#x-middle}}{{x-inner value=value}}{{/x-middle}}'
@@ -11836,21 +11930,17 @@ enifed("@ember/-internals/glimmer/tests/integration/components/curly-components-
       this.registerComponent('x-inner', {
         ComponentClass: _helpers.Component.extend({
           value: null,
-          pushDataUp: (0, _metal.observer)('value', function () {
+
+          didReceiveAttrs() {
             middle.set('value', this.get('value'));
-          })
+          }
+
         }),
         template: '<div id="inner-value">{{value}}</div>'
       });
-      this.render('{{x-outer}}');
-      assert.equal(this.$('#inner-value').text(), '1', 'initial render of inner');
-      assert.equal(this.$('#middle-value').text(), '', 'initial render of middle (observers do not run during init)');
-      (0, _internalTestHelpers.runTask)(() => this.rerender());
-      assert.equal(this.$('#inner-value').text(), '1', 'initial render of inner');
-      assert.equal(this.$('#middle-value').text(), '', 'initial render of middle (observers do not run during init)');
       let expectedBacktrackingMessage = /modified "value" twice on <.+?> in a single render\. It was rendered in "component:x-middle" and modified in "component:x-inner"/;
       expectAssertion(() => {
-        (0, _internalTestHelpers.runTask)(() => outer.set('value', 2));
+        this.render('{{x-outer}}');
       }, expectedBacktrackingMessage);
     }
 
@@ -11974,9 +12064,10 @@ enifed("@ember/-internals/glimmer/tests/integration/components/curly-components-
       if (false
       /* DEBUG */
       ) {
+          let message = _canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES ? /You attempted to update .*, but it is being tracked by a tracking context/ : /You must use set\(\) to set the `bar` property \(of .+\) to `foo-bar`\./;
           expectAssertion(() => {
             component.bar = 'foo-bar';
-          }, /You must use set\(\) to set the `bar` property \(of .+\) to `foo-bar`\./);
+          }, message);
           this.assertText('initial value - initial value');
         }
 
@@ -12378,34 +12469,62 @@ enifed("@ember/-internals/glimmer/tests/integration/components/curly-components-
     }
 
     ['@test didReceiveAttrs fires after .init() but before observers become active'](assert) {
-      let barCopyDidChangeCount = 0;
-      this.registerComponent('foo-bar', {
-        ComponentClass: _helpers.Component.extend({
-          init() {
-            this._super(...arguments);
+      var _this = this;
 
-            this.didInit = true;
-          },
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var barCopyDidChangeCount,
+            _args = arguments;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              barCopyDidChangeCount = 0;
 
-          didReceiveAttrs() {
-            assert.ok(this.didInit, 'expected init to have run before didReceiveAttrs');
-            this.set('barCopy', this.attrs.bar.value + 1);
-          },
+              _this.registerComponent('foo-bar', {
+                ComponentClass: _helpers.Component.extend({
+                  init() {
+                    this._super(..._args);
 
-          barCopyDidChange: (0, _metal.observer)('barCopy', () => {
-            barCopyDidChangeCount++;
-          })
-        }),
-        template: '{{bar}}-{{barCopy}}'
-      });
-      this.render("{{foo-bar bar=bar}}", {
-        bar: 3
-      });
-      this.assertText('3-4');
-      assert.strictEqual(barCopyDidChangeCount, 1, 'expected observer firing for: barCopy');
-      (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'bar', 7));
-      this.assertText('7-8');
-      assert.strictEqual(barCopyDidChangeCount, 2, 'expected observer firing for: barCopy');
+                    this.didInit = true;
+                  },
+
+                  didReceiveAttrs() {
+                    assert.ok(this.didInit, 'expected init to have run before didReceiveAttrs');
+                    this.set('barCopy', this.attrs.bar.value + 1);
+                  },
+
+                  barCopyDidChange: (0, _metal.observer)('barCopy', () => {
+                    barCopyDidChangeCount++;
+                  })
+                }),
+                template: '{{bar}}-{{barCopy}}'
+              });
+
+              _context.next = 4;
+              return _this.render("{{foo-bar bar=bar}}", {
+                bar: 3
+              });
+
+            case 4:
+              _this.assertText('3-4');
+
+              assert.strictEqual(barCopyDidChangeCount, 1, 'expected observer firing for: barCopy');
+              (0, _metal.set)(_this.context, 'bar', 7);
+              _context.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this.assertText('7-8');
+
+              assert.strictEqual(barCopyDidChangeCount, 2, 'expected observer firing for: barCopy');
+
+            case 11:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee, this);
+      }))();
     }
 
     ['@test overriding didReceiveAttrs does not trigger deprecation'](assert) {
@@ -17293,6 +17412,42 @@ enifed("@ember/-internals/glimmer/tests/integration/components/life-cycle-test",
 enifed("@ember/-internals/glimmer/tests/integration/components/link-to/query-params-angle-test", ["@ember/controller", "@ember/-internals/runtime", "@ember/-internals/routing", "internal-test-helpers"], function (_controller, _runtime, _routing, _internalTestHelpers) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   if (true
   /* EMBER_GLIMMER_ANGLE_BRACKET_BUILT_INS */
   ) {
@@ -17470,16 +17625,43 @@ enifed("@ember/-internals/glimmer/tests/integration/components/link-to/query-par
         }
 
         ['@test href updates when unsupplied controller QP props change'](assert) {
-          this.addTemplate('index', "\n          <LinkTo id=\"the-link\" @query={{hash foo='lol'}}>\n            Index\n          </LinkTo>\n          ");
-          return this.visit('/').then(() => {
-            let indexController = this.getController('index');
-            let theLink = this.$('#the-link');
-            assert.equal(theLink.attr('href'), '/?foo=lol');
-            (0, _internalTestHelpers.runTask)(() => indexController.set('bar', 'BORF'));
-            assert.equal(theLink.attr('href'), '/?bar=BORF&foo=lol');
-            (0, _internalTestHelpers.runTask)(() => indexController.set('foo', 'YEAH'));
-            assert.equal(theLink.attr('href'), '/?bar=BORF&foo=lol');
-          });
+          var _this = this;
+
+          return _asyncToGenerator(
+          /*#__PURE__*/
+          regeneratorRuntime.mark(function _callee() {
+            var indexController, theLink;
+            return regeneratorRuntime.wrap(function _callee$(_context) {
+              while (1) switch (_context.prev = _context.next) {
+                case 0:
+                  _this.addTemplate('index', "\n          <LinkTo id=\"the-link\" @query={{hash foo='lol'}}>\n            Index\n          </LinkTo>\n          ");
+
+                  _context.next = 3;
+                  return _this.visit('/');
+
+                case 3:
+                  indexController = _this.getController('index');
+                  theLink = _this.$('#the-link');
+                  assert.equal(theLink.attr('href'), '/?foo=lol');
+                  indexController.set('bar', 'BORF');
+                  _context.next = 9;
+                  return (0, _internalTestHelpers.runLoopSettled)();
+
+                case 9:
+                  assert.equal(theLink.attr('href'), '/?bar=BORF&foo=lol');
+                  indexController.set('foo', 'YEAH');
+                  _context.next = 13;
+                  return (0, _internalTestHelpers.runLoopSettled)();
+
+                case 13:
+                  assert.equal(theLink.attr('href'), '/?bar=BORF&foo=lol');
+
+                case 14:
+                case "end":
+                  return _context.stop();
+              }
+            }, _callee);
+          }))();
         }
 
         ['@test The <LinkTo /> component with only query params always transitions to the current route with the query params applied'](assert) {
@@ -17630,37 +17812,78 @@ enifed("@ember/-internals/glimmer/tests/integration/components/link-to/query-par
         }
 
         ['@test The <LinkTo /> component disregards query-params in activeness computation when current-when is specified'](assert) {
-          let appLink;
-          this.router.map(function () {
-            this.route('parent');
-          });
-          this.addTemplate('application', "\n          <LinkTo id='app-link' @route='parent' @query={{hash page=1}} @current-when='parent'>\n            Parent\n          </LinkTo>\n          {{outlet}}\n          ");
-          this.addTemplate('parent', "\n          <LinkTo id='parent-link' @route='parent' @query={{hash page=1}} @current-when='parent'>\n            Parent\n          </LinkTo>\n          {{outlet}}\n          ");
-          this.add('controller:parent', _controller.default.extend({
-            queryParams: ['page'],
-            page: 1
-          }));
-          return this.visit('/').then(() => {
-            appLink = this.$('#app-link');
-            assert.equal(appLink.attr('href'), '/parent');
-            this.shouldNotBeActive(assert, '#app-link');
-            return this.visit('/parent?page=2');
-          }).then(() => {
-            appLink = this.$('#app-link');
-            let router = this.appRouter;
-            assert.equal(appLink.attr('href'), '/parent');
-            this.shouldBeActive(assert, '#app-link');
-            assert.equal(this.$('#parent-link').attr('href'), '/parent');
-            this.shouldBeActive(assert, '#parent-link');
-            let parentController = this.getController('parent');
-            assert.equal(parentController.get('page'), 2);
-            (0, _internalTestHelpers.runTask)(() => parentController.set('page', 3));
-            assert.equal(router.get('location.path'), '/parent?page=3');
-            this.shouldBeActive(assert, '#app-link');
-            this.shouldBeActive(assert, '#parent-link');
-            (0, _internalTestHelpers.runTask)(() => this.click('#app-link'));
-            assert.equal(router.get('location.path'), '/parent');
-          });
+          var _this2 = this;
+
+          return _asyncToGenerator(
+          /*#__PURE__*/
+          regeneratorRuntime.mark(function _callee2() {
+            var appLink, router, parentController;
+            return regeneratorRuntime.wrap(function _callee2$(_context2) {
+              while (1) switch (_context2.prev = _context2.next) {
+                case 0:
+                  _this2.router.map(function () {
+                    this.route('parent');
+                  });
+
+                  _this2.addTemplate('application', "\n          <LinkTo id='app-link' @route='parent' @query={{hash page=1}} @current-when='parent'>\n            Parent\n          </LinkTo>\n          {{outlet}}\n          ");
+
+                  _this2.addTemplate('parent', "\n          <LinkTo id='parent-link' @route='parent' @query={{hash page=1}} @current-when='parent'>\n            Parent\n          </LinkTo>\n          {{outlet}}\n          ");
+
+                  _this2.add('controller:parent', _controller.default.extend({
+                    queryParams: ['page'],
+                    page: 1
+                  }));
+
+                  _context2.next = 6;
+                  return _this2.visit('/');
+
+                case 6:
+                  appLink = _this2.$('#app-link');
+                  assert.equal(appLink.attr('href'), '/parent');
+
+                  _this2.shouldNotBeActive(assert, '#app-link');
+
+                  _context2.next = 11;
+                  return _this2.visit('/parent?page=2');
+
+                case 11:
+                  appLink = _this2.$('#app-link');
+                  router = _this2.appRouter;
+                  assert.equal(appLink.attr('href'), '/parent');
+
+                  _this2.shouldBeActive(assert, '#app-link');
+
+                  assert.equal(_this2.$('#parent-link').attr('href'), '/parent');
+
+                  _this2.shouldBeActive(assert, '#parent-link');
+
+                  parentController = _this2.getController('parent');
+                  assert.equal(parentController.get('page'), 2);
+                  parentController.set('page', 3);
+                  _context2.next = 22;
+                  return (0, _internalTestHelpers.runLoopSettled)();
+
+                case 22:
+                  assert.equal(router.get('location.path'), '/parent?page=3');
+
+                  _this2.shouldBeActive(assert, '#app-link');
+
+                  _this2.shouldBeActive(assert, '#parent-link');
+
+                  _this2.click('#app-link');
+
+                  _context2.next = 28;
+                  return (0, _internalTestHelpers.runLoopSettled)();
+
+                case 28:
+                  assert.equal(router.get('location.path'), '/parent');
+
+                case 29:
+                case "end":
+                  return _context2.stop();
+              }
+            }, _callee2);
+          }))();
         }
 
         ['@test the <LinkTo /> component default query params while in active transition regression test'](assert) {
@@ -17960,16 +18183,43 @@ enifed("@ember/-internals/glimmer/tests/integration/components/link-to/query-par
     }
 
     ['@test href updates when unsupplied controller QP props change'](assert) {
-      this.addTemplate('index', "{{#link-to (query-params foo='lol') id='the-link'}}Index{{/link-to}}");
-      return this.visit('/').then(() => {
-        let indexController = this.getController('index');
-        let theLink = this.$('#the-link');
-        assert.equal(theLink.attr('href'), '/?foo=lol');
-        (0, _internalTestHelpers.runTask)(() => indexController.set('bar', 'BORF'));
-        assert.equal(theLink.attr('href'), '/?bar=BORF&foo=lol');
-        (0, _internalTestHelpers.runTask)(() => indexController.set('foo', 'YEAH'));
-        assert.equal(theLink.attr('href'), '/?bar=BORF&foo=lol');
-      });
+      var _this2 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var indexController, theLink;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              _this2.addTemplate('index', "{{#link-to (query-params foo='lol') id='the-link'}}Index{{/link-to}}");
+
+              _context2.next = 3;
+              return _this2.visit('/');
+
+            case 3:
+              indexController = _this2.getController('index');
+              theLink = _this2.$('#the-link');
+              assert.equal(theLink.attr('href'), '/?foo=lol');
+              indexController.set('bar', 'BORF');
+              _context2.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              assert.equal(theLink.attr('href'), '/?bar=BORF&foo=lol');
+              indexController.set('foo', 'YEAH');
+              _context2.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 13:
+              assert.equal(theLink.attr('href'), '/?bar=BORF&foo=lol');
+
+            case 14:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     ['@test The {{link-to}} with only query params always transitions to the current route with the query params applied'](assert) {
@@ -18120,37 +18370,78 @@ enifed("@ember/-internals/glimmer/tests/integration/components/link-to/query-par
     }
 
     ['@test The {{link-to}} component disregards query-params in activeness computation when current-when is specified'](assert) {
-      let appLink;
-      this.router.map(function () {
-        this.route('parent');
-      });
-      this.addTemplate('application', "\n        {{#link-to 'parent' (query-params page=1) current-when='parent' id='app-link'}}\n          Parent\n        {{/link-to}}\n        {{outlet}}\n        ");
-      this.addTemplate('parent', "\n        {{#link-to 'parent' (query-params page=1) current-when='parent' id='parent-link'}}\n          Parent\n        {{/link-to}}\n        {{outlet}}\n        ");
-      this.add('controller:parent', _controller.default.extend({
-        queryParams: ['page'],
-        page: 1
-      }));
-      return this.visit('/').then(() => {
-        appLink = this.$('#app-link');
-        assert.equal(appLink.attr('href'), '/parent');
-        this.shouldNotBeActive(assert, '#app-link');
-        return this.visit('/parent?page=2');
-      }).then(() => {
-        appLink = this.$('#app-link');
-        let router = this.appRouter;
-        assert.equal(appLink.attr('href'), '/parent');
-        this.shouldBeActive(assert, '#app-link');
-        assert.equal(this.$('#parent-link').attr('href'), '/parent');
-        this.shouldBeActive(assert, '#parent-link');
-        let parentController = this.getController('parent');
-        assert.equal(parentController.get('page'), 2);
-        (0, _internalTestHelpers.runTask)(() => parentController.set('page', 3));
-        assert.equal(router.get('location.path'), '/parent?page=3');
-        this.shouldBeActive(assert, '#app-link');
-        this.shouldBeActive(assert, '#parent-link');
-        (0, _internalTestHelpers.runTask)(() => this.click('#app-link'));
-        assert.equal(router.get('location.path'), '/parent');
-      });
+      var _this3 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var appLink, router, parentController;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              _this3.router.map(function () {
+                this.route('parent');
+              });
+
+              _this3.addTemplate('application', "\n        {{#link-to 'parent' (query-params page=1) current-when='parent' id='app-link'}}\n          Parent\n        {{/link-to}}\n        {{outlet}}\n        ");
+
+              _this3.addTemplate('parent', "\n        {{#link-to 'parent' (query-params page=1) current-when='parent' id='parent-link'}}\n          Parent\n        {{/link-to}}\n        {{outlet}}\n        ");
+
+              _this3.add('controller:parent', _controller.default.extend({
+                queryParams: ['page'],
+                page: 1
+              }));
+
+              _context3.next = 6;
+              return _this3.visit('/');
+
+            case 6:
+              appLink = _this3.$('#app-link');
+              assert.equal(appLink.attr('href'), '/parent');
+
+              _this3.shouldNotBeActive(assert, '#app-link');
+
+              _context3.next = 11;
+              return _this3.visit('/parent?page=2');
+
+            case 11:
+              appLink = _this3.$('#app-link');
+              router = _this3.appRouter;
+              assert.equal(appLink.attr('href'), '/parent');
+
+              _this3.shouldBeActive(assert, '#app-link');
+
+              assert.equal(_this3.$('#parent-link').attr('href'), '/parent');
+
+              _this3.shouldBeActive(assert, '#parent-link');
+
+              parentController = _this3.getController('parent');
+              assert.equal(parentController.get('page'), 2);
+              parentController.set('page', 3);
+              _context3.next = 22;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 22:
+              assert.equal(router.get('location.path'), '/parent?page=3');
+
+              _this3.shouldBeActive(assert, '#app-link');
+
+              _this3.shouldBeActive(assert, '#parent-link');
+
+              _this3.click('#app-link');
+
+              _context3.next = 28;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 28:
+              assert.equal(router.get('location.path'), '/parent');
+
+            case 29:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     ['@test {{link-to}} default query params while in active transition regression test'](assert) {
@@ -18285,10 +18576,11 @@ enifed("@ember/-internals/glimmer/tests/integration/components/link-to/rendering
                 case 0:
                   _this.addTemplate('application', "<LinkTo id='the-link'>Index</LinkTo>");
 
-                  _context.next = 3;
-                  return assert.rejectsAssertion(_this.visit('/'), /You must provide at least one of the `@route`, `@model`, `@models` or `@query` argument to `<LinkTo>`/);
+                  assert.throwsAssertion(() => (0, _internalTestHelpers.runTask)(() => _this.visit('/')), /You must provide at least one of the `@route`, `@model`, `@models` or `@query` argument to `<LinkTo>`/);
+                  _context.next = 4;
+                  return (0, _internalTestHelpers.runLoopSettled)();
 
-                case 3:
+                case 4:
                 case "end":
                   return _context.stop();
               }
@@ -19408,7 +19700,7 @@ enifed("@ember/-internals/glimmer/tests/integration/components/link-to/routing-a
                   _this.addTemplate('application', "<LinkTo @route='post'>Post</LinkTo>");
 
                   _context.next = 5;
-                  return assert.rejects(_this.visit('/'), /(You attempted to generate a link for the "post" route, but did not pass the models required for generating its dynamic segments.|You must provide param `post_id` to `generate`)/);
+                  return assert.throws(() => (0, _internalTestHelpers.runTask)(() => _this.visit('/')), /(You attempted to generate a link for the "post" route, but did not pass the models required for generating its dynamic segments.|You must provide param `post_id` to `generate`)/);
 
                 case 5:
                 case "end":
@@ -20654,10 +20946,11 @@ enifed("@ember/-internals/glimmer/tests/integration/components/link-to/routing-c
 
               _this.addTemplate('application', "{{#link-to 'post'}}Post{{/link-to}}");
 
-              _context.next = 5;
-              return assert.rejects(_this.visit('/'), /(You attempted to define a `\{\{link-to "post"\}\}` but did not pass the parameters required for generating its dynamic segments.|You must provide param `post_id` to `generate`)/);
+              assert.throws(() => (0, _internalTestHelpers.runTask)(() => _this.visit('/')), /(You attempted to define a `\{\{link-to "post"\}\}` but did not pass the parameters required for generating its dynamic segments.|You must provide param `post_id` to `generate`)/);
+              _context.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-            case 5:
+            case 6:
             case "end":
               return _context.stop();
           }
@@ -30804,180 +31097,204 @@ enifed("@ember/-internals/glimmer/tests/integration/helpers/element-action-test"
 
   });
 });
-enifed("@ember/-internals/glimmer/tests/integration/helpers/fn-test", ["@ember/canary-features", "@ember/-internals/glimmer/tests/utils/helpers", "internal-test-helpers", "@ember/-internals/metal"], function (_canaryFeatures, _helpers, _internalTestHelpers, _metal) {
+enifed("@ember/-internals/glimmer/tests/integration/helpers/fn-test", ["@ember/-internals/metal", "@ember/-internals/utils", "internal-test-helpers", "@ember/-internals/glimmer/tests/utils/helpers"], function (_metal, _utils, _internalTestHelpers, _helpers) {
   "use strict";
 
-  if (_canaryFeatures.EMBER_GLIMMER_FN_HELPER) {
-    (0, _internalTestHelpers.moduleFor)('Helpers test: {{fn}}', class extends _internalTestHelpers.RenderingTestCase {
-      beforeEach() {
-        this.registerHelper('invoke', function ([fn]) {
-          return fn();
-        });
-        let testContext = this;
-        this.registerComponent('stash', {
-          ComponentClass: _helpers.Component.extend({
-            init() {
-              this._super(...arguments);
+  if (true
+  /* EMBER_GLIMMER_FN_HELPER */
+  ) {
+      (0, _internalTestHelpers.moduleFor)('Helpers test: {{fn}}', class extends _internalTestHelpers.RenderingTestCase {
+        beforeEach() {
+          this.registerHelper('invoke', function ([fn]) {
+            return fn();
+          });
+          let testContext = this;
+          this.registerComponent('stash', {
+            ComponentClass: _helpers.Component.extend({
+              init() {
+                this._super(...arguments);
 
-              testContext.stashedFn = this.stashedFn;
-            }
+                testContext.stashedFn = this.stashedFn;
+              }
 
-          })
-        });
-      }
+            })
+          });
+        }
 
-      '@test updates when arguments change'() {
-        this.render("{{invoke (fn this.myFunc this.arg1 this.arg2)}}", {
-          myFunc(arg1, arg2) {
-            return "arg1: " + arg1 + ", arg2: " + arg2;
-          },
-
-          arg1: 'foo',
-          arg2: 'bar'
-        });
-        this.assertText('arg1: foo, arg2: bar');
-        this.assertStableRerender();
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg1', 'qux'));
-        this.assertText('arg1: qux, arg2: bar');
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg2', 'derp'));
-        this.assertText('arg1: qux, arg2: derp');
-        (0, _internalTestHelpers.runTask)(() => {
-          (0, _metal.set)(this.context, 'arg1', 'foo');
-          (0, _metal.set)(this.context, 'arg2', 'bar');
-        });
-        this.assertText('arg1: foo, arg2: bar');
-      }
-
-      '@test updates when the function changes'() {
-        let func1 = (arg1, arg2) => "arg1: " + arg1 + ", arg2: " + arg2;
-
-        let func2 = (arg1, arg2) => "arg2: " + arg2 + ", arg1: " + arg1;
-
-        this.render("{{invoke (fn this.myFunc this.arg1 this.arg2)}}", {
-          myFunc: func1,
-          arg1: 'foo',
-          arg2: 'bar'
-        });
-        this.assertText('arg1: foo, arg2: bar');
-        this.assertStableRerender();
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'myFunc', func2));
-        this.assertText('arg2: bar, arg1: foo');
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'myFunc', func1));
-        this.assertText('arg1: foo, arg2: bar');
-      }
-
-      '@test a stashed fn result update arguments when invoked'(assert) {
-        this.render("{{stash stashedFn=(fn this.myFunc this.arg1 this.arg2)}}", {
-          myFunc(arg1, arg2) {
-            return "arg1: " + arg1 + ", arg2: " + arg2;
-          },
-
-          arg1: 'foo',
-          arg2: 'bar'
-        });
-        assert.equal(this.stashedFn(), 'arg1: foo, arg2: bar');
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg1', 'qux'));
-        assert.equal(this.stashedFn(), 'arg1: qux, arg2: bar');
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg2', 'derp'));
-        assert.equal(this.stashedFn(), 'arg1: qux, arg2: derp');
-        (0, _internalTestHelpers.runTask)(() => {
-          (0, _metal.set)(this.context, 'arg1', 'foo');
-          (0, _metal.set)(this.context, 'arg2', 'bar');
-        });
-        assert.equal(this.stashedFn(), 'arg1: foo, arg2: bar');
-      }
-
-      '@test a stashed fn result invokes the correct function when the bound function changes'(assert) {
-        let func1 = (arg1, arg2) => "arg1: " + arg1 + ", arg2: " + arg2;
-
-        let func2 = (arg1, arg2) => "arg2: " + arg2 + ", arg1: " + arg1;
-
-        this.render("{{stash stashedFn=(fn this.myFunc this.arg1 this.arg2)}}", {
-          myFunc: func1,
-          arg1: 'foo',
-          arg2: 'bar'
-        });
-        assert.equal(this.stashedFn(), 'arg1: foo, arg2: bar');
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'myFunc', func2));
-        assert.equal(this.stashedFn(), 'arg2: bar, arg1: foo');
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'myFunc', func1));
-        assert.equal(this.stashedFn(), 'arg1: foo, arg2: bar');
-      }
-
-      '@test asserts if the first argument is not a function'() {
-        expectAssertion(() => {
+        '@test updates when arguments change'() {
           this.render("{{invoke (fn this.myFunc this.arg1 this.arg2)}}", {
-            myFunc: null,
+            myFunc(arg1, arg2) {
+              return "arg1: " + arg1 + ", arg2: " + arg2;
+            },
+
             arg1: 'foo',
             arg2: 'bar'
           });
-        }, /You must pass a function as the `fn` helpers first argument, you passed null/);
-      }
+          this.assertText('arg1: foo, arg2: bar');
+          this.assertStableRerender();
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg1', 'qux'));
+          this.assertText('arg1: qux, arg2: bar');
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg2', 'derp'));
+          this.assertText('arg1: qux, arg2: derp');
+          (0, _internalTestHelpers.runTask)(() => {
+            (0, _metal.set)(this.context, 'arg1', 'foo');
+            (0, _metal.set)(this.context, 'arg2', 'bar');
+          });
+          this.assertText('arg1: foo, arg2: bar');
+        }
 
-      '@test asserts if the provided function accesses `this` without being bound prior to passing to fn'() {
-        this.render("{{stash stashedFn=(fn this.myFunc this.arg1)}}", {
-          myFunc(arg1) {
-            return "arg1: " + arg1 + ", arg2: " + this.arg2;
-          },
+        '@test updates when the function changes'() {
+          let func1 = (arg1, arg2) => "arg1: " + arg1 + ", arg2: " + arg2;
 
-          arg1: 'foo',
-          arg2: 'bar'
-        });
-        expectAssertion(() => {
+          let func2 = (arg1, arg2) => "arg2: " + arg2 + ", arg1: " + arg1;
+
+          this.render("{{invoke (fn this.myFunc this.arg1 this.arg2)}}", {
+            myFunc: func1,
+            arg1: 'foo',
+            arg2: 'bar'
+          });
+          this.assertText('arg1: foo, arg2: bar');
+          this.assertStableRerender();
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'myFunc', func2));
+          this.assertText('arg2: bar, arg1: foo');
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'myFunc', func1));
+          this.assertText('arg1: foo, arg2: bar');
+        }
+
+        '@test a stashed fn result update arguments when invoked'(assert) {
+          this.render("{{stash stashedFn=(fn this.myFunc this.arg1 this.arg2)}}", {
+            myFunc(arg1, arg2) {
+              return "arg1: " + arg1 + ", arg2: " + arg2;
+            },
+
+            arg1: 'foo',
+            arg2: 'bar'
+          });
+          assert.equal(this.stashedFn(), 'arg1: foo, arg2: bar');
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg1', 'qux'));
+          assert.equal(this.stashedFn(), 'arg1: qux, arg2: bar');
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg2', 'derp'));
+          assert.equal(this.stashedFn(), 'arg1: qux, arg2: derp');
+          (0, _internalTestHelpers.runTask)(() => {
+            (0, _metal.set)(this.context, 'arg1', 'foo');
+            (0, _metal.set)(this.context, 'arg2', 'bar');
+          });
+          assert.equal(this.stashedFn(), 'arg1: foo, arg2: bar');
+        }
+
+        '@test a stashed fn result invokes the correct function when the bound function changes'(assert) {
+          let func1 = (arg1, arg2) => "arg1: " + arg1 + ", arg2: " + arg2;
+
+          let func2 = (arg1, arg2) => "arg2: " + arg2 + ", arg1: " + arg1;
+
+          this.render("{{stash stashedFn=(fn this.myFunc this.arg1 this.arg2)}}", {
+            myFunc: func1,
+            arg1: 'foo',
+            arg2: 'bar'
+          });
+          assert.equal(this.stashedFn(), 'arg1: foo, arg2: bar');
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'myFunc', func2));
+          assert.equal(this.stashedFn(), 'arg2: bar, arg1: foo');
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'myFunc', func1));
+          assert.equal(this.stashedFn(), 'arg1: foo, arg2: bar');
+        }
+
+        '@test asserts if the first argument is not a function'() {
+          expectAssertion(() => {
+            this.render("{{invoke (fn this.myFunc this.arg1 this.arg2)}}", {
+              myFunc: null,
+              arg1: 'foo',
+              arg2: 'bar'
+            });
+          }, /You must pass a function as the `fn` helpers first argument, you passed null/);
+        }
+
+        '@test asserts if the provided function accesses `this` without being bound prior to passing to fn'(assert) {
+          if (!_utils.HAS_NATIVE_PROXY) {
+            assert.expect(0);
+            return;
+          }
+
+          this.render("{{stash stashedFn=(fn this.myFunc this.arg1)}}", {
+            myFunc(arg1) {
+              return "arg1: " + arg1 + ", arg2: " + this.arg2;
+            },
+
+            arg1: 'foo',
+            arg2: 'bar'
+          });
+          expectAssertion(() => {
+            this.stashedFn();
+          }, /You accessed `this.arg2` from a function passed to the `fn` helper, but the function itself was not bound to a valid `this` context. Consider updating to usage of `@action`./);
+        }
+
+        '@test there is no `this` context within the callback'(assert) {
+          if (false
+          /* DEBUG */
+          && _utils.HAS_NATIVE_PROXY) {
+            assert.expect(0);
+            return;
+          }
+
+          this.render("{{stash stashedFn=(fn this.myFunc this.arg1)}}", {
+            myFunc() {
+              assert.strictEqual(this, null, 'this is bound to null in production builds');
+            }
+
+          });
           this.stashedFn();
-        }, /You accessed `this.arg2` from a function passed to the `fn` helper, but the function itself was not bound to a valid `this` context. Consider updating to usage of `@action`./);
-      }
+        }
 
-      '@test can use `this` if bound prior to passing to fn'(assert) {
-        this.render("{{stash stashedFn=(fn (action this.myFunc) this.arg1)}}", {
-          myFunc(arg1) {
-            return "arg1: " + arg1 + ", arg2: " + this.arg2;
-          },
+        '@test can use `this` if bound prior to passing to fn'(assert) {
+          this.render("{{stash stashedFn=(fn (action this.myFunc) this.arg1)}}", {
+            myFunc(arg1) {
+              return "arg1: " + arg1 + ", arg2: " + this.arg2;
+            },
 
-          arg1: 'foo',
-          arg2: 'bar'
-        });
-        assert.equal(this.stashedFn(), 'arg1: foo, arg2: bar');
-      }
+            arg1: 'foo',
+            arg2: 'bar'
+          });
+          assert.equal(this.stashedFn(), 'arg1: foo, arg2: bar');
+        }
 
-      '@test partially applies each layer when nested [GH#17959]'() {
-        this.render("{{invoke (fn (fn (fn this.myFunc this.arg1) this.arg2) this.arg3)}}", {
-          myFunc(arg1, arg2, arg3) {
-            return "arg1: " + arg1 + ", arg2: " + arg2 + ", arg3: " + arg3;
-          },
+        '@test partially applies each layer when nested [GH#17959]'() {
+          this.render("{{invoke (fn (fn (fn this.myFunc this.arg1) this.arg2) this.arg3)}}", {
+            myFunc(arg1, arg2, arg3) {
+              return "arg1: " + arg1 + ", arg2: " + arg2 + ", arg3: " + arg3;
+            },
 
-          arg1: 'foo',
-          arg2: 'bar',
-          arg3: 'qux'
-        });
-        this.assertText('arg1: foo, arg2: bar, arg3: qux');
-        this.assertStableRerender();
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg1', 'qux'));
-        this.assertText('arg1: qux, arg2: bar, arg3: qux');
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg2', 'derp'));
-        this.assertText('arg1: qux, arg2: derp, arg3: qux');
-        (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg3', 'huzzah'));
-        this.assertText('arg1: qux, arg2: derp, arg3: huzzah');
-        (0, _internalTestHelpers.runTask)(() => {
-          (0, _metal.set)(this.context, 'arg1', 'foo');
-          (0, _metal.set)(this.context, 'arg2', 'bar');
-          (0, _metal.set)(this.context, 'arg3', 'qux');
-        });
-        this.assertText('arg1: foo, arg2: bar, arg3: qux');
-      }
+            arg1: 'foo',
+            arg2: 'bar',
+            arg3: 'qux'
+          });
+          this.assertText('arg1: foo, arg2: bar, arg3: qux');
+          this.assertStableRerender();
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg1', 'qux'));
+          this.assertText('arg1: qux, arg2: bar, arg3: qux');
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg2', 'derp'));
+          this.assertText('arg1: qux, arg2: derp, arg3: qux');
+          (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'arg3', 'huzzah'));
+          this.assertText('arg1: qux, arg2: derp, arg3: huzzah');
+          (0, _internalTestHelpers.runTask)(() => {
+            (0, _metal.set)(this.context, 'arg1', 'foo');
+            (0, _metal.set)(this.context, 'arg2', 'bar');
+            (0, _metal.set)(this.context, 'arg3', 'qux');
+          });
+          this.assertText('arg1: foo, arg2: bar, arg3: qux');
+        }
 
-      '@test can be used on the result of `mut`'() {
-        this.render("{{this.arg1}}{{stash stashedFn=(fn (mut this.arg1) this.arg2)}}", {
-          arg1: 'foo',
-          arg2: 'bar'
-        });
-        this.assertText('foo');
-        (0, _internalTestHelpers.runTask)(() => this.stashedFn());
-        this.assertText('bar');
-      }
+        '@test can be used on the result of `mut`'() {
+          this.render("{{this.arg1}}{{stash stashedFn=(fn (mut this.arg1) this.arg2)}}", {
+            arg1: 'foo',
+            arg2: 'bar'
+          });
+          this.assertText('foo');
+          (0, _internalTestHelpers.runTask)(() => this.stashedFn());
+          this.assertText('bar');
+        }
 
-    });
-  }
+      });
+    }
 });
 enifed("@ember/-internals/glimmer/tests/integration/helpers/get-test", ["internal-test-helpers", "@ember/-internals/metal", "@ember/-internals/glimmer/tests/utils/helpers"], function (_internalTestHelpers, _metal, _helpers) {
   "use strict";
@@ -33203,6 +33520,42 @@ enifed("@ember/-internals/glimmer/tests/integration/helpers/unbound-test", ["int
 
   function _taggedTemplateLiteralLoose(strings, raw) { if (!raw) { raw = strings.slice(0); } strings.raw = raw; return strings; }
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   (0, _internalTestHelpers.moduleFor)('Helpers test: {{unbound}}', class extends _internalTestHelpers.RenderingTestCase {
     ['@test should be able to output a property without binding']() {
       this.render("<div id=\"first\">{{unbound content.anUnboundString}}</div>", {
@@ -33445,64 +33798,104 @@ enifed("@ember/-internals/glimmer/tests/integration/helpers/unbound-test", ["int
     }
 
     ['@test should be able to render an unbound helper invocation for helpers with dependent keys']() {
-      this.registerHelper('capitalizeName', {
-        destroy() {
-          this.removeObserver('value.firstName', this, this.recompute);
+      var _this = this;
 
-          this._super(...arguments);
-        },
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var _args = arguments;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              _context.t0 = _this;
+              _context.t1 = {
+                destroy() {
+                  this.removeObserver('value.firstName', this, this.recompute);
 
-        compute([value]) {
-          if (this.get('value')) {
-            this.removeObserver('value.firstName', this, this.recompute);
+                  this._super(..._args);
+                },
+
+                compute([value]) {
+                  if (this.get('value')) {
+                    this.removeObserver('value.firstName', this, this.recompute);
+                  }
+
+                  this.set('value', value);
+                  this.addObserver('value.firstName', this, this.recompute);
+                  return value ? (0, _metal.get)(value, 'firstName').toUpperCase() : '';
+                }
+
+              };
+
+              _context.t0.registerHelper.call(_context.t0, 'capitalizeName', _context.t1);
+
+              _context.t2 = _this;
+              _context.t3 = {
+                destroy() {
+                  this.teardown();
+
+                  this._super(..._args);
+                },
+
+                teardown() {
+                  this.removeObserver('value.firstName', this, this.recompute);
+                  this.removeObserver('value.lastName', this, this.recompute);
+                },
+
+                compute([value]) {
+                  if (this.get('value')) {
+                    this.teardown();
+                  }
+
+                  this.set('value', value);
+                  this.addObserver('value.firstName', this, this.recompute);
+                  this.addObserver('value.lastName', this, this.recompute);
+                  return (value ? (0, _metal.get)(value, 'firstName') : '') + (value ? (0, _metal.get)(value, 'lastName') : '');
+                }
+
+              };
+
+              _context.t2.registerHelper.call(_context.t2, 'concatNames', _context.t3);
+
+              _this.render("{{capitalizeName person}} {{unbound (capitalizeName person)}} {{concatNames person}} {{unbound (concatNames person)}}", {
+                person: {
+                  firstName: 'shooby',
+                  lastName: 'taylor'
+                }
+              });
+
+              _this.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
+
+              (0, _internalTestHelpers.runTask)(() => _this.rerender());
+              _context.next = 11;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 11:
+              _this.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
+
+              (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(_this.context, 'person.firstName', 'sally'));
+              _context.next = 15;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 15:
+              _this.assertText('SALLY SHOOBY sallytaylor shoobytaylor');
+
+              (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(_this.context, 'person', {
+                firstName: 'shooby',
+                lastName: 'taylor'
+              }));
+              _context.next = 19;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 19:
+              _this.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
+
+            case 20:
+            case "end":
+              return _context.stop();
           }
-
-          this.set('value', value);
-          this.addObserver('value.firstName', this, this.recompute);
-          return value ? (0, _metal.get)(value, 'firstName').toUpperCase() : '';
-        }
-
-      });
-      this.registerHelper('concatNames', {
-        destroy() {
-          this.teardown();
-
-          this._super(...arguments);
-        },
-
-        teardown() {
-          this.removeObserver('value.firstName', this, this.recompute);
-          this.removeObserver('value.lastName', this, this.recompute);
-        },
-
-        compute([value]) {
-          if (this.get('value')) {
-            this.teardown();
-          }
-
-          this.set('value', value);
-          this.addObserver('value.firstName', this, this.recompute);
-          this.addObserver('value.lastName', this, this.recompute);
-          return (value ? (0, _metal.get)(value, 'firstName') : '') + (value ? (0, _metal.get)(value, 'lastName') : '');
-        }
-
-      });
-      this.render("{{capitalizeName person}} {{unbound (capitalizeName person)}} {{concatNames person}} {{unbound (concatNames person)}}", {
-        person: {
-          firstName: 'shooby',
-          lastName: 'taylor'
-        }
-      });
-      this.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
-      (0, _internalTestHelpers.runTask)(() => this.rerender());
-      this.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
-      (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'person.firstName', 'sally'));
-      this.assertText('SALLY SHOOBY sallytaylor shoobytaylor');
-      (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'person', {
-        firstName: 'shooby',
-        lastName: 'taylor'
-      }));
-      this.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
+        }, _callee, this);
+      }))();
     }
 
     ['@test should be able to render an unbound helper invocation in #each helper']() {
@@ -33532,64 +33925,105 @@ enifed("@ember/-internals/glimmer/tests/integration/helpers/unbound-test", ["int
     }
 
     ['@test should be able to render an unbound helper invocation with bound hash options']() {
-      this.registerHelper('capitalizeName', {
-        destroy() {
-          this.removeObserver('value.firstName', this, this.recompute);
+      var _this2 = this;
 
-          this._super(...arguments);
-        },
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var _args2 = arguments;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              _context2.t0 = _this2;
+              _context2.t1 = {
+                destroy() {
+                  this.removeObserver('value.firstName', this, this.recompute);
 
-        compute([value]) {
-          if (this.get('value')) {
-            this.removeObserver('value.firstName', this, this.recompute);
+                  this._super(..._args2);
+                },
+
+                compute([value]) {
+                  if (this.get('value')) {
+                    this.removeObserver('value.firstName', this, this.recompute);
+                  }
+
+                  this.set('value', value);
+                  this.addObserver('value.firstName', this, this.recompute);
+                  return value ? (0, _metal.get)(value, 'firstName').toUpperCase() : '';
+                }
+
+              };
+
+              _context2.t0.registerHelper.call(_context2.t0, 'capitalizeName', _context2.t1);
+
+              _context2.t2 = _this2;
+              _context2.t3 = {
+                destroy() {
+                  this.teardown();
+
+                  this._super(..._args2);
+                },
+
+                teardown() {
+                  this.removeObserver('value.firstName', this, this.recompute);
+                  this.removeObserver('value.lastName', this, this.recompute);
+                },
+
+                compute([value]) {
+                  if (this.get('value')) {
+                    this.teardown();
+                  }
+
+                  this.set('value', value);
+                  this.addObserver('value.firstName', this, this.recompute);
+                  this.addObserver('value.lastName', this, this.recompute);
+                  return (value ? (0, _metal.get)(value, 'firstName') : '') + (value ? (0, _metal.get)(value, 'lastName') : '');
+                }
+
+              };
+
+              _context2.t2.registerHelper.call(_context2.t2, 'concatNames', _context2.t3);
+
+              _this2.render("{{capitalizeName person}} {{unbound (capitalizeName person)}} {{concatNames person}} {{unbound (concatNames person)}}", {
+                person: {
+                  firstName: 'shooby',
+                  lastName: 'taylor'
+                }
+              });
+
+              _context2.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this2.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
+
+              (0, _internalTestHelpers.runTask)(() => _this2.rerender());
+              _context2.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 13:
+              _this2.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
+
+              (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(_this2.context, 'person.firstName', 'sally'));
+              _context2.next = 17;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 17:
+              _this2.assertText('SALLY SHOOBY sallytaylor shoobytaylor');
+
+              (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(_this2.context, 'person', {
+                firstName: 'shooby',
+                lastName: 'taylor'
+              }));
+
+              _this2.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
+
+            case 20:
+            case "end":
+              return _context2.stop();
           }
-
-          this.set('value', value);
-          this.addObserver('value.firstName', this, this.recompute);
-          return value ? (0, _metal.get)(value, 'firstName').toUpperCase() : '';
-        }
-
-      });
-      this.registerHelper('concatNames', {
-        destroy() {
-          this.teardown();
-
-          this._super(...arguments);
-        },
-
-        teardown() {
-          this.removeObserver('value.firstName', this, this.recompute);
-          this.removeObserver('value.lastName', this, this.recompute);
-        },
-
-        compute([value]) {
-          if (this.get('value')) {
-            this.teardown();
-          }
-
-          this.set('value', value);
-          this.addObserver('value.firstName', this, this.recompute);
-          this.addObserver('value.lastName', this, this.recompute);
-          return (value ? (0, _metal.get)(value, 'firstName') : '') + (value ? (0, _metal.get)(value, 'lastName') : '');
-        }
-
-      });
-      this.render("{{capitalizeName person}} {{unbound (capitalizeName person)}} {{concatNames person}} {{unbound (concatNames person)}}", {
-        person: {
-          firstName: 'shooby',
-          lastName: 'taylor'
-        }
-      });
-      this.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
-      (0, _internalTestHelpers.runTask)(() => this.rerender());
-      this.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
-      (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'person.firstName', 'sally'));
-      this.assertText('SALLY SHOOBY sallytaylor shoobytaylor');
-      (0, _internalTestHelpers.runTask)(() => (0, _metal.set)(this.context, 'person', {
-        firstName: 'shooby',
-        lastName: 'taylor'
-      }));
-      this.assertText('SHOOBY SHOOBY shoobytaylor shoobytaylor');
+        }, _callee2, this);
+      }))();
     }
 
     ['@test should be able to render bound form of a helper inside unbound form of same helper']() {
@@ -34635,10 +35069,11 @@ enifed("@ember/-internals/glimmer/tests/integration/mount-test", ["internal-test
               return _this.visit('/');
 
             case 10:
-              _context.next = 12;
-              return assert.rejectsAssertion(_this.visit('/route-with-mount'), expectedBacktrackingMessage);
+              assert.throwsAssertion(() => (0, _internalTestHelpers.runTask)(() => _this.visit('/route-with-mount')), expectedBacktrackingMessage);
+              _context.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-            case 12:
+            case 13:
             case "end":
               return _context.stop();
           }
@@ -40260,7 +40695,7 @@ enifed("@ember/-internals/metal/tests/accessors/get_test", ["@ember/-internals/e
 
   });
 });
-enifed("@ember/-internals/metal/tests/accessors/mandatory_setters_test", ["@ember/-internals/metal", "@ember/-internals/meta", "internal-test-helpers"], function (_metal, _meta, _internalTestHelpers) {
+enifed("@ember/-internals/metal/tests/accessors/mandatory_setters_test", ["@ember/-internals/metal", "@ember/-internals/meta", "@ember/canary-features", "internal-test-helpers"], function (_metal, _meta, _canaryFeatures, _internalTestHelpers) {
   "use strict";
 
   function hasMandatorySetter(object, property) {
@@ -40277,391 +40712,391 @@ enifed("@ember/-internals/metal/tests/accessors/mandatory_setters_test", ["@embe
 
   if (false
   /* DEBUG */
-  ) {
-      (0, _internalTestHelpers.moduleFor)('mandory-setters', class extends _internalTestHelpers.AbstractTestCase {
-        ['@test does not assert if property is not being watched'](assert) {
-          let obj = {
-            someProp: null,
+  && !_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    (0, _internalTestHelpers.moduleFor)('mandory-setters', class extends _internalTestHelpers.AbstractTestCase {
+      ['@test does not assert if property is not being watched'](assert) {
+        let obj = {
+          someProp: null,
 
-            toString() {
-              return 'custom-object';
-            }
-
-          };
-          obj.someProp = 'blastix';
-          assert.equal((0, _metal.get)(obj, 'someProp'), 'blastix');
-        }
-
-        ['@test should not setup mandatory-setter if property is not writable'](assert) {
-          assert.expect(6);
-          let obj = {};
-          Object.defineProperty(obj, 'a', {
-            value: true
-          });
-          Object.defineProperty(obj, 'b', {
-            value: false
-          });
-          Object.defineProperty(obj, 'c', {
-            value: undefined
-          });
-          Object.defineProperty(obj, 'd', {
-            value: undefined,
-            writable: false
-          });
-          Object.defineProperty(obj, 'e', {
-            value: undefined,
-            configurable: false
-          });
-          Object.defineProperty(obj, 'f', {
-            value: undefined,
-            configurable: true
-          });
-          (0, _metal.watch)(obj, 'a');
-          (0, _metal.watch)(obj, 'b');
-          (0, _metal.watch)(obj, 'c');
-          (0, _metal.watch)(obj, 'd');
-          (0, _metal.watch)(obj, 'e');
-          (0, _metal.watch)(obj, 'f');
-          assert.ok(!hasMandatorySetter(obj, 'a'), 'mandatory-setter should not be installed');
-          assert.ok(!hasMandatorySetter(obj, 'b'), 'mandatory-setter should not be installed');
-          assert.ok(!hasMandatorySetter(obj, 'c'), 'mandatory-setter should not be installed');
-          assert.ok(!hasMandatorySetter(obj, 'd'), 'mandatory-setter should not be installed');
-          assert.ok(!hasMandatorySetter(obj, 'e'), 'mandatory-setter should not be installed');
-          assert.ok(!hasMandatorySetter(obj, 'f'), 'mandatory-setter should not be installed');
-        }
-
-        ['@test should not teardown non mandatory-setter descriptor'](assert) {
-          assert.expect(1);
-          let obj = {
-            get a() {
-              return 'hi';
-            }
-
-          };
-          (0, _metal.watch)(obj, 'a');
-          (0, _metal.unwatch)(obj, 'a');
-          assert.equal(obj.a, 'hi');
-        }
-
-        ['@test should not confuse non descriptor watched gets'](assert) {
-          assert.expect(2);
-          let obj = {
-            get a() {
-              return 'hi';
-            }
-
-          };
-          (0, _metal.watch)(obj, 'a');
-          assert.equal((0, _metal.get)(obj, 'a'), 'hi');
-          assert.equal(obj.a, 'hi');
-        }
-
-        ['@test should not setup mandatory-setter if setter is already setup on property'](assert) {
-          assert.expect(2);
-          let obj = {
-            someProp: null
-          };
-          Object.defineProperty(obj, 'someProp', {
-            get() {
-              return null;
-            },
-
-            set(value) {
-              assert.equal(value, 'foo-bar', 'custom setter was called');
-            }
-
-          });
-          (0, _metal.watch)(obj, 'someProp');
-          assert.ok(!hasMandatorySetter(obj, 'someProp'), 'mandatory-setter should not be installed');
-          obj.someProp = 'foo-bar';
-        }
-
-        ['@test watched ES5 setter should not be smashed by mandatory setter'](assert) {
-          let value;
-          let obj = {
-            get foo() {
-              return value;
-            },
-
-            set foo(_value) {
-              value = _value;
-            }
-
-          };
-          (0, _metal.watch)(obj, 'foo');
-          (0, _metal.set)(obj, 'foo', 2);
-          assert.equal(value, 2);
-        }
-
-        ['@test should not setup mandatory-setter if setter is already setup on property in parent prototype'](assert) {
-          assert.expect(2);
-
-          function Foo() {}
-
-          Object.defineProperty(Foo.prototype, 'someProp', {
-            get() {
-              return null;
-            },
-
-            set(value) {
-              assert.equal(value, 'foo-bar', 'custom setter was called');
-            }
-
-          });
-          let obj = new Foo();
-          (0, _metal.watch)(obj, 'someProp');
-          assert.ok(!hasMandatorySetter(obj, 'someProp'), 'mandatory-setter should not be installed');
-          obj.someProp = 'foo-bar';
-        }
-
-        ['@test should not setup mandatory-setter if setter is already setup on property in grandparent prototype'](assert) {
-          assert.expect(2);
-
-          function Foo() {}
-
-          Object.defineProperty(Foo.prototype, 'someProp', {
-            get() {
-              return null;
-            },
-
-            set(value) {
-              assert.equal(value, 'foo-bar', 'custom setter was called');
-            }
-
-          });
-
-          function Bar() {}
-
-          Bar.prototype = Object.create(Foo.prototype);
-          Bar.prototype.constructor = Bar;
-          let obj = new Bar();
-          (0, _metal.watch)(obj, 'someProp');
-          assert.ok(!hasMandatorySetter(obj, 'someProp'), 'mandatory-setter should not be installed');
-          obj.someProp = 'foo-bar';
-        }
-
-        ['@test should not setup mandatory-setter if setter is already setup on property in great grandparent prototype'](assert) {
-          assert.expect(2);
-
-          function Foo() {}
-
-          Object.defineProperty(Foo.prototype, 'someProp', {
-            get() {
-              return null;
-            },
-
-            set(value) {
-              assert.equal(value, 'foo-bar', 'custom setter was called');
-            }
-
-          });
-
-          function Bar() {}
-
-          Bar.prototype = Object.create(Foo.prototype);
-          Bar.prototype.constructor = Bar;
-
-          function Qux() {}
-
-          Qux.prototype = Object.create(Bar.prototype);
-          Qux.prototype.constructor = Qux;
-          let obj = new Qux();
-          (0, _metal.watch)(obj, 'someProp');
-          assert.ok(!hasMandatorySetter(obj, 'someProp'), 'mandatory-setter should not be installed');
-          obj.someProp = 'foo-bar';
-        }
-
-        ['@test should assert if set without set when property is being watched']() {
-          let obj = {
-            someProp: null,
-
-            toString() {
-              return 'custom-object';
-            }
-
-          };
-          (0, _metal.watch)(obj, 'someProp');
-          expectAssertion(function () {
-            obj.someProp = 'foo-bar';
-          }, 'You must use set() to set the `someProp` property (of custom-object) to `foo-bar`.');
-        }
-
-        ['@test should not assert if set with set when property is being watched'](assert) {
-          let obj = {
-            someProp: null,
-
-            toString() {
-              return 'custom-object';
-            }
-
-          };
-          (0, _metal.watch)(obj, 'someProp');
-          (0, _metal.set)(obj, 'someProp', 'foo-bar');
-          assert.equal((0, _metal.get)(obj, 'someProp'), 'foo-bar');
-        }
-
-        ['@test does not setup mandatory-setter if non-configurable'](assert) {
-          let obj = {
-            someProp: null,
-
-            toString() {
-              return 'custom-object';
-            }
-
-          };
-          Object.defineProperty(obj, 'someProp', {
-            configurable: false,
-            enumerable: true,
-            value: 'blastix'
-          });
-          (0, _metal.watch)(obj, 'someProp');
-          assert.ok(!hasMandatorySetter(obj, 'someProp'), 'blastix');
-        }
-
-        ['@test ensure after watch the property is restored (and the value is no-longer stored in meta) [non-enumerable]'](assert) {
-          let obj = {
-            someProp: null,
-
-            toString() {
-              return 'custom-object';
-            }
-
-          };
-          Object.defineProperty(obj, 'someProp', {
-            configurable: true,
-            enumerable: false,
-            value: 'blastix'
-          });
-          (0, _metal.watch)(obj, 'someProp');
-          assert.equal(hasMandatorySetter(obj, 'someProp'), true, 'should have a mandatory setter');
-          let descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
-          assert.equal(descriptor.enumerable, false, 'property should remain non-enumerable');
-          assert.equal(descriptor.configurable, true, 'property should remain configurable');
-          assert.equal(obj.someProp, 'blastix', 'expected value to be the getter');
-          assert.equal(descriptor.value, undefined, 'expected existing value to NOT remain');
-          assert.ok(hasMetaValue(obj, 'someProp'), 'someProp is stored in meta.values');
-          (0, _metal.unwatch)(obj, 'someProp');
-          assert.ok(!hasMetaValue(obj, 'someProp'), 'someProp is no longer stored in meta.values');
-          descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
-          assert.equal(hasMandatorySetter(obj, 'someProp'), false, 'should no longer have a mandatory setter');
-          assert.equal(descriptor.enumerable, false, 'property should remain non-enumerable');
-          assert.equal(descriptor.configurable, true, 'property should remain configurable');
-          assert.equal(obj.someProp, 'blastix', 'expected value to be the getter');
-          assert.equal(descriptor.value, 'blastix', 'expected existing value to remain');
-          obj.someProp = 'new value'; // make sure the descriptor remains correct (nothing funky, like a redefined, happened in the setter);
-
-          descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
-          assert.equal(descriptor.enumerable, false, 'property should remain non-enumerable');
-          assert.equal(descriptor.configurable, true, 'property should remain configurable');
-          assert.equal(descriptor.value, 'new value', 'expected existing value to NOT remain');
-          assert.equal(obj.someProp, 'new value', 'expected value to be the getter');
-          assert.equal(obj.someProp, 'new value');
-        }
-
-        ['@test ensure after watch the property is restored (and the value is no-longer stored in meta) [enumerable]'](assert) {
-          let obj = {
-            someProp: null,
-
-            toString() {
-              return 'custom-object';
-            }
-
-          };
-          Object.defineProperty(obj, 'someProp', {
-            configurable: true,
-            enumerable: true,
-            value: 'blastix'
-          });
-          (0, _metal.watch)(obj, 'someProp');
-          assert.equal(hasMandatorySetter(obj, 'someProp'), true, 'should have a mandatory setter');
-          let descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
-          assert.equal(descriptor.enumerable, true, 'property should remain enumerable');
-          assert.equal(descriptor.configurable, true, 'property should remain configurable');
-          assert.equal(obj.someProp, 'blastix', 'expected value to be the getter');
-          assert.equal(descriptor.value, undefined, 'expected existing value to NOT remain');
-          assert.ok(hasMetaValue(obj, 'someProp'), 'someProp is stored in meta.values');
-          (0, _metal.unwatch)(obj, 'someProp');
-          assert.ok(!hasMetaValue(obj, 'someProp'), 'someProp is no longer stored in meta.values');
-          descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
-          assert.equal(hasMandatorySetter(obj, 'someProp'), false, 'should no longer have a mandatory setter');
-          assert.equal(descriptor.enumerable, true, 'property should remain enumerable');
-          assert.equal(descriptor.configurable, true, 'property should remain configurable');
-          assert.equal(obj.someProp, 'blastix', 'expected value to be the getter');
-          assert.equal(descriptor.value, 'blastix', 'expected existing value to remain');
-          obj.someProp = 'new value'; // make sure the descriptor remains correct (nothing funky, like a redefined, happened in the setter);
-
-          descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
-          assert.equal(descriptor.enumerable, true, 'property should remain enumerable');
-          assert.equal(descriptor.configurable, true, 'property should remain configurable');
-          assert.equal(descriptor.value, 'new value', 'expected existing value to NOT remain');
-          assert.equal(obj.someProp, 'new value');
-        }
-
-        ['@test sets up mandatory-setter if property comes from prototype'](assert) {
-          assert.expect(2);
-          let obj = {
-            someProp: null,
-
-            toString() {
-              return 'custom-object';
-            }
-
-          };
-          let obj2 = Object.create(obj);
-          (0, _metal.watch)(obj2, 'someProp');
-          assert.ok(hasMandatorySetter(obj2, 'someProp'), 'mandatory setter has been setup');
-          expectAssertion(function () {
-            obj2.someProp = 'foo-bar';
-          }, 'You must use set() to set the `someProp` property (of custom-object) to `foo-bar`.');
-        }
-
-        ['@test inheritance remains live'](assert) {
-          function Parent() {}
-
-          Parent.prototype.food = 'chips';
-          let child = new Parent();
-          assert.equal(child.food, 'chips');
-          (0, _metal.watch)(child, 'food');
-          assert.equal(child.food, 'chips');
-          Parent.prototype.food = 'icecreame';
-          assert.equal(child.food, 'icecreame');
-          (0, _metal.unwatch)(child, 'food');
-          assert.equal(child.food, 'icecreame');
-          Parent.prototype.food = 'chips';
-          assert.equal(child.food, 'chips');
-        }
-
-        ['@test inheritance remains live and preserves this'](assert) {
-          function Parent(food) {
-            this._food = food;
+          toString() {
+            return 'custom-object';
           }
 
-          Object.defineProperty(Parent.prototype, 'food', {
-            get() {
-              return this._food;
-            }
+        };
+        obj.someProp = 'blastix';
+        assert.equal((0, _metal.get)(obj, 'someProp'), 'blastix');
+      }
 
-          });
-          let child = new Parent('chips');
-          assert.equal(child.food, 'chips');
-          (0, _metal.watch)(child, 'food');
-          assert.equal(child.food, 'chips');
-          child._food = 'icecreame';
-          assert.equal(child.food, 'icecreame');
-          (0, _metal.unwatch)(child, 'food');
-          assert.equal(child.food, 'icecreame');
-          let foodDesc = Object.getOwnPropertyDescriptor(Parent.prototype, 'food');
-          assert.ok(!foodDesc.configurable, 'Parent.prototype.food desc should be non configable');
-          assert.ok(!foodDesc.enumerable, 'Parent.prototype.food desc should be non enumerable');
-          assert.equal(foodDesc.get.call({
-            _food: 'hi'
-          }), 'hi');
-          assert.equal(foodDesc.set, undefined);
-          assert.equal(child.food, 'icecreame');
+      ['@test should not setup mandatory-setter if property is not writable'](assert) {
+        assert.expect(6);
+        let obj = {};
+        Object.defineProperty(obj, 'a', {
+          value: true
+        });
+        Object.defineProperty(obj, 'b', {
+          value: false
+        });
+        Object.defineProperty(obj, 'c', {
+          value: undefined
+        });
+        Object.defineProperty(obj, 'd', {
+          value: undefined,
+          writable: false
+        });
+        Object.defineProperty(obj, 'e', {
+          value: undefined,
+          configurable: false
+        });
+        Object.defineProperty(obj, 'f', {
+          value: undefined,
+          configurable: true
+        });
+        (0, _metal.watch)(obj, 'a');
+        (0, _metal.watch)(obj, 'b');
+        (0, _metal.watch)(obj, 'c');
+        (0, _metal.watch)(obj, 'd');
+        (0, _metal.watch)(obj, 'e');
+        (0, _metal.watch)(obj, 'f');
+        assert.ok(!hasMandatorySetter(obj, 'a'), 'mandatory-setter should not be installed');
+        assert.ok(!hasMandatorySetter(obj, 'b'), 'mandatory-setter should not be installed');
+        assert.ok(!hasMandatorySetter(obj, 'c'), 'mandatory-setter should not be installed');
+        assert.ok(!hasMandatorySetter(obj, 'd'), 'mandatory-setter should not be installed');
+        assert.ok(!hasMandatorySetter(obj, 'e'), 'mandatory-setter should not be installed');
+        assert.ok(!hasMandatorySetter(obj, 'f'), 'mandatory-setter should not be installed');
+      }
+
+      ['@test should not teardown non mandatory-setter descriptor'](assert) {
+        assert.expect(1);
+        let obj = {
+          get a() {
+            return 'hi';
+          }
+
+        };
+        (0, _metal.watch)(obj, 'a');
+        (0, _metal.unwatch)(obj, 'a');
+        assert.equal(obj.a, 'hi');
+      }
+
+      ['@test should not confuse non descriptor watched gets'](assert) {
+        assert.expect(2);
+        let obj = {
+          get a() {
+            return 'hi';
+          }
+
+        };
+        (0, _metal.watch)(obj, 'a');
+        assert.equal((0, _metal.get)(obj, 'a'), 'hi');
+        assert.equal(obj.a, 'hi');
+      }
+
+      ['@test should not setup mandatory-setter if setter is already setup on property'](assert) {
+        assert.expect(2);
+        let obj = {
+          someProp: null
+        };
+        Object.defineProperty(obj, 'someProp', {
+          get() {
+            return null;
+          },
+
+          set(value) {
+            assert.equal(value, 'foo-bar', 'custom setter was called');
+          }
+
+        });
+        (0, _metal.watch)(obj, 'someProp');
+        assert.ok(!hasMandatorySetter(obj, 'someProp'), 'mandatory-setter should not be installed');
+        obj.someProp = 'foo-bar';
+      }
+
+      ['@test watched ES5 setter should not be smashed by mandatory setter'](assert) {
+        let value;
+        let obj = {
+          get foo() {
+            return value;
+          },
+
+          set foo(_value) {
+            value = _value;
+          }
+
+        };
+        (0, _metal.watch)(obj, 'foo');
+        (0, _metal.set)(obj, 'foo', 2);
+        assert.equal(value, 2);
+      }
+
+      ['@test should not setup mandatory-setter if setter is already setup on property in parent prototype'](assert) {
+        assert.expect(2);
+
+        function Foo() {}
+
+        Object.defineProperty(Foo.prototype, 'someProp', {
+          get() {
+            return null;
+          },
+
+          set(value) {
+            assert.equal(value, 'foo-bar', 'custom setter was called');
+          }
+
+        });
+        let obj = new Foo();
+        (0, _metal.watch)(obj, 'someProp');
+        assert.ok(!hasMandatorySetter(obj, 'someProp'), 'mandatory-setter should not be installed');
+        obj.someProp = 'foo-bar';
+      }
+
+      ['@test should not setup mandatory-setter if setter is already setup on property in grandparent prototype'](assert) {
+        assert.expect(2);
+
+        function Foo() {}
+
+        Object.defineProperty(Foo.prototype, 'someProp', {
+          get() {
+            return null;
+          },
+
+          set(value) {
+            assert.equal(value, 'foo-bar', 'custom setter was called');
+          }
+
+        });
+
+        function Bar() {}
+
+        Bar.prototype = Object.create(Foo.prototype);
+        Bar.prototype.constructor = Bar;
+        let obj = new Bar();
+        (0, _metal.watch)(obj, 'someProp');
+        assert.ok(!hasMandatorySetter(obj, 'someProp'), 'mandatory-setter should not be installed');
+        obj.someProp = 'foo-bar';
+      }
+
+      ['@test should not setup mandatory-setter if setter is already setup on property in great grandparent prototype'](assert) {
+        assert.expect(2);
+
+        function Foo() {}
+
+        Object.defineProperty(Foo.prototype, 'someProp', {
+          get() {
+            return null;
+          },
+
+          set(value) {
+            assert.equal(value, 'foo-bar', 'custom setter was called');
+          }
+
+        });
+
+        function Bar() {}
+
+        Bar.prototype = Object.create(Foo.prototype);
+        Bar.prototype.constructor = Bar;
+
+        function Qux() {}
+
+        Qux.prototype = Object.create(Bar.prototype);
+        Qux.prototype.constructor = Qux;
+        let obj = new Qux();
+        (0, _metal.watch)(obj, 'someProp');
+        assert.ok(!hasMandatorySetter(obj, 'someProp'), 'mandatory-setter should not be installed');
+        obj.someProp = 'foo-bar';
+      }
+
+      ['@test should assert if set without set when property is being watched']() {
+        let obj = {
+          someProp: null,
+
+          toString() {
+            return 'custom-object';
+          }
+
+        };
+        (0, _metal.watch)(obj, 'someProp');
+        expectAssertion(function () {
+          obj.someProp = 'foo-bar';
+        }, 'You must use set() to set the `someProp` property (of custom-object) to `foo-bar`.');
+      }
+
+      ['@test should not assert if set with set when property is being watched'](assert) {
+        let obj = {
+          someProp: null,
+
+          toString() {
+            return 'custom-object';
+          }
+
+        };
+        (0, _metal.watch)(obj, 'someProp');
+        (0, _metal.set)(obj, 'someProp', 'foo-bar');
+        assert.equal((0, _metal.get)(obj, 'someProp'), 'foo-bar');
+      }
+
+      ['@test does not setup mandatory-setter if non-configurable'](assert) {
+        let obj = {
+          someProp: null,
+
+          toString() {
+            return 'custom-object';
+          }
+
+        };
+        Object.defineProperty(obj, 'someProp', {
+          configurable: false,
+          enumerable: true,
+          value: 'blastix'
+        });
+        (0, _metal.watch)(obj, 'someProp');
+        assert.ok(!hasMandatorySetter(obj, 'someProp'), 'blastix');
+      }
+
+      ['@test ensure after watch the property is restored (and the value is no-longer stored in meta) [non-enumerable]'](assert) {
+        let obj = {
+          someProp: null,
+
+          toString() {
+            return 'custom-object';
+          }
+
+        };
+        Object.defineProperty(obj, 'someProp', {
+          configurable: true,
+          enumerable: false,
+          value: 'blastix'
+        });
+        (0, _metal.watch)(obj, 'someProp');
+        assert.equal(hasMandatorySetter(obj, 'someProp'), true, 'should have a mandatory setter');
+        let descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
+        assert.equal(descriptor.enumerable, false, 'property should remain non-enumerable');
+        assert.equal(descriptor.configurable, true, 'property should remain configurable');
+        assert.equal(obj.someProp, 'blastix', 'expected value to be the getter');
+        assert.equal(descriptor.value, undefined, 'expected existing value to NOT remain');
+        assert.ok(hasMetaValue(obj, 'someProp'), 'someProp is stored in meta.values');
+        (0, _metal.unwatch)(obj, 'someProp');
+        assert.ok(!hasMetaValue(obj, 'someProp'), 'someProp is no longer stored in meta.values');
+        descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
+        assert.equal(hasMandatorySetter(obj, 'someProp'), false, 'should no longer have a mandatory setter');
+        assert.equal(descriptor.enumerable, false, 'property should remain non-enumerable');
+        assert.equal(descriptor.configurable, true, 'property should remain configurable');
+        assert.equal(obj.someProp, 'blastix', 'expected value to be the getter');
+        assert.equal(descriptor.value, 'blastix', 'expected existing value to remain');
+        obj.someProp = 'new value'; // make sure the descriptor remains correct (nothing funky, like a redefined, happened in the setter);
+
+        descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
+        assert.equal(descriptor.enumerable, false, 'property should remain non-enumerable');
+        assert.equal(descriptor.configurable, true, 'property should remain configurable');
+        assert.equal(descriptor.value, 'new value', 'expected existing value to NOT remain');
+        assert.equal(obj.someProp, 'new value', 'expected value to be the getter');
+        assert.equal(obj.someProp, 'new value');
+      }
+
+      ['@test ensure after watch the property is restored (and the value is no-longer stored in meta) [enumerable]'](assert) {
+        let obj = {
+          someProp: null,
+
+          toString() {
+            return 'custom-object';
+          }
+
+        };
+        Object.defineProperty(obj, 'someProp', {
+          configurable: true,
+          enumerable: true,
+          value: 'blastix'
+        });
+        (0, _metal.watch)(obj, 'someProp');
+        assert.equal(hasMandatorySetter(obj, 'someProp'), true, 'should have a mandatory setter');
+        let descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
+        assert.equal(descriptor.enumerable, true, 'property should remain enumerable');
+        assert.equal(descriptor.configurable, true, 'property should remain configurable');
+        assert.equal(obj.someProp, 'blastix', 'expected value to be the getter');
+        assert.equal(descriptor.value, undefined, 'expected existing value to NOT remain');
+        assert.ok(hasMetaValue(obj, 'someProp'), 'someProp is stored in meta.values');
+        (0, _metal.unwatch)(obj, 'someProp');
+        assert.ok(!hasMetaValue(obj, 'someProp'), 'someProp is no longer stored in meta.values');
+        descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
+        assert.equal(hasMandatorySetter(obj, 'someProp'), false, 'should no longer have a mandatory setter');
+        assert.equal(descriptor.enumerable, true, 'property should remain enumerable');
+        assert.equal(descriptor.configurable, true, 'property should remain configurable');
+        assert.equal(obj.someProp, 'blastix', 'expected value to be the getter');
+        assert.equal(descriptor.value, 'blastix', 'expected existing value to remain');
+        obj.someProp = 'new value'; // make sure the descriptor remains correct (nothing funky, like a redefined, happened in the setter);
+
+        descriptor = Object.getOwnPropertyDescriptor(obj, 'someProp');
+        assert.equal(descriptor.enumerable, true, 'property should remain enumerable');
+        assert.equal(descriptor.configurable, true, 'property should remain configurable');
+        assert.equal(descriptor.value, 'new value', 'expected existing value to NOT remain');
+        assert.equal(obj.someProp, 'new value');
+      }
+
+      ['@test sets up mandatory-setter if property comes from prototype'](assert) {
+        assert.expect(2);
+        let obj = {
+          someProp: null,
+
+          toString() {
+            return 'custom-object';
+          }
+
+        };
+        let obj2 = Object.create(obj);
+        (0, _metal.watch)(obj2, 'someProp');
+        assert.ok(hasMandatorySetter(obj2, 'someProp'), 'mandatory setter has been setup');
+        expectAssertion(function () {
+          obj2.someProp = 'foo-bar';
+        }, 'You must use set() to set the `someProp` property (of custom-object) to `foo-bar`.');
+      }
+
+      ['@test inheritance remains live'](assert) {
+        function Parent() {}
+
+        Parent.prototype.food = 'chips';
+        let child = new Parent();
+        assert.equal(child.food, 'chips');
+        (0, _metal.watch)(child, 'food');
+        assert.equal(child.food, 'chips');
+        Parent.prototype.food = 'icecreame';
+        assert.equal(child.food, 'icecreame');
+        (0, _metal.unwatch)(child, 'food');
+        assert.equal(child.food, 'icecreame');
+        Parent.prototype.food = 'chips';
+        assert.equal(child.food, 'chips');
+      }
+
+      ['@test inheritance remains live and preserves this'](assert) {
+        function Parent(food) {
+          this._food = food;
         }
 
-      });
-    }
+        Object.defineProperty(Parent.prototype, 'food', {
+          get() {
+            return this._food;
+          }
+
+        });
+        let child = new Parent('chips');
+        assert.equal(child.food, 'chips');
+        (0, _metal.watch)(child, 'food');
+        assert.equal(child.food, 'chips');
+        child._food = 'icecreame';
+        assert.equal(child.food, 'icecreame');
+        (0, _metal.unwatch)(child, 'food');
+        assert.equal(child.food, 'icecreame');
+        let foodDesc = Object.getOwnPropertyDescriptor(Parent.prototype, 'food');
+        assert.ok(!foodDesc.configurable, 'Parent.prototype.food desc should be non configable');
+        assert.ok(!foodDesc.enumerable, 'Parent.prototype.food desc should be non enumerable');
+        assert.equal(foodDesc.get.call({
+          _food: 'hi'
+        }), 'hi');
+        assert.equal(foodDesc.set, undefined);
+        assert.equal(child.food, 'icecreame');
+      }
+
+    });
+  }
 });
 enifed("@ember/-internals/metal/tests/accessors/set_path_test", ["@ember/-internals/environment", "@ember/-internals/metal", "internal-test-helpers"], function (_environment, _metal, _internalTestHelpers) {
   "use strict";
@@ -40881,8 +41316,44 @@ enifed("@ember/-internals/metal/tests/accessors/set_test", ["@ember/-internals/m
 
   });
 });
-enifed("@ember/-internals/metal/tests/alias_test", ["@ember/-internals/metal", "@ember/-internals/meta", "internal-test-helpers"], function (_metal, _meta, _internalTestHelpers) {
+enifed("@ember/-internals/metal/tests/alias_test", ["@ember/-internals/metal", "@ember/-internals/runtime", "@ember/canary-features", "internal-test-helpers"], function (_metal, _runtime, _canaryFeatures, _internalTestHelpers) {
   "use strict";
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   let obj, count;
 
@@ -40916,58 +41387,142 @@ enifed("@ember/-internals/metal/tests/alias_test", ["@ember/-internals/metal", "
     }
 
     ['@test old dependent keys should not trigger property changes'](assert) {
-      let obj1 = Object.create(null);
-      (0, _metal.defineProperty)(obj1, 'foo', null, null);
-      (0, _metal.defineProperty)(obj1, 'bar', (0, _metal.alias)('foo'));
-      (0, _metal.defineProperty)(obj1, 'baz', (0, _metal.alias)('foo'));
-      (0, _metal.defineProperty)(obj1, 'baz', (0, _metal.alias)('bar')); // redefine baz
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var obj1;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              obj1 = Object.create(null);
+              (0, _metal.defineProperty)(obj1, 'foo', null, null);
+              (0, _metal.defineProperty)(obj1, 'bar', (0, _metal.alias)('foo'));
+              (0, _metal.defineProperty)(obj1, 'baz', (0, _metal.alias)('foo'));
+              (0, _metal.defineProperty)(obj1, 'baz', (0, _metal.alias)('bar')); // redefine baz
+              // bootstrap the alias
 
-      (0, _metal.addObserver)(obj1, 'baz', incrementCount);
-      (0, _metal.set)(obj1, 'foo', 'FOO');
-      assert.equal(count, 1);
-      (0, _metal.removeObserver)(obj1, 'baz', incrementCount);
-      (0, _metal.set)(obj1, 'foo', 'OOF');
-      assert.equal(count, 1);
+              obj1.baz;
+              (0, _metal.addObserver)(obj1, 'baz', incrementCount);
+              (0, _metal.set)(obj1, 'foo', 'FOO');
+              _context.next = 10;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 10:
+              assert.equal(count, 1);
+              (0, _metal.removeObserver)(obj1, 'baz', incrementCount);
+              (0, _metal.set)(obj1, 'foo', 'OOF');
+              _context.next = 15;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 15:
+              assert.equal(count, 1);
+
+            case 16:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     ["@test inheriting an observer of the alias from the prototype then\n    redefining the alias on the instance to another property dependent on same key\n    does not call the observer twice"](assert) {
-      let obj1 = Object.create(null);
-      obj1.incrementCount = incrementCount;
-      (0, _meta.meta)(obj1).proto = obj1;
-      (0, _metal.defineProperty)(obj1, 'foo', null, null);
-      (0, _metal.defineProperty)(obj1, 'bar', (0, _metal.alias)('foo'));
-      (0, _metal.defineProperty)(obj1, 'baz', (0, _metal.alias)('foo'));
-      (0, _metal.addObserver)(obj1, 'baz', null, 'incrementCount');
-      let obj2 = Object.create(obj1);
-      (0, _metal.defineProperty)(obj2, 'baz', (0, _metal.alias)('bar')); // override baz
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var obj1, obj2;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              obj1 = _runtime.Object.extend({
+                foo: null,
+                bar: (0, _metal.alias)('foo'),
+                baz: (0, _metal.alias)('foo'),
+                incrementCount
+              });
+              (0, _metal.addObserver)(obj1.prototype, 'baz', null, 'incrementCount');
+              obj2 = obj1.create();
+              (0, _metal.defineProperty)(obj2, 'baz', (0, _metal.alias)('bar')); // override baz
+              // bootstrap the alias
 
-      (0, _metal.set)(obj2, 'foo', 'FOO');
-      assert.equal(count, 1);
-      (0, _metal.removeObserver)(obj2, 'baz', null, 'incrementCount');
-      (0, _metal.set)(obj2, 'foo', 'OOF');
-      assert.equal(count, 1);
+              obj2.baz;
+              (0, _metal.set)(obj2, 'foo', 'FOO');
+              _context2.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              assert.equal(count, 1);
+              (0, _metal.removeObserver)(obj2, 'baz', null, 'incrementCount');
+              (0, _metal.set)(obj2, 'foo', 'OOF');
+              _context2.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 13:
+              assert.equal(count, 1);
+
+            case 14:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     ['@test an observer of the alias works if added after defining the alias'](assert) {
-      (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz'));
-      (0, _metal.addObserver)(obj, 'bar', incrementCount);
-      assert.ok((0, _metal.isWatching)(obj, 'foo.faz'));
-      (0, _metal.set)(obj, 'foo.faz', 'BAR');
-      assert.equal(count, 1);
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz')); // bootstrap the alias
+
+              obj.bar;
+              (0, _metal.addObserver)(obj, 'bar', incrementCount);
+              (0, _metal.set)(obj, 'foo.faz', 'BAR');
+              _context3.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              assert.equal(count, 1);
+
+            case 7:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     ['@test an observer of the alias works if added before defining the alias'](assert) {
-      (0, _metal.addObserver)(obj, 'bar', incrementCount);
-      (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz'));
-      assert.ok((0, _metal.isWatching)(obj, 'foo.faz'));
-      (0, _metal.set)(obj, 'foo.faz', 'BAR');
-      assert.equal(count, 1);
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              (0, _metal.addObserver)(obj, 'bar', incrementCount);
+              (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz')); // bootstrap the alias
+
+              obj.bar;
+              (0, _metal.set)(obj, 'foo.faz', 'BAR');
+              _context4.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              assert.equal(count, 1);
+
+            case 7:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
-    ['@test object with alias is dirtied if interior object of alias is set after consumption'](assert) {
+    ['@test alias is dirtied if interior object of alias is set after consumption'](assert) {
       (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz'));
       (0, _metal.get)(obj, 'bar');
-      let tag = (0, _metal.tagFor)(obj);
+      let tag = _canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES ? (0, _metal.tagForProperty)(obj, 'bar') : (0, _metal.tagFor)(obj);
       let tagValue = tag.value();
       (0, _metal.set)(obj, 'foo.faz', 'BAR');
       assert.ok(!tag.validate(tagValue), 'setting the aliased key should dirty the object');
@@ -40978,35 +41533,47 @@ enifed("@ember/-internals/metal/tests/alias_test", ["@ember/-internals/metal", "
     }
 
     ['@test destroyed alias does not disturb watch count'](assert) {
-      (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz'));
-      assert.equal((0, _metal.get)(obj, 'bar'), 'FOO');
-      assert.ok((0, _metal.isWatching)(obj, 'foo.faz'));
-      (0, _metal.defineProperty)(obj, 'bar', null);
-      assert.notOk((0, _metal.isWatching)(obj, 'foo.faz'));
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz'));
+        assert.equal((0, _metal.get)(obj, 'bar'), 'FOO');
+        assert.ok((0, _metal.isWatching)(obj, 'foo.faz'));
+        (0, _metal.defineProperty)(obj, 'bar', null);
+        assert.notOk((0, _metal.isWatching)(obj, 'foo.faz'));
+      } else {
+        assert.expect(0);
+      }
     }
 
     ['@test setting on oneWay alias does not disturb watch count'](assert) {
-      (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz').oneWay());
-      assert.equal((0, _metal.get)(obj, 'bar'), 'FOO');
-      assert.ok((0, _metal.isWatching)(obj, 'foo.faz'));
-      (0, _metal.set)(obj, 'bar', null);
-      assert.notOk((0, _metal.isWatching)(obj, 'foo.faz'));
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz').oneWay());
+        assert.equal((0, _metal.get)(obj, 'bar'), 'FOO');
+        assert.ok((0, _metal.isWatching)(obj, 'foo.faz'));
+        (0, _metal.set)(obj, 'bar', null);
+        assert.notOk((0, _metal.isWatching)(obj, 'foo.faz'));
+      } else {
+        assert.expect(0);
+      }
     }
 
     ['@test redefined alias with observer does not disturb watch count'](assert) {
-      (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz').oneWay());
-      assert.equal((0, _metal.get)(obj, 'bar'), 'FOO');
-      assert.ok((0, _metal.isWatching)(obj, 'foo.faz'));
-      (0, _metal.addObserver)(obj, 'bar', incrementCount);
-      assert.equal(count, 0);
-      (0, _metal.set)(obj, 'bar', null);
-      assert.equal(count, 1);
-      assert.notOk((0, _metal.isWatching)(obj, 'foo.faz'));
-      (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz'));
-      assert.equal(count, 1);
-      assert.ok((0, _metal.isWatching)(obj, 'foo.faz'));
-      (0, _metal.set)(obj, 'foo.faz', 'great');
-      assert.equal(count, 2);
+      if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz').oneWay());
+        assert.equal((0, _metal.get)(obj, 'bar'), 'FOO');
+        assert.ok((0, _metal.isWatching)(obj, 'foo.faz'));
+        (0, _metal.addObserver)(obj, 'bar', incrementCount);
+        assert.equal(count, 0);
+        (0, _metal.set)(obj, 'bar', null);
+        assert.equal(count, 1);
+        assert.notOk((0, _metal.isWatching)(obj, 'foo.faz'));
+        (0, _metal.defineProperty)(obj, 'bar', (0, _metal.alias)('foo.faz'));
+        assert.equal(count, 1);
+        assert.ok((0, _metal.isWatching)(obj, 'foo.faz'));
+        (0, _metal.set)(obj, 'foo.faz', 'great');
+        assert.equal(count, 2);
+      } else {
+        assert.expect(0);
+      }
     }
 
     ['@test property tags are bumped when the source changes [GH#17243]'](assert) {
@@ -41051,181 +41618,183 @@ enifed("@ember/-internals/metal/tests/alias_test", ["@ember/-internals/metal", "
 
   });
 });
-enifed("@ember/-internals/metal/tests/chains_test", ["@ember/-internals/metal", "@ember/-internals/meta", "internal-test-helpers"], function (_metal, _meta, _internalTestHelpers) {
+enifed("@ember/-internals/metal/tests/chains_test", ["@ember/-internals/metal", "@ember/-internals/meta", "@ember/canary-features", "internal-test-helpers"], function (_metal, _meta, _canaryFeatures, _internalTestHelpers) {
   "use strict";
 
-  (0, _internalTestHelpers.moduleFor)('Chains', class extends _internalTestHelpers.AbstractTestCase {
-    ['@test finishChains should properly copy chains from prototypes to instances'](assert) {
-      function didChange() {}
+  if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    (0, _internalTestHelpers.moduleFor)('Chains', class extends _internalTestHelpers.AbstractTestCase {
+      ['@test finishChains should properly copy chains from prototypes to instances'](assert) {
+        function didChange() {}
 
-      let obj = {};
-      (0, _metal.addObserver)(obj, 'foo.bar', null, didChange);
-      let childObj = Object.create(obj);
-      let parentMeta = (0, _meta.meta)(obj);
-      let childMeta = (0, _meta.meta)(childObj);
-      (0, _metal.finishChains)(childMeta);
-      assert.ok(parentMeta.readableChains() !== childMeta.readableChains(), 'The chains object is copied');
-    }
-
-    ['@test does not observe primitive values'](assert) {
-      let obj = {
-        foo: {
-          bar: 'STRING'
-        }
-      };
-      (0, _metal.addObserver)(obj, 'foo.bar.baz', null, function () {});
-      let meta = (0, _meta.peekMeta)(obj);
-      assert.notOk(meta._object);
-    }
-
-    ['@test observer and CP chains'](assert) {
-      let obj = {};
-      (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('qux.[]', function () {}));
-      (0, _metal.defineProperty)(obj, 'qux', (0, _metal.computed)(function () {})); // create DK chains
-
-      (0, _metal.get)(obj, 'foo'); // create observer chain
-
-      (0, _metal.addObserver)(obj, 'qux.length', function () {});
-      /*
-             +-----+
-             | qux |   root CP
-             +-----+
-                ^
-         +------+-----+
-         |            |
-      +--------+    +----+
-      | length |    | [] |  chainWatchers
-      +--------+    +----+
-      observer       CP(foo, 'qux.[]')
-      */
-      // invalidate qux
-
-      (0, _metal.notifyPropertyChange)(obj, 'qux'); // CP chain is blown away
-
-      /*
-             +-----+
-             | qux |   root CP
-             +-----+
-                ^
-         +------+xxxxxx
-         |            x
-      +--------+    xxxxxx
-      | length |    x [] x  chainWatchers
-      +--------+    xxxxxx
-      observer       CP(foo, 'qux.[]')
-      */
-
-      (0, _metal.get)(obj, 'qux'); // CP chain re-recreated
-
-      assert.ok(true, 'no crash');
-    }
-
-    ['@test checks cache correctly'](assert) {
-      let obj = {};
-      let parentChainNode = new _metal.ChainNode(null, null, obj);
-      let chainNode = new _metal.ChainNode(parentChainNode, 'foo');
-      (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)(function () {
-        return undefined;
-      }));
-      (0, _metal.get)(obj, 'foo');
-      assert.strictEqual(chainNode.value(), undefined);
-    }
-
-    ['@test chains are watched correctly'](assert) {
-      let obj = {
-        foo: {
-          bar: {
-            baz: 1
-          }
-        }
-      };
-      (0, _metal.watch)(obj, 'foo.bar.baz');
-      assert.equal((0, _metal.watcherCount)(obj, 'foo'), 1);
-      assert.equal((0, _metal.watcherCount)(obj, 'foo.bar'), 0);
-      assert.equal((0, _metal.watcherCount)(obj, 'foo.bar.baz'), 1);
-      assert.equal((0, _metal.watcherCount)(obj.foo, 'bar'), 1);
-      assert.equal((0, _metal.watcherCount)(obj.foo, 'bar.baz'), 0);
-      assert.equal((0, _metal.watcherCount)(obj.foo.bar, 'baz'), 1);
-      (0, _metal.unwatch)(obj, 'foo.bar.baz');
-      assert.equal((0, _metal.watcherCount)(obj, 'foo'), 0);
-      assert.equal((0, _metal.watcherCount)(obj, 'foo.bar'), 0);
-      assert.equal((0, _metal.watcherCount)(obj, 'foo.bar.baz'), 0);
-      assert.equal((0, _metal.watcherCount)(obj.foo, 'bar'), 0);
-      assert.equal((0, _metal.watcherCount)(obj.foo, 'bar.baz'), 0);
-      assert.equal((0, _metal.watcherCount)(obj.foo.bar, 'baz'), 0);
-    }
-
-    ['@test chains with single character keys are watched correctly'](assert) {
-      let obj = {
-        a: {
-          b: {
-            c: 1
-          }
-        }
-      };
-      (0, _metal.watch)(obj, 'a.b.c');
-      assert.equal((0, _metal.watcherCount)(obj, 'a'), 1);
-      assert.equal((0, _metal.watcherCount)(obj, 'a.b'), 0);
-      assert.equal((0, _metal.watcherCount)(obj, 'a.b.c'), 1);
-      assert.equal((0, _metal.watcherCount)(obj.a, 'b'), 1);
-      assert.equal((0, _metal.watcherCount)(obj.a, 'b.c'), 0);
-      assert.equal((0, _metal.watcherCount)(obj.a.b, 'c'), 1);
-      (0, _metal.unwatch)(obj, 'a.b.c');
-      assert.equal((0, _metal.watcherCount)(obj, 'a'), 0);
-      assert.equal((0, _metal.watcherCount)(obj, 'a.b'), 0);
-      assert.equal((0, _metal.watcherCount)(obj, 'a.b.c'), 0);
-      assert.equal((0, _metal.watcherCount)(obj.a, 'b'), 0);
-      assert.equal((0, _metal.watcherCount)(obj.a, 'b.c'), 0);
-      assert.equal((0, _metal.watcherCount)(obj.a.b, 'c'), 0);
-    }
-
-    ['@test writable chains is not defined more than once'](assert) {
-      assert.expect(0);
-
-      class Base {
-        constructor() {
-          (0, _metal.finishChains)((0, _meta.meta)(this));
-        }
-
-        didChange() {}
-
+        let obj = {};
+        (0, _metal.addObserver)(obj, 'foo.bar', null, didChange);
+        let childObj = Object.create(obj);
+        let parentMeta = (0, _meta.meta)(obj);
+        let childMeta = (0, _meta.meta)(childObj);
+        (0, _metal.finishChains)(childMeta);
+        assert.ok(parentMeta.readableChains() !== childMeta.readableChains(), 'The chains object is copied');
       }
 
-      Base.prototype.foo = {
-        bar: {
-          baz: {
-            value: 123
+      ['@test does not observe primitive values'](assert) {
+        let obj = {
+          foo: {
+            bar: 'STRING'
           }
+        };
+        (0, _metal.addObserver)(obj, 'foo.bar.baz', null, function () {});
+        let meta = (0, _meta.peekMeta)(obj);
+        assert.notOk(meta._object);
+      }
+
+      ['@test observer and CP chains'](assert) {
+        let obj = {};
+        (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('qux.[]', function () {}));
+        (0, _metal.defineProperty)(obj, 'qux', (0, _metal.computed)(function () {})); // create DK chains
+
+        (0, _metal.get)(obj, 'foo'); // create observer chain
+
+        (0, _metal.addObserver)(obj, 'qux.length', function () {});
+        /*
+              +-----+
+              | qux |   root CP
+              +-----+
+                  ^
+          +------+-----+
+          |            |
+        +--------+    +----+
+        | length |    | [] |  chainWatchers
+        +--------+    +----+
+        observer       CP(foo, 'qux.[]')
+        */
+        // invalidate qux
+
+        (0, _metal.notifyPropertyChange)(obj, 'qux'); // CP chain is blown away
+
+        /*
+              +-----+
+              | qux |   root CP
+              +-----+
+                  ^
+          +------+xxxxxx
+          |            x
+        +--------+    xxxxxx
+        | length |    x [] x  chainWatchers
+        +--------+    xxxxxx
+        observer       CP(foo, 'qux.[]')
+        */
+
+        (0, _metal.get)(obj, 'qux'); // CP chain re-recreated
+
+        assert.ok(true, 'no crash');
+      }
+
+      ['@test checks cache correctly'](assert) {
+        let obj = {};
+        let parentChainNode = new _metal.ChainNode(null, null, obj);
+        let chainNode = new _metal.ChainNode(parentChainNode, 'foo');
+        (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)(function () {
+          return undefined;
+        }));
+        (0, _metal.get)(obj, 'foo');
+        assert.strictEqual(chainNode.value(), undefined);
+      }
+
+      ['@test chains are watched correctly'](assert) {
+        let obj = {
+          foo: {
+            bar: {
+              baz: 1
+            }
+          }
+        };
+        (0, _metal.watch)(obj, 'foo.bar.baz');
+        assert.equal((0, _metal.watcherCount)(obj, 'foo'), 1);
+        assert.equal((0, _metal.watcherCount)(obj, 'foo.bar'), 0);
+        assert.equal((0, _metal.watcherCount)(obj, 'foo.bar.baz'), 1);
+        assert.equal((0, _metal.watcherCount)(obj.foo, 'bar'), 1);
+        assert.equal((0, _metal.watcherCount)(obj.foo, 'bar.baz'), 0);
+        assert.equal((0, _metal.watcherCount)(obj.foo.bar, 'baz'), 1);
+        (0, _metal.unwatch)(obj, 'foo.bar.baz');
+        assert.equal((0, _metal.watcherCount)(obj, 'foo'), 0);
+        assert.equal((0, _metal.watcherCount)(obj, 'foo.bar'), 0);
+        assert.equal((0, _metal.watcherCount)(obj, 'foo.bar.baz'), 0);
+        assert.equal((0, _metal.watcherCount)(obj.foo, 'bar'), 0);
+        assert.equal((0, _metal.watcherCount)(obj.foo, 'bar.baz'), 0);
+        assert.equal((0, _metal.watcherCount)(obj.foo.bar, 'baz'), 0);
+      }
+
+      ['@test chains with single character keys are watched correctly'](assert) {
+        let obj = {
+          a: {
+            b: {
+              c: 1
+            }
+          }
+        };
+        (0, _metal.watch)(obj, 'a.b.c');
+        assert.equal((0, _metal.watcherCount)(obj, 'a'), 1);
+        assert.equal((0, _metal.watcherCount)(obj, 'a.b'), 0);
+        assert.equal((0, _metal.watcherCount)(obj, 'a.b.c'), 1);
+        assert.equal((0, _metal.watcherCount)(obj.a, 'b'), 1);
+        assert.equal((0, _metal.watcherCount)(obj.a, 'b.c'), 0);
+        assert.equal((0, _metal.watcherCount)(obj.a.b, 'c'), 1);
+        (0, _metal.unwatch)(obj, 'a.b.c');
+        assert.equal((0, _metal.watcherCount)(obj, 'a'), 0);
+        assert.equal((0, _metal.watcherCount)(obj, 'a.b'), 0);
+        assert.equal((0, _metal.watcherCount)(obj, 'a.b.c'), 0);
+        assert.equal((0, _metal.watcherCount)(obj.a, 'b'), 0);
+        assert.equal((0, _metal.watcherCount)(obj.a, 'b.c'), 0);
+        assert.equal((0, _metal.watcherCount)(obj.a.b, 'c'), 0);
+      }
+
+      ['@test writable chains is not defined more than once'](assert) {
+        assert.expect(0);
+
+        class Base {
+          constructor() {
+            (0, _metal.finishChains)((0, _meta.meta)(this));
+          }
+
+          didChange() {}
+
         }
-      }; // Define a standard computed property, which will eventually setup dependencies
 
-      (0, _metal.defineProperty)(Base.prototype, 'bar', (0, _metal.computed)('foo.bar', {
-        get() {
-          return this.foo.bar;
-        }
+        Base.prototype.foo = {
+          bar: {
+            baz: {
+              value: 123
+            }
+          }
+        }; // Define a standard computed property, which will eventually setup dependencies
 
-      })); // Define some aliases, which will proxy chains along
+        (0, _metal.defineProperty)(Base.prototype, 'bar', (0, _metal.computed)('foo.bar', {
+          get() {
+            return this.foo.bar;
+          }
 
-      (0, _metal.defineProperty)(Base.prototype, 'baz', (0, _metal.alias)('bar.baz'));
-      (0, _metal.defineProperty)(Base.prototype, 'value', (0, _metal.alias)('baz.value')); // Define an observer, which will eagerly attempt to setup chains and watch
-      // their values. This follows the aliases eagerly, and forces the first
-      // computed to actually set up its values/dependencies for chains. If
-      // writableChains was not already defined, this results in multiple root
-      // chain nodes being defined on the same object meta.
+        })); // Define some aliases, which will proxy chains along
 
-      (0, _metal.addObserver)(Base.prototype, 'value', null, 'didChange');
+        (0, _metal.defineProperty)(Base.prototype, 'baz', (0, _metal.alias)('bar.baz'));
+        (0, _metal.defineProperty)(Base.prototype, 'value', (0, _metal.alias)('baz.value')); // Define an observer, which will eagerly attempt to setup chains and watch
+        // their values. This follows the aliases eagerly, and forces the first
+        // computed to actually set up its values/dependencies for chains. If
+        // writableChains was not already defined, this results in multiple root
+        // chain nodes being defined on the same object meta.
 
-      class Child extends Base {}
+        (0, _metal.addObserver)(Base.prototype, 'value', null, 'didChange');
 
-      let childObj = new Child();
-      (0, _metal.set)(childObj, 'foo.bar', {
-        baz: {
-          value: 456
-        }
-      });
-    }
+        class Child extends Base {}
 
-  });
+        let childObj = new Child();
+        (0, _metal.set)(childObj, 'foo.bar', {
+          baz: {
+            value: 456
+          }
+        });
+      }
+
+    });
+  }
 });
 enifed("@ember/-internals/metal/tests/computed_decorator_test", ["@ember/-internals/runtime", "@ember/-internals/metal", "internal-test-helpers"], function (_runtime, _metal, _internalTestHelpers) {
   "use strict";
@@ -41673,8 +42242,44 @@ enifed("@ember/-internals/metal/tests/computed_decorator_test", ["@ember/-intern
     });
   }
 });
-enifed("@ember/-internals/metal/tests/computed_test", ["@ember/-internals/runtime", "@ember/-internals/metal", "@ember/-internals/meta", "internal-test-helpers"], function (_runtime, _metal, _meta, _internalTestHelpers) {
+enifed("@ember/-internals/metal/tests/computed_test", ["@ember/-internals/runtime", "@ember/-internals/metal", "@ember/-internals/meta", "@ember/canary-features", "internal-test-helpers"], function (_runtime, _metal, _meta, _canaryFeatures, _internalTestHelpers) {
   "use strict";
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   let obj, count;
   (0, _internalTestHelpers.moduleFor)('computed', class extends _internalTestHelpers.AbstractTestCase {
@@ -42089,52 +42694,6 @@ enifed("@ember/-internals/metal/tests/computed_test", ["@ember/-internals/runtim
       obj = count = null;
     }
 
-    ['@test should lazily watch dependent keys on set'](assert) {
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'precond not watching dependent key');
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily watching dependent key');
-    }
-
-    ['@test should lazily watch dependent keys on get'](assert) {
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'precond not watching dependent key');
-      (0, _metal.get)(obj, 'foo');
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily watching dependent key');
-    }
-
-    ['@test local dependent key should invalidate cache'](assert) {
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'precond not watching dependent key');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar 1', 'get once');
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily setup watching dependent key');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar 1', 'cached retrieve');
-      (0, _metal.set)(obj, 'bar', 'BIFF'); // should invalidate foo
-
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar 2', 'should recache');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar 2', 'cached retrieve');
-    }
-
-    ['@test should invalidate multiple nested dependent keys'](assert) {
-      let count = 0;
-      (0, _metal.defineProperty)(obj, 'bar', (0, _metal.computed)('baz', function () {
-        count++;
-        (0, _metal.get)(this, 'baz');
-        return 'baz ' + count;
-      }));
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'precond not watching dependent key');
-      assert.equal((0, _metal.isWatching)(obj, 'baz'), false, 'precond not watching dependent key');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar 1', 'get once');
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily setup watching dependent key');
-      assert.equal((0, _metal.isWatching)(obj, 'baz'), true, 'lazily setup watching dependent key');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar 1', 'cached retrieve');
-      (0, _metal.set)(obj, 'baz', 'BIFF'); // should invalidate bar -> foo
-
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'should not be watching dependent key after cache cleared');
-      assert.equal((0, _metal.isWatching)(obj, 'baz'), false, 'should not be watching dependent key after cache cleared');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar 2', 'should recache');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar 2', 'cached retrieve');
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily setup watching dependent key');
-      assert.equal((0, _metal.isWatching)(obj, 'baz'), true, 'lazily setup watching dependent key');
-    }
-
     ['@test circular keys should not blow up'](assert) {
       let func = function () {
         count++;
@@ -42158,14 +42717,11 @@ enifed("@ember/-internals/metal/tests/computed_test", ["@ember/-internals/runtim
     }
 
     ['@test redefining a property should undo old dependent keys'](assert) {
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'precond not watching dependent key');
       assert.equal((0, _metal.get)(obj, 'foo'), 'bar 1');
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily watching dependent key');
       (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('baz', function () {
         count++;
         return 'baz ' + count;
       }));
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'after redefining should not be watching dependent key');
       assert.equal((0, _metal.get)(obj, 'foo'), 'baz 2');
       (0, _metal.set)(obj, 'bar', 'BIFF'); // should not kill cache
 
@@ -42202,22 +42758,93 @@ enifed("@ember/-internals/metal/tests/computed_test", ["@ember/-internals/runtim
       }, /cannot contain spaces/);
     }
 
-    ['@test throws an assertion if an uncached `get` is called after object is destroyed'](assert) {
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'precond not watching dependent key');
+    ['@test throws an assertion if an uncached `get` is called after object is destroyed']() {
       let meta = (0, _meta.meta)(obj);
       meta.destroy();
 
       obj.toString = () => '<custom-obj:here>';
 
-      expectAssertion(() => {
-        (0, _metal.get)(obj, 'foo');
-      }, 'Cannot modify dependent keys for `foo` on `<custom-obj:here>` after it has been destroyed.');
-      assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'deps were not updated');
+      let message = _canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES ? 'Attempted to access the computed <custom-obj:here>.foo on a destroyed object, which is not allowed' : 'Cannot modify dependent keys for `foo` on `<custom-obj:here>` after it has been destroyed.';
+      expectAssertion(() => (0, _metal.get)(obj, 'foo'), message);
     }
 
-  }); // ..........................................................
+  });
+
+  if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    (0, _internalTestHelpers.moduleFor)('computed - dependentkey - watching', class extends _internalTestHelpers.AbstractTestCase {
+      beforeEach() {
+        obj = {
+          bar: 'baz'
+        };
+        count = 0;
+
+        let getterAndSetter = function () {
+          count++;
+          (0, _metal.get)(this, 'bar');
+          return 'bar ' + count;
+        };
+
+        (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('bar', {
+          get: getterAndSetter,
+          set: getterAndSetter
+        }));
+      }
+
+      afterEach() {
+        obj = count = null;
+      }
+
+      ['@test should lazily watch dependent keys on set'](assert) {
+        assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'precond not watching dependent key');
+        (0, _metal.set)(obj, 'foo', 'bar');
+        assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily watching dependent key');
+      }
+
+      ['@test should lazily watch dependent keys on get'](assert) {
+        assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'precond not watching dependent key');
+        (0, _metal.get)(obj, 'foo');
+        assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily watching dependent key');
+      }
+
+      ['@test local dependent key should invalidate cache'](assert) {
+        assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'precond not watching dependent key');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar 1', 'get once');
+        assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily setup watching dependent key');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar 1', 'cached retrieve');
+        (0, _metal.set)(obj, 'bar', 'BIFF'); // should invalidate foo
+
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar 2', 'should recache');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar 2', 'cached retrieve');
+      }
+
+      ['@test should invalidate multiple nested dependent keys'](assert) {
+        let count = 0;
+        (0, _metal.defineProperty)(obj, 'bar', (0, _metal.computed)('baz', function () {
+          count++;
+          (0, _metal.get)(this, 'baz');
+          return 'baz ' + count;
+        }));
+        assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'precond not watching dependent key');
+        assert.equal((0, _metal.isWatching)(obj, 'baz'), false, 'precond not watching dependent key');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar 1', 'get once');
+        assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily setup watching dependent key');
+        assert.equal((0, _metal.isWatching)(obj, 'baz'), true, 'lazily setup watching dependent key');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar 1', 'cached retrieve');
+        (0, _metal.set)(obj, 'baz', 'BIFF'); // should invalidate bar -> foo
+
+        assert.equal((0, _metal.isWatching)(obj, 'bar'), false, 'should not be watching dependent key after cache cleared');
+        assert.equal((0, _metal.isWatching)(obj, 'baz'), false, 'should not be watching dependent key after cache cleared');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar 2', 'should recache');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar 2', 'cached retrieve');
+        assert.equal((0, _metal.isWatching)(obj, 'bar'), true, 'lazily setup watching dependent key');
+        assert.equal((0, _metal.isWatching)(obj, 'baz'), true, 'lazily setup watching dependent key');
+      }
+
+    });
+  } // ..........................................................
   // CHAINED DEPENDENT KEYS
   //
+
 
   let func;
   (0, _internalTestHelpers.moduleFor)('computed - dependentkey with chained properties', class extends _internalTestHelpers.AbstractTestCase {
@@ -42431,91 +43058,163 @@ enifed("@ember/-internals/metal/tests/computed_test", ["@ember/-internals/runtim
   });
   (0, _internalTestHelpers.moduleFor)('computed - setter', class extends _internalTestHelpers.AbstractTestCase {
     ['@test setting a watched computed property'](assert) {
-      let obj = {
-        firstName: 'Yehuda',
-        lastName: 'Katz'
-      };
-      (0, _metal.defineProperty)(obj, 'fullName', (0, _metal.computed)('firstName', 'lastName', {
-        get() {
-          return (0, _metal.get)(this, 'firstName') + ' ' + (0, _metal.get)(this, 'lastName');
-        },
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var obj, values, fullNameDidChange, firstNameDidChange, lastNameDidChange;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              obj = {
+                firstName: 'Yehuda',
+                lastName: 'Katz'
+              };
+              _context.t0 = _metal.defineProperty;
+              _context.t1 = obj;
+              _context.t2 = _metal.computed;
+              _context.t3 = {
+                get() {
+                  return (0, _metal.get)(this, 'firstName') + ' ' + (0, _metal.get)(this, 'lastName');
+                },
 
-        set(key, value) {
-          let values = value.split(' ');
-          (0, _metal.set)(this, 'firstName', values[0]);
-          (0, _metal.set)(this, 'lastName', values[1]);
-          return value;
-        }
+                set(key, value) {
+                  values = value.split(' ');
+                  (0, _metal.set)(this, 'firstName', values[0]);
+                  (0, _metal.set)(this, 'lastName', values[1]);
+                  return value;
+                }
 
-      }));
-      let fullNameDidChange = 0;
-      let firstNameDidChange = 0;
-      let lastNameDidChange = 0;
-      (0, _metal.addObserver)(obj, 'fullName', function () {
-        fullNameDidChange++;
-      });
-      (0, _metal.addObserver)(obj, 'firstName', function () {
-        firstNameDidChange++;
-      });
-      (0, _metal.addObserver)(obj, 'lastName', function () {
-        lastNameDidChange++;
-      });
-      assert.equal((0, _metal.get)(obj, 'fullName'), 'Yehuda Katz');
-      (0, _metal.set)(obj, 'fullName', 'Yehuda Katz');
-      (0, _metal.set)(obj, 'fullName', 'Kris Selden');
-      assert.equal((0, _metal.get)(obj, 'fullName'), 'Kris Selden');
-      assert.equal((0, _metal.get)(obj, 'firstName'), 'Kris');
-      assert.equal((0, _metal.get)(obj, 'lastName'), 'Selden');
-      assert.equal(fullNameDidChange, 1);
-      assert.equal(firstNameDidChange, 1);
-      assert.equal(lastNameDidChange, 1);
+              };
+              _context.t4 = (0, _context.t2)('firstName', 'lastName', _context.t3);
+              (0, _context.t0)(_context.t1, 'fullName', _context.t4);
+              fullNameDidChange = 0;
+              firstNameDidChange = 0;
+              lastNameDidChange = 0;
+              (0, _metal.addObserver)(obj, 'fullName', function () {
+                fullNameDidChange++;
+              });
+              (0, _metal.addObserver)(obj, 'firstName', function () {
+                firstNameDidChange++;
+              });
+              (0, _metal.addObserver)(obj, 'lastName', function () {
+                lastNameDidChange++;
+              });
+              assert.equal((0, _metal.get)(obj, 'fullName'), 'Yehuda Katz');
+              (0, _metal.set)(obj, 'fullName', 'Yehuda Katz');
+              (0, _metal.set)(obj, 'fullName', 'Kris Selden');
+              assert.equal((0, _metal.get)(obj, 'fullName'), 'Kris Selden');
+              assert.equal((0, _metal.get)(obj, 'firstName'), 'Kris');
+              assert.equal((0, _metal.get)(obj, 'lastName'), 'Selden');
+              _context.next = 21;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 21:
+              assert.equal(fullNameDidChange, 1);
+              assert.equal(firstNameDidChange, 1);
+              assert.equal(lastNameDidChange, 1);
+
+            case 24:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee, this);
+      }))();
     }
 
     ['@test setting a cached computed property that modifies the value you give it'](assert) {
-      let obj = {
-        foo: 0
-      };
-      (0, _metal.defineProperty)(obj, 'plusOne', (0, _metal.computed)('foo', {
-        get() {
-          return (0, _metal.get)(this, 'foo') + 1;
-        },
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var obj, plusOneDidChange;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              obj = {
+                foo: 0
+              };
+              _context2.t0 = _metal.defineProperty;
+              _context2.t1 = obj;
+              _context2.t2 = _metal.computed;
+              _context2.t3 = {
+                get() {
+                  return (0, _metal.get)(this, 'foo') + 1;
+                },
 
-        set(key, value) {
-          (0, _metal.set)(this, 'foo', value);
-          return value + 1;
-        }
+                set(key, value) {
+                  (0, _metal.set)(this, 'foo', value);
+                  return value + 1;
+                }
 
-      }));
-      let plusOneDidChange = 0;
-      (0, _metal.addObserver)(obj, 'plusOne', function () {
-        plusOneDidChange++;
-      });
-      assert.equal((0, _metal.get)(obj, 'plusOne'), 1);
-      (0, _metal.set)(obj, 'plusOne', 1);
-      assert.equal((0, _metal.get)(obj, 'plusOne'), 2);
-      (0, _metal.set)(obj, 'plusOne', 1);
-      assert.equal((0, _metal.get)(obj, 'plusOne'), 2);
-      assert.equal(plusOneDidChange, 1);
-      (0, _metal.set)(obj, 'foo', 5);
-      assert.equal((0, _metal.get)(obj, 'plusOne'), 6);
-      assert.equal(plusOneDidChange, 2);
+              };
+              _context2.t4 = (0, _context2.t2)('foo', _context2.t3);
+              (0, _context2.t0)(_context2.t1, 'plusOne', _context2.t4);
+              plusOneDidChange = 0;
+              (0, _metal.addObserver)(obj, 'plusOne', function () {
+                plusOneDidChange++;
+              });
+              assert.equal((0, _metal.get)(obj, 'plusOne'), 1);
+              (0, _metal.set)(obj, 'plusOne', 1);
+              _context2.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 13:
+              assert.equal((0, _metal.get)(obj, 'plusOne'), 2);
+              (0, _metal.set)(obj, 'plusOne', 1);
+              _context2.next = 17;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 17:
+              assert.equal((0, _metal.get)(obj, 'plusOne'), 2);
+              assert.equal(plusOneDidChange, 1);
+              (0, _metal.set)(obj, 'foo', 5);
+              _context2.next = 22;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 22:
+              assert.equal((0, _metal.get)(obj, 'plusOne'), 6);
+              assert.equal(plusOneDidChange, 2);
+
+            case 24:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2, this);
+      }))();
     }
 
   });
   (0, _internalTestHelpers.moduleFor)('computed - default setter', class extends _internalTestHelpers.AbstractTestCase {
     ["@test when setting a value on a computed property that doesn't handle sets"](assert) {
-      let obj = {};
-      let observerFired = false;
-      (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)(function () {
-        return 'foo';
-      }));
-      (0, _metal.addObserver)(obj, 'foo', null, () => observerFired = true);
-      expectDeprecation(() => {
-        (0, _metal.set)(obj, 'foo', 'bar');
-      }, /The \[object Object\]#foo computed property was just overriden./);
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar', 'The set value is properly returned');
-      assert.ok(typeof obj.foo === 'string', 'The computed property was removed');
-      assert.ok(observerFired, 'The observer was still notified');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var obj, observerFired;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              obj = {};
+              observerFired = false;
+              (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)(function () {
+                return 'foo';
+              }));
+              (0, _metal.addObserver)(obj, 'foo', null, () => observerFired = true);
+              expectDeprecation(() => {
+                (0, _metal.set)(obj, 'foo', 'bar');
+              }, /The \[object Object\]#foo computed property was just overriden./);
+              assert.equal((0, _metal.get)(obj, 'foo'), 'bar', 'The set value is properly returned');
+              assert.ok(typeof obj.foo === 'string', 'The computed property was removed');
+              _context3.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              assert.ok(observerFired, 'The observer was still notified');
+
+            case 10:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
   });
@@ -44167,213 +44866,417 @@ enifed("@ember/-internals/metal/tests/mixin/method_test", ["@ember/-internals/me
 enifed("@ember/-internals/metal/tests/mixin/observer_test", ["@ember/-internals/metal", "internal-test-helpers"], function (_metal, _internalTestHelpers) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   (0, _internalTestHelpers.moduleFor)('Mixin observer', class extends _internalTestHelpers.AbstractTestCase {
     ['@test global observer helper'](assert) {
-      let MyMixin = _metal.Mixin.create({
-        count: 0,
-        foo: (0, _metal.observer)('bar', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              MyMixin = _metal.Mixin.create({
+                count: 0,
+                foo: (0, _metal.observer)('bar', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj = (0, _metal.mixin)({}, MyMixin);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj, 'bar', 'BAZ');
+              _context.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let obj = (0, _metal.mixin)({}, MyMixin);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj, 'bar', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 6:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+
+            case 7:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     ['@test global observer helper takes multiple params'](assert) {
-      let MyMixin = _metal.Mixin.create({
-        count: 0,
-        foo: (0, _metal.observer)('bar', 'baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              MyMixin = _metal.Mixin.create({
+                count: 0,
+                foo: (0, _metal.observer)('bar', 'baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj = (0, _metal.mixin)({}, MyMixin);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj, 'bar', 'BAZ');
+              _context2.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let obj = (0, _metal.mixin)({}, MyMixin);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj, 'bar', 'BAZ');
-      (0, _metal.set)(obj, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 2, 'should invoke observer after change');
+            case 6:
+              (0, _metal.set)(obj, 'baz', 'BAZ');
+              _context2.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              assert.equal((0, _metal.get)(obj, 'count'), 2, 'should invoke observer after change');
+
+            case 10:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     ['@test replacing observer should remove old observer'](assert) {
-      let MyMixin = _metal.Mixin.create({
-        count: 0,
-        foo: (0, _metal.observer)('bar', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var MyMixin, Mixin2, obj;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              MyMixin = _metal.Mixin.create({
+                count: 0,
+                foo: (0, _metal.observer)('bar', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              Mixin2 = _metal.Mixin.create({
+                foo: (0, _metal.observer)('baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 10);
+                })
+              });
+              obj = (0, _metal.mixin)({}, MyMixin, Mixin2);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj, 'bar', 'BAZ');
+              _context3.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let Mixin2 = _metal.Mixin.create({
-        foo: (0, _metal.observer)('baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 10);
-        })
-      });
+            case 7:
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer after change');
+              (0, _metal.set)(obj, 'baz', 'BAZ');
+              _context3.next = 11;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let obj = (0, _metal.mixin)({}, MyMixin, Mixin2);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj, 'bar', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer after change');
-      (0, _metal.set)(obj, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 10, 'should invoke observer after change');
+            case 11:
+              assert.equal((0, _metal.get)(obj, 'count'), 10, 'should invoke observer after change');
+
+            case 12:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     ['@test observing chain with property before'](assert) {
-      let obj2 = {
-        baz: 'baz'
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        var obj2, MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              obj2 = {
+                baz: 'baz'
+              };
+              MyMixin = _metal.Mixin.create({
+                count: 0,
+                bar: obj2,
+                foo: (0, _metal.observer)('bar.baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj = (0, _metal.mixin)({}, MyMixin);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj2, 'baz', 'BAZ');
+              _context4.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let MyMixin = _metal.Mixin.create({
-        count: 0,
-        bar: obj2,
-        foo: (0, _metal.observer)('bar.baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+            case 7:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
 
-      let obj = (0, _metal.mixin)({}, MyMixin);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj2, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 8:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
     ['@test observing chain with property after'](assert) {
-      let obj2 = {
-        baz: 'baz'
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var obj2, MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              obj2 = {
+                baz: 'baz'
+              };
+              MyMixin = _metal.Mixin.create({
+                count: 0,
+                foo: (0, _metal.observer)('bar.baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                }),
+                bar: obj2
+              });
+              obj = (0, _metal.mixin)({}, MyMixin);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj2, 'baz', 'BAZ');
+              _context5.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let MyMixin = _metal.Mixin.create({
-        count: 0,
-        foo: (0, _metal.observer)('bar.baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        }),
-        bar: obj2
-      });
+            case 7:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
 
-      let obj = (0, _metal.mixin)({}, MyMixin);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj2, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 8:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     ['@test observing chain with property in mixin applied later'](assert) {
-      let obj2 = {
-        baz: 'baz'
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var obj2, MyMixin, MyMixin2, obj;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              obj2 = {
+                baz: 'baz'
+              };
+              MyMixin = _metal.Mixin.create({
+                count: 0,
+                foo: (0, _metal.observer)('bar.baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              MyMixin2 = _metal.Mixin.create({
+                bar: obj2
+              });
+              obj = (0, _metal.mixin)({}, MyMixin);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              MyMixin2.apply(obj);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj2, 'baz', 'BAZ');
+              _context6.next = 10;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let MyMixin = _metal.Mixin.create({
-        count: 0,
-        foo: (0, _metal.observer)('bar.baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+            case 10:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
 
-      let MyMixin2 = _metal.Mixin.create({
-        bar: obj2
-      });
-
-      let obj = (0, _metal.mixin)({}, MyMixin);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      MyMixin2.apply(obj);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj2, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 11:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6);
+      }))();
     }
 
     ['@test observing chain with existing property'](assert) {
-      let obj2 = {
-        baz: 'baz'
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee7() {
+        var obj2, MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
+          while (1) switch (_context7.prev = _context7.next) {
+            case 0:
+              obj2 = {
+                baz: 'baz'
+              };
+              MyMixin = _metal.Mixin.create({
+                count: 0,
+                foo: (0, _metal.observer)('bar.baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj = (0, _metal.mixin)({
+                bar: obj2
+              }, MyMixin);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj2, 'baz', 'BAZ');
+              _context7.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let MyMixin = _metal.Mixin.create({
-        count: 0,
-        foo: (0, _metal.observer)('bar.baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+            case 7:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
 
-      let obj = (0, _metal.mixin)({
-        bar: obj2
-      }, MyMixin);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj2, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 8:
+            case "end":
+              return _context7.stop();
+          }
+        }, _callee7);
+      }))();
     }
 
     ['@test observing chain with property in mixin before'](assert) {
-      let obj2 = {
-        baz: 'baz'
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee8() {
+        var obj2, MyMixin2, MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee8$(_context8) {
+          while (1) switch (_context8.prev = _context8.next) {
+            case 0:
+              obj2 = {
+                baz: 'baz'
+              };
+              MyMixin2 = _metal.Mixin.create({
+                bar: obj2
+              });
+              MyMixin = _metal.Mixin.create({
+                count: 0,
+                foo: (0, _metal.observer)('bar.baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj = (0, _metal.mixin)({}, MyMixin2, MyMixin);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj2, 'baz', 'BAZ');
+              _context8.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let MyMixin2 = _metal.Mixin.create({
-        bar: obj2
-      });
+            case 8:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
 
-      let MyMixin = _metal.Mixin.create({
-        count: 0,
-        foo: (0, _metal.observer)('bar.baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
-
-      let obj = (0, _metal.mixin)({}, MyMixin2, MyMixin);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj2, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 9:
+            case "end":
+              return _context8.stop();
+          }
+        }, _callee8);
+      }))();
     }
 
     ['@test observing chain with property in mixin after'](assert) {
-      let obj2 = {
-        baz: 'baz'
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee9() {
+        var obj2, MyMixin2, MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee9$(_context9) {
+          while (1) switch (_context9.prev = _context9.next) {
+            case 0:
+              obj2 = {
+                baz: 'baz'
+              };
+              MyMixin2 = _metal.Mixin.create({
+                bar: obj2
+              });
+              MyMixin = _metal.Mixin.create({
+                count: 0,
+                foo: (0, _metal.observer)('bar.baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj = (0, _metal.mixin)({}, MyMixin, MyMixin2);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj2, 'baz', 'BAZ');
+              _context9.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let MyMixin2 = _metal.Mixin.create({
-        bar: obj2
-      });
+            case 8:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
 
-      let MyMixin = _metal.Mixin.create({
-        count: 0,
-        foo: (0, _metal.observer)('bar.baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
-
-      let obj = (0, _metal.mixin)({}, MyMixin, MyMixin2);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj2, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 9:
+            case "end":
+              return _context9.stop();
+          }
+        }, _callee9);
+      }))();
     }
 
     ['@test observing chain with overridden property'](assert) {
-      let obj2 = {
-        baz: 'baz'
-      };
-      let obj3 = {
-        baz: 'foo'
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee10() {
+        var obj2, obj3, MyMixin2, MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee10$(_context10) {
+          while (1) switch (_context10.prev = _context10.next) {
+            case 0:
+              obj2 = {
+                baz: 'baz'
+              };
+              obj3 = {
+                baz: 'foo'
+              };
+              MyMixin2 = _metal.Mixin.create({
+                bar: obj3
+              });
+              MyMixin = _metal.Mixin.create({
+                count: 0,
+                foo: (0, _metal.observer)('bar.baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj = (0, _metal.mixin)({
+                bar: obj2
+              }, MyMixin, MyMixin2);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj2, 'baz', 'BAZ');
+              _context10.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let MyMixin2 = _metal.Mixin.create({
-        bar: obj3
-      });
+            case 9:
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer after change');
+              (0, _metal.set)(obj3, 'baz', 'BEAR');
+              _context10.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let MyMixin = _metal.Mixin.create({
-        count: 0,
-        foo: (0, _metal.observer)('bar.baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+            case 13:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
 
-      let obj = (0, _metal.mixin)({
-        bar: obj2
-      }, MyMixin, MyMixin2);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      assert.equal((0, _metal.isWatching)(obj2, 'baz'), false, 'should not be watching baz');
-      assert.equal((0, _metal.isWatching)(obj3, 'baz'), true, 'should be watching baz');
-      (0, _metal.set)(obj2, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer after change');
-      (0, _metal.set)(obj3, 'baz', 'BEAR');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 14:
+            case "end":
+              return _context10.stop();
+          }
+        }, _callee10);
+      }))();
     }
 
   });
@@ -44762,8 +45665,44 @@ enifed("@ember/-internals/metal/tests/native_desc_decorator_test", ["@ember/-int
     });
   });
 });
-enifed("@ember/-internals/metal/tests/observer_test", ["@ember/-internals/environment", "@ember/-internals/metal", "internal-test-helpers", "@ember/deprecated-features"], function (_environment, _metal, _internalTestHelpers, _deprecatedFeatures) {
+enifed("@ember/-internals/metal/tests/observer_test", ["@ember/-internals/environment", "@ember/canary-features", "@ember/-internals/metal", "internal-test-helpers", "@ember/deprecated-features"], function (_environment, _canaryFeatures, _metal, _internalTestHelpers, _deprecatedFeatures) {
   "use strict";
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   function K() {} // ..........................................................
   // ADD OBSERVER
@@ -44781,147 +45720,323 @@ enifed("@ember/-internals/metal/tests/observer_test", ["@ember/-internals/enviro
     }
 
     ['@test observer should fire when property is modified'](assert) {
-      let obj = {};
-      let count = 0;
-      (0, _metal.addObserver)(obj, 'foo', function () {
-        assert.equal((0, _metal.get)(obj, 'foo'), 'bar', 'should invoke AFTER value changed');
-        count++;
-      });
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(count, 1, 'should have invoked observer');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var obj, count;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              obj = {};
+              count = 0;
+              (0, _metal.addObserver)(obj, 'foo', function () {
+                assert.equal((0, _metal.get)(obj, 'foo'), 'bar', 'should invoke AFTER value changed');
+                count++;
+              });
+              (0, _metal.set)(obj, 'foo', 'bar');
+              _context.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              assert.equal(count, 1, 'should have invoked observer');
+
+            case 7:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     ['@test observer should fire when dependent property is modified'](assert) {
-      let obj = {
-        bar: 'bar'
-      };
-      (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('bar', function () {
-        return (0, _metal.get)(this, 'bar').toUpperCase();
-      }));
-      (0, _metal.get)(obj, 'foo');
-      let count = 0;
-      (0, _metal.addObserver)(obj, 'foo', function () {
-        assert.equal((0, _metal.get)(obj, 'foo'), 'BAZ', 'should have invoked after prop change');
-        count++;
-      });
-      (0, _metal.set)(obj, 'bar', 'baz');
-      assert.equal(count, 1, 'should have invoked observer');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var obj, count;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              obj = {
+                bar: 'bar'
+              };
+              (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('bar', function () {
+                return (0, _metal.get)(this, 'bar').toUpperCase();
+              }));
+              (0, _metal.get)(obj, 'foo');
+              count = 0;
+              (0, _metal.addObserver)(obj, 'foo', function () {
+                assert.equal((0, _metal.get)(obj, 'foo'), 'BAZ', 'should have invoked after prop change');
+                count++;
+              });
+              (0, _metal.set)(obj, 'bar', 'baz');
+              _context2.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              assert.equal(count, 1, 'should have invoked observer');
+
+            case 9:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     ['@test observer should continue to fire after dependent properties are accessed'](assert) {
-      let observerCount = 0;
-      let obj = {};
-      (0, _metal.defineProperty)(obj, 'prop', (0, _metal.computed)(function () {
-        return Math.random();
-      }));
-      (0, _metal.defineProperty)(obj, 'anotherProp', (0, _metal.computed)('prop', function () {
-        return (0, _metal.get)(this, 'prop') + Math.random();
-      }));
-      (0, _metal.addObserver)(obj, 'prop', function () {
-        observerCount++;
-      });
-      (0, _metal.get)(obj, 'anotherProp');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var observerCount, obj, i;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              observerCount = 0;
+              obj = {};
+              (0, _metal.defineProperty)(obj, 'prop', (0, _metal.computed)(function () {
+                return Math.random();
+              }));
+              (0, _metal.defineProperty)(obj, 'anotherProp', (0, _metal.computed)('prop', function () {
+                return (0, _metal.get)(this, 'prop') + Math.random();
+              }));
+              (0, _metal.addObserver)(obj, 'prop', function () {
+                observerCount++;
+              });
+              (0, _metal.get)(obj, 'anotherProp');
+              i = 0;
 
-      for (let i = 0; i < 10; i++) {
-        (0, _metal.notifyPropertyChange)(obj, 'prop');
-      }
+            case 7:
+              if (!(i < 10)) {
+                _context3.next = 14;
+                break;
+              }
 
-      assert.equal(observerCount, 10, 'should continue to fire indefinitely');
+              (0, _metal.notifyPropertyChange)(obj, 'prop');
+              _context3.next = 11;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 11:
+              i++;
+              _context3.next = 7;
+              break;
+
+            case 14:
+              assert.equal(observerCount, 10, 'should continue to fire indefinitely');
+
+            case 15:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     ['@test observer added via Function.prototype extensions and brace expansion should fire when property changes'](assert) {
-      if (!_deprecatedFeatures.FUNCTION_PROTOTYPE_EXTENSIONS && _environment.ENV.EXTEND_PROTOTYPES.Function) {
-        let obj = {};
-        let count = 0;
-        expectDeprecation(() => {
-          (0, _metal.mixin)(obj, {
-            observeFooAndBar: function () {
-              count++;
-            }.observes('{foo,bar}')
-          });
-        }, /Function prototype extensions have been deprecated, please migrate from function\(\){}.observes\('foo'\) to observer\('foo', function\(\) {}\)/);
-        (0, _metal.set)(obj, 'foo', 'foo');
-        assert.equal(count, 1, 'observer specified via brace expansion invoked on property change');
-        (0, _metal.set)(obj, 'bar', 'bar');
-        assert.equal(count, 2, 'observer specified via brace expansion invoked on property change');
-        (0, _metal.set)(obj, 'baz', 'baz');
-        assert.equal(count, 2, 'observer not invoked on unspecified property');
-      } else {
-        assert.expect(0);
-      }
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        var obj, count;
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              if (!(!_deprecatedFeatures.FUNCTION_PROTOTYPE_EXTENSIONS && _environment.ENV.EXTEND_PROTOTYPES.Function)) {
+                _context4.next = 18;
+                break;
+              }
+
+              obj = {};
+              count = 0;
+              expectDeprecation(() => {
+                (0, _metal.mixin)(obj, {
+                  observeFooAndBar: function () {
+                    count++;
+                  }.observes('{foo,bar}')
+                });
+              }, /Function prototype extensions have been deprecated, please migrate from function\(\){}.observes\('foo'\) to observer\('foo', function\(\) {}\)/);
+              (0, _metal.set)(obj, 'foo', 'foo');
+              _context4.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 7:
+              assert.equal(count, 1, 'observer specified via brace expansion invoked on property change');
+              (0, _metal.set)(obj, 'bar', 'bar');
+              _context4.next = 11;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 11:
+              assert.equal(count, 2, 'observer specified via brace expansion invoked on property change');
+              (0, _metal.set)(obj, 'baz', 'baz');
+              _context4.next = 15;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 15:
+              assert.equal(count, 2, 'observer not invoked on unspecified property');
+              _context4.next = 19;
+              break;
+
+            case 18:
+              assert.expect(0);
+
+            case 19:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
     ['@test observer specified via Function.prototype extensions via brace expansion should fire when dependent property changes'](assert) {
-      if (!_deprecatedFeatures.FUNCTION_PROTOTYPE_EXTENSIONS && _environment.ENV.EXTEND_PROTOTYPES.Function) {
-        let obj = {
-          baz: 'Initial'
-        };
-        let count = 0;
-        (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('bar', function () {
-          return (0, _metal.get)(this, 'bar').toLowerCase();
-        }));
-        (0, _metal.defineProperty)(obj, 'bar', (0, _metal.computed)('baz', function () {
-          return (0, _metal.get)(this, 'baz').toUpperCase();
-        }));
-        expectDeprecation(() => {
-          (0, _metal.mixin)(obj, {
-            fooAndBarWatcher: function () {
-              count++;
-            }.observes('{foo,bar}')
-          });
-        }, /Function prototype extensions have been deprecated, please migrate from function\(\){}.observes\('foo'\) to observer\('foo', function\(\) {}\)/);
-        (0, _metal.get)(obj, 'foo');
-        (0, _metal.set)(obj, 'baz', 'Baz'); // fire once for foo, once for bar
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var obj, count;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              if (!(!_deprecatedFeatures.FUNCTION_PROTOTYPE_EXTENSIONS && _environment.ENV.EXTEND_PROTOTYPES.Function)) {
+                _context5.next = 17;
+                break;
+              }
 
-        assert.equal(count, 2, 'observer specified via brace expansion invoked on dependent property change');
-        (0, _metal.set)(obj, 'quux', 'Quux');
-        assert.equal(count, 2, 'observer not fired on unspecified property');
-      } else {
-        assert.expect(0);
-      }
+              obj = {
+                baz: 'Initial'
+              };
+              count = 0;
+              (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('bar', function () {
+                return (0, _metal.get)(this, 'bar').toLowerCase();
+              }));
+              (0, _metal.defineProperty)(obj, 'bar', (0, _metal.computed)('baz', function () {
+                return (0, _metal.get)(this, 'baz').toUpperCase();
+              }));
+              expectDeprecation(() => {
+                (0, _metal.mixin)(obj, {
+                  fooAndBarWatcher: function () {
+                    count++;
+                  }.observes('{foo,bar}')
+                });
+              }, /Function prototype extensions have been deprecated, please migrate from function\(\){}.observes\('foo'\) to observer\('foo', function\(\) {}\)/);
+              (0, _metal.get)(obj, 'foo');
+              (0, _metal.set)(obj, 'baz', 'Baz');
+              _context5.next = 10;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 10:
+              // fire once for foo, once for bar
+              assert.equal(count, 2, 'observer specified via brace expansion invoked on dependent property change');
+              (0, _metal.set)(obj, 'quux', 'Quux');
+              _context5.next = 14;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 14:
+              assert.equal(count, 2, 'observer not fired on unspecified property');
+              _context5.next = 18;
+              break;
+
+            case 17:
+              assert.expect(0);
+
+            case 18:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     ['@test observers watching multiple properties via brace expansion should fire when the properties change'](assert) {
-      let obj = {};
-      let count = 0;
-      (0, _metal.mixin)(obj, {
-        observeFooAndBar: (0, _metal.observer)('{foo,bar}', function () {
-          count++;
-        })
-      });
-      (0, _metal.set)(obj, 'foo', 'foo');
-      assert.equal(count, 1, 'observer specified via brace expansion invoked on property change');
-      (0, _metal.set)(obj, 'bar', 'bar');
-      assert.equal(count, 2, 'observer specified via brace expansion invoked on property change');
-      (0, _metal.set)(obj, 'baz', 'baz');
-      assert.equal(count, 2, 'observer not invoked on unspecified property');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var obj, count;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              obj = {};
+              count = 0;
+              (0, _metal.mixin)(obj, {
+                observeFooAndBar: (0, _metal.observer)('{foo,bar}', function () {
+                  count++;
+                })
+              });
+              (0, _metal.set)(obj, 'foo', 'foo');
+              _context6.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              assert.equal(count, 1, 'observer specified via brace expansion invoked on property change');
+              (0, _metal.set)(obj, 'bar', 'bar');
+              _context6.next = 10;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 10:
+              assert.equal(count, 2, 'observer specified via brace expansion invoked on property change');
+              (0, _metal.set)(obj, 'baz', 'baz');
+              _context6.next = 14;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 14:
+              assert.equal(count, 2, 'observer not invoked on unspecified property');
+
+            case 15:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6);
+      }))();
     }
 
     ['@test observers watching multiple properties via brace expansion should fire when dependent properties change'](assert) {
-      let obj = {
-        baz: 'Initial'
-      };
-      let count = 0;
-      (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('bar', function () {
-        return (0, _metal.get)(this, 'bar').toLowerCase();
-      }));
-      (0, _metal.defineProperty)(obj, 'bar', (0, _metal.computed)('baz', function () {
-        return (0, _metal.get)(this, 'baz').toUpperCase();
-      }));
-      (0, _metal.mixin)(obj, {
-        fooAndBarWatcher: (0, _metal.observer)('{foo,bar}', function () {
-          count++;
-        })
-      });
-      (0, _metal.get)(obj, 'foo');
-      (0, _metal.set)(obj, 'baz', 'Baz'); // fire once for foo, once for bar
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee7() {
+        var obj, count;
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
+          while (1) switch (_context7.prev = _context7.next) {
+            case 0:
+              obj = {
+                baz: 'Initial'
+              };
+              count = 0;
+              (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('bar', function () {
+                return (0, _metal.get)(this, 'bar').toLowerCase();
+              }));
+              (0, _metal.defineProperty)(obj, 'bar', (0, _metal.computed)('baz', function () {
+                return (0, _metal.get)(this, 'baz').toUpperCase();
+              }));
+              (0, _metal.mixin)(obj, {
+                fooAndBarWatcher: (0, _metal.observer)('{foo,bar}', function () {
+                  count++;
+                })
+              });
+              (0, _metal.get)(obj, 'foo');
+              (0, _metal.set)(obj, 'baz', 'Baz');
+              _context7.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      assert.equal(count, 2, 'observer specified via brace expansion invoked on dependent property change');
-      (0, _metal.set)(obj, 'quux', 'Quux');
-      assert.equal(count, 2, 'observer not fired on unspecified property');
+            case 9:
+              // fire once for foo, once for bar
+              assert.equal(count, 2, 'observer specified via brace expansion invoked on dependent property change');
+              (0, _metal.set)(obj, 'quux', 'Quux');
+              _context7.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 13:
+              assert.equal(count, 2, 'observer not fired on unspecified property');
+
+            case 14:
+            case "end":
+              return _context7.stop();
+          }
+        }, _callee7);
+      }))();
     }
 
     ['@test nested observers should fire in order'](assert) {
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        // We can no longer guarantee order
+        return assert.expect(0);
+      }
+
       let obj = {
         foo: 'foo',
         bar: 'bar'
@@ -44942,103 +46057,181 @@ enifed("@ember/-internals/metal/tests/observer_test", ["@ember/-internals/enviro
     }
 
     ['@test removing an chain observer on change should not fail'](assert) {
-      let foo = {
-        bar: 'bar'
-      };
-      let obj1 = {
-        foo: foo
-      };
-      let obj2 = {
-        foo: foo
-      };
-      let obj3 = {
-        foo: foo
-      };
-      let obj4 = {
-        foo: foo
-      };
-      let count1 = 0;
-      let count2 = 0;
-      let count3 = 0;
-      let count4 = 0;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee8() {
+        var foo, obj1, obj2, obj3, obj4, count1, count2, count3, count4, observer1, observer2, observer3, observer4;
+        return regeneratorRuntime.wrap(function _callee8$(_context8) {
+          while (1) switch (_context8.prev = _context8.next) {
+            case 0:
+              observer4 = function _ref4() {
+                count4++;
+              };
 
-      function observer1() {
-        count1++;
-      }
+              observer3 = function _ref3() {
+                count3++;
+                (0, _metal.removeObserver)(obj1, 'foo.bar', observer1);
+                (0, _metal.removeObserver)(obj2, 'foo.bar', observer2);
+                (0, _metal.removeObserver)(obj4, 'foo.bar', observer4);
+              };
 
-      function observer2() {
-        count2++;
-      }
+              observer2 = function _ref2() {
+                count2++;
+              };
 
-      function observer3() {
-        count3++;
-        (0, _metal.removeObserver)(obj1, 'foo.bar', observer1);
-        (0, _metal.removeObserver)(obj2, 'foo.bar', observer2);
-        (0, _metal.removeObserver)(obj4, 'foo.bar', observer4);
-      }
+              observer1 = function _ref() {
+                count1++;
+              };
 
-      function observer4() {
-        count4++;
-      }
+              foo = {
+                bar: 'bar'
+              };
+              obj1 = {
+                foo: foo
+              };
+              obj2 = {
+                foo: foo
+              };
+              obj3 = {
+                foo: foo
+              };
+              obj4 = {
+                foo: foo
+              };
+              count1 = 0;
+              count2 = 0;
+              count3 = 0;
+              count4 = 0;
+              (0, _metal.addObserver)(obj1, 'foo.bar', observer1);
+              (0, _metal.addObserver)(obj2, 'foo.bar', observer2);
+              (0, _metal.addObserver)(obj3, 'foo.bar', observer3);
+              (0, _metal.addObserver)(obj4, 'foo.bar', observer4);
+              (0, _metal.set)(foo, 'bar', 'baz');
+              _context8.next = 20;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      (0, _metal.addObserver)(obj1, 'foo.bar', observer1);
-      (0, _metal.addObserver)(obj2, 'foo.bar', observer2);
-      (0, _metal.addObserver)(obj3, 'foo.bar', observer3);
-      (0, _metal.addObserver)(obj4, 'foo.bar', observer4);
-      (0, _metal.set)(foo, 'bar', 'baz');
-      assert.equal(count1, 1, 'observer1 fired');
-      assert.equal(count2, 1, 'observer2 fired');
-      assert.equal(count3, 1, 'observer3 fired');
-      assert.equal(count4, 0, 'observer4 did not fire');
+            case 20:
+              assert.equal(count1, 1, 'observer1 fired');
+              assert.equal(count2, 1, 'observer2 fired');
+              assert.equal(count3, 1, 'observer3 fired');
+              assert.equal(count4, 0, 'observer4 did not fire');
+
+            case 24:
+            case "end":
+              return _context8.stop();
+          }
+        }, _callee8);
+      }))();
     }
 
     ['@test deferring property change notifications'](assert) {
-      let obj = {
-        foo: 'foo'
-      };
-      let fooCount = 0;
-      (0, _metal.addObserver)(obj, 'foo', function () {
-        fooCount++;
-      });
-      (0, _metal.beginPropertyChanges)();
-      (0, _metal.set)(obj, 'foo', 'BIFF');
-      (0, _metal.set)(obj, 'foo', 'BAZ');
-      (0, _metal.endPropertyChanges)();
-      assert.equal(fooCount, 1, 'foo should have fired once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee9() {
+        var obj, fooCount;
+        return regeneratorRuntime.wrap(function _callee9$(_context9) {
+          while (1) switch (_context9.prev = _context9.next) {
+            case 0:
+              obj = {
+                foo: 'foo'
+              };
+              fooCount = 0;
+              (0, _metal.addObserver)(obj, 'foo', function () {
+                fooCount++;
+              });
+
+              if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+                (0, _metal.beginPropertyChanges)();
+              }
+
+              (0, _metal.set)(obj, 'foo', 'BIFF');
+              (0, _metal.set)(obj, 'foo', 'BAZ');
+
+              if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+                (0, _metal.endPropertyChanges)();
+              }
+
+              _context9.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              assert.equal(fooCount, 1, 'foo should have fired once');
+
+            case 10:
+            case "end":
+              return _context9.stop();
+          }
+        }, _callee9);
+      }))();
     }
 
     ['@test deferring property change notifications safely despite exceptions'](assert) {
-      let obj = {
-        foo: 'foo'
-      };
-      let fooCount = 0;
-      let exc = new Error('Something unexpected happened!');
-      assert.expect(2);
-      (0, _metal.addObserver)(obj, 'foo', function () {
-        fooCount++;
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee10() {
+        var obj, fooCount, exc;
+        return regeneratorRuntime.wrap(function _callee10$(_context10) {
+          while (1) switch (_context10.prev = _context10.next) {
+            case 0:
+              if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+                _context10.next = 2;
+                break;
+              }
 
-      try {
-        (0, _metal.changeProperties)(function () {
-          (0, _metal.set)(obj, 'foo', 'BIFF');
-          (0, _metal.set)(obj, 'foo', 'BAZ');
-          throw exc;
-        });
-      } catch (err) {
-        if (err !== exc) {
-          throw err;
-        }
-      }
+              return _context10.abrupt("return", assert.expect(0));
 
-      assert.equal(fooCount, 1, 'foo should have fired once');
-      (0, _metal.changeProperties)(function () {
-        (0, _metal.set)(obj, 'foo', 'BIFF2');
-        (0, _metal.set)(obj, 'foo', 'BAZ2');
-      });
-      assert.equal(fooCount, 2, 'foo should have fired again once');
+            case 2:
+              obj = {
+                foo: 'foo'
+              };
+              fooCount = 0;
+              exc = new Error('Something unexpected happened!');
+              assert.expect(2);
+              (0, _metal.addObserver)(obj, 'foo', function () {
+                fooCount++;
+              });
+              _context10.prev = 7;
+              (0, _metal.changeProperties)(function () {
+                (0, _metal.set)(obj, 'foo', 'BIFF');
+                (0, _metal.set)(obj, 'foo', 'BAZ');
+                throw exc;
+              });
+              _context10.next = 15;
+              break;
+
+            case 11:
+              _context10.prev = 11;
+              _context10.t0 = _context10["catch"](7);
+
+              if (!(_context10.t0 !== exc)) {
+                _context10.next = 15;
+                break;
+              }
+
+              throw _context10.t0;
+
+            case 15:
+              assert.equal(fooCount, 1, 'foo should have fired once');
+              (0, _metal.changeProperties)(function () {
+                (0, _metal.set)(obj, 'foo', 'BIFF2');
+                (0, _metal.set)(obj, 'foo', 'BAZ2');
+              });
+              assert.equal(fooCount, 2, 'foo should have fired again once');
+
+            case 18:
+            case "end":
+              return _context10.stop();
+          }
+        }, _callee10, null, [[7, 11]]);
+      }))();
     }
 
     ['@test addObserver should propagate through prototype'](assert) {
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        // We no longer inherit unless it's an EmberObject
+        return assert.expect(0);
+      }
+
       let obj = {
         foo: 'foo',
         count: 0
@@ -45058,67 +46251,103 @@ enifed("@ember/-internals/metal/tests/observer_test", ["@ember/-internals/enviro
     }
 
     ['@test addObserver should respect targets with methods'](assert) {
-      let observed = {
-        foo: 'foo'
-      };
-      let target1 = {
-        count: 0,
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee11() {
+        var observed, value, target1, target2;
+        return regeneratorRuntime.wrap(function _callee11$(_context11) {
+          while (1) switch (_context11.prev = _context11.next) {
+            case 0:
+              observed = {
+                foo: 'foo'
+              };
+              target1 = {
+                count: 0,
 
-        didChange(obj, keyName) {
-          let value = (0, _metal.get)(obj, keyName);
-          assert.equal(this, target1, 'should invoke with this');
-          assert.equal(obj, observed, 'param1 should be observed object');
-          assert.equal(keyName, 'foo', 'param2 should be keyName');
-          assert.equal(value, 'BAZ', 'param3 should new value');
-          this.count++;
-        }
+                didChange(obj, keyName) {
+                  value = (0, _metal.get)(obj, keyName);
+                  assert.equal(this, target1, 'should invoke with this');
+                  assert.equal(obj, observed, 'param1 should be observed object');
+                  assert.equal(keyName, 'foo', 'param2 should be keyName');
+                  assert.equal(value, 'BAZ', 'param3 should new value');
+                  this.count++;
+                }
 
-      };
-      let target2 = {
-        count: 0,
+              };
+              target2 = {
+                count: 0,
 
-        didChange(obj, keyName) {
-          let value = (0, _metal.get)(obj, keyName);
-          assert.equal(this, target2, 'should invoke with this');
-          assert.equal(obj, observed, 'param1 should be observed object');
-          assert.equal(keyName, 'foo', 'param2 should be keyName');
-          assert.equal(value, 'BAZ', 'param3 should new value');
-          this.count++;
-        }
+                didChange(obj, keyName) {
+                  value = (0, _metal.get)(obj, keyName);
+                  assert.equal(this, target2, 'should invoke with this');
+                  assert.equal(obj, observed, 'param1 should be observed object');
+                  assert.equal(keyName, 'foo', 'param2 should be keyName');
+                  assert.equal(value, 'BAZ', 'param3 should new value');
+                  this.count++;
+                }
 
-      };
-      (0, _metal.addObserver)(observed, 'foo', target1, 'didChange');
-      (0, _metal.addObserver)(observed, 'foo', target2, target2.didChange);
-      (0, _metal.set)(observed, 'foo', 'BAZ');
-      assert.equal(target1.count, 1, 'target1 observer should have fired');
-      assert.equal(target2.count, 1, 'target2 observer should have fired');
+              };
+              (0, _metal.addObserver)(observed, 'foo', target1, 'didChange');
+              (0, _metal.addObserver)(observed, 'foo', target2, target2.didChange);
+              (0, _metal.set)(observed, 'foo', 'BAZ');
+              _context11.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              assert.equal(target1.count, 1, 'target1 observer should have fired');
+              assert.equal(target2.count, 1, 'target2 observer should have fired');
+
+            case 10:
+            case "end":
+              return _context11.stop();
+          }
+        }, _callee11, this);
+      }))();
     }
 
     ['@test addObserver should allow multiple objects to observe a property'](assert) {
-      let observed = {
-        foo: 'foo'
-      };
-      let target1 = {
-        count: 0,
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee12() {
+        var observed, target1, target2;
+        return regeneratorRuntime.wrap(function _callee12$(_context12) {
+          while (1) switch (_context12.prev = _context12.next) {
+            case 0:
+              observed = {
+                foo: 'foo'
+              };
+              target1 = {
+                count: 0,
 
-        didChange() {
-          this.count++;
-        }
+                didChange() {
+                  this.count++;
+                }
 
-      };
-      let target2 = {
-        count: 0,
+              };
+              target2 = {
+                count: 0,
 
-        didChange() {
-          this.count++;
-        }
+                didChange() {
+                  this.count++;
+                }
 
-      };
-      (0, _metal.addObserver)(observed, 'foo', target1, 'didChange');
-      (0, _metal.addObserver)(observed, 'foo', target2, 'didChange');
-      (0, _metal.set)(observed, 'foo', 'BAZ');
-      assert.equal(target1.count, 1, 'target1 observer should have fired');
-      assert.equal(target2.count, 1, 'target2 observer should have fired');
+              };
+              (0, _metal.addObserver)(observed, 'foo', target1, 'didChange');
+              (0, _metal.addObserver)(observed, 'foo', target2, 'didChange');
+              (0, _metal.set)(observed, 'foo', 'BAZ');
+              _context12.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              assert.equal(target1.count, 1, 'target1 observer should have fired');
+              assert.equal(target2.count, 1, 'target2 observer should have fired');
+
+            case 10:
+            case "end":
+              return _context12.stop();
+          }
+        }, _callee12, this);
+      }))();
     }
 
   }); // ..........................................................
@@ -45127,74 +46356,137 @@ enifed("@ember/-internals/metal/tests/observer_test", ["@ember/-internals/enviro
 
   (0, _internalTestHelpers.moduleFor)('removeObserver', class extends _internalTestHelpers.AbstractTestCase {
     ['@test removing observer should stop firing'](assert) {
-      let obj = {};
-      let count = 0;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee13() {
+        var obj, count, F;
+        return regeneratorRuntime.wrap(function _callee13$(_context13) {
+          while (1) switch (_context13.prev = _context13.next) {
+            case 0:
+              F = function _ref5() {
+                count++;
+              };
 
-      function F() {
-        count++;
-      }
+              obj = {};
+              count = 0;
+              (0, _metal.addObserver)(obj, 'foo', F);
+              (0, _metal.set)(obj, 'foo', 'bar');
+              _context13.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      (0, _metal.addObserver)(obj, 'foo', F);
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(count, 1, 'should have invoked observer');
-      (0, _metal.removeObserver)(obj, 'foo', F);
-      (0, _metal.set)(obj, 'foo', 'baz');
-      assert.equal(count, 1, "removed observer shouldn't fire");
+            case 7:
+              assert.equal(count, 1, 'should have invoked observer');
+              (0, _metal.removeObserver)(obj, 'foo', F);
+              (0, _metal.set)(obj, 'foo', 'baz');
+              _context13.next = 12;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 12:
+              assert.equal(count, 1, "removed observer shouldn't fire");
+
+            case 13:
+            case "end":
+              return _context13.stop();
+          }
+        }, _callee13);
+      }))();
     }
 
     ['@test local observers can be removed'](assert) {
-      let barObserved = 0;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee14() {
+        var barObserved, MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee14$(_context14) {
+          while (1) switch (_context14.prev = _context14.next) {
+            case 0:
+              barObserved = 0;
+              MyMixin = _metal.Mixin.create({
+                foo1: (0, _metal.observer)('bar', function () {
+                  barObserved++;
+                }),
+                foo2: (0, _metal.observer)('bar', function () {
+                  barObserved++;
+                })
+              });
+              obj = {};
+              MyMixin.apply(obj);
+              (0, _metal.set)(obj, 'bar', 'HI!');
+              _context14.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let MyMixin = _metal.Mixin.create({
-        foo1: (0, _metal.observer)('bar', function () {
-          barObserved++;
-        }),
-        foo2: (0, _metal.observer)('bar', function () {
-          barObserved++;
-        })
-      });
+            case 7:
+              assert.equal(barObserved, 2, 'precond - observers should be fired');
+              (0, _metal.removeObserver)(obj, 'bar', null, 'foo1');
+              barObserved = 0;
+              (0, _metal.set)(obj, 'bar', 'HI AGAIN!');
+              _context14.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let obj = {};
-      MyMixin.apply(obj);
-      (0, _metal.set)(obj, 'bar', 'HI!');
-      assert.equal(barObserved, 2, 'precond - observers should be fired');
-      (0, _metal.removeObserver)(obj, 'bar', null, 'foo1');
-      barObserved = 0;
-      (0, _metal.set)(obj, 'bar', 'HI AGAIN!');
-      assert.equal(barObserved, 1, 'removed observers should not be called');
+            case 13:
+              assert.equal(barObserved, 1, 'removed observers should not be called');
+
+            case 14:
+            case "end":
+              return _context14.stop();
+          }
+        }, _callee14);
+      }))();
     }
 
     ['@test removeObserver should respect targets with methods'](assert) {
-      let observed = {
-        foo: 'foo'
-      };
-      let target1 = {
-        count: 0,
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee15() {
+        var observed, target1, target2;
+        return regeneratorRuntime.wrap(function _callee15$(_context15) {
+          while (1) switch (_context15.prev = _context15.next) {
+            case 0:
+              observed = {
+                foo: 'foo'
+              };
+              target1 = {
+                count: 0,
 
-        didChange() {
-          this.count++;
-        }
+                didChange() {
+                  this.count++;
+                }
 
-      };
-      let target2 = {
-        count: 0,
+              };
+              target2 = {
+                count: 0,
 
-        didChange() {
-          this.count++;
-        }
+                didChange() {
+                  this.count++;
+                }
 
-      };
-      (0, _metal.addObserver)(observed, 'foo', target1, 'didChange');
-      (0, _metal.addObserver)(observed, 'foo', target2, target2.didChange);
-      (0, _metal.set)(observed, 'foo', 'BAZ');
-      assert.equal(target1.count, 1, 'target1 observer should have fired');
-      assert.equal(target2.count, 1, 'target2 observer should have fired');
-      (0, _metal.removeObserver)(observed, 'foo', target1, 'didChange');
-      (0, _metal.removeObserver)(observed, 'foo', target2, target2.didChange);
-      target1.count = target2.count = 0;
-      (0, _metal.set)(observed, 'foo', 'BAZ');
-      assert.equal(target1.count, 0, 'target1 observer should not fire again');
-      assert.equal(target2.count, 0, 'target2 observer should not fire again');
+              };
+              (0, _metal.addObserver)(observed, 'foo', target1, 'didChange');
+              (0, _metal.addObserver)(observed, 'foo', target2, target2.didChange);
+              (0, _metal.set)(observed, 'foo', 'BAZ');
+              _context15.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              assert.equal(target1.count, 1, 'target1 observer should have fired');
+              assert.equal(target2.count, 1, 'target2 observer should have fired');
+              (0, _metal.removeObserver)(observed, 'foo', target1, 'didChange');
+              (0, _metal.removeObserver)(observed, 'foo', target2, target2.didChange);
+              target1.count = target2.count = 0;
+              (0, _metal.set)(observed, 'foo', 'BAZ');
+              _context15.next = 16;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 16:
+              assert.equal(target1.count, 0, 'target1 observer should not fire again');
+              assert.equal(target2.count, 0, 'target2 observer should not fire again');
+
+            case 18:
+            case "end":
+              return _context15.stop();
+          }
+        }, _callee15, this);
+      }))();
     }
 
   }); // ..........................................................
@@ -45230,100 +46522,200 @@ enifed("@ember/-internals/metal/tests/observer_test", ["@ember/-internals/enviro
     }
 
     ['@test depending on a chain with a computed property'](assert) {
-      (0, _metal.defineProperty)(obj, 'computed', (0, _metal.computed)(function () {
-        return {
-          foo: 'bar'
-        };
-      }));
-      let changed = 0;
-      (0, _metal.addObserver)(obj, 'computed.foo', function () {
-        changed++;
-      });
-      assert.equal((0, _metal.getCachedValueFor)(obj, 'computed'), undefined, 'addObserver should not compute CP');
-      (0, _metal.set)(obj, 'computed.foo', 'baz');
-      assert.equal(changed, 1, 'should fire observer');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee16() {
+        var changed;
+        return regeneratorRuntime.wrap(function _callee16$(_context16) {
+          while (1) switch (_context16.prev = _context16.next) {
+            case 0:
+              (0, _metal.defineProperty)(obj, 'computed', (0, _metal.computed)(function () {
+                return {
+                  foo: 'bar'
+                };
+              }));
+              changed = 0;
+              (0, _metal.addObserver)(obj, 'computed.foo', function () {
+                changed++;
+              });
+              assert.equal((0, _metal.getCachedValueFor)(obj, 'computed'), undefined, 'addObserver should not compute CP');
+              (0, _metal.set)(obj, 'computed.foo', 'baz');
+              _context16.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 7:
+              assert.equal(changed, 1, 'should fire observer');
+
+            case 8:
+            case "end":
+              return _context16.stop();
+          }
+        }, _callee16);
+      }))();
     }
 
     ['@test depending on a simple chain'](assert) {
-      let val;
-      (0, _metal.addObserver)(obj, 'foo.bar.baz.biff', function (target, key) {
-        val = (0, _metal.get)(target, key);
-        count++;
-      });
-      (0, _metal.set)((0, _metal.get)(obj, 'foo.bar.baz'), 'biff', 'BUZZ');
-      assert.equal(val, 'BUZZ');
-      assert.equal(count, 1);
-      (0, _metal.set)((0, _metal.get)(obj, 'foo.bar'), 'baz', {
-        biff: 'BLARG'
-      });
-      assert.equal(val, 'BLARG');
-      assert.equal(count, 2);
-      (0, _metal.set)((0, _metal.get)(obj, 'foo'), 'bar', {
-        baz: {
-          biff: 'BOOM'
-        }
-      });
-      assert.equal(val, 'BOOM');
-      assert.equal(count, 3);
-      (0, _metal.set)(obj, 'foo', {
-        bar: {
-          baz: {
-            biff: 'BLARG'
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee17() {
+        var val, foo;
+        return regeneratorRuntime.wrap(function _callee17$(_context17) {
+          while (1) switch (_context17.prev = _context17.next) {
+            case 0:
+              (0, _metal.addObserver)(obj, 'foo.bar.baz.biff', function (target, key) {
+                val = (0, _metal.get)(target, key);
+                count++;
+              });
+              (0, _metal.set)((0, _metal.get)(obj, 'foo.bar.baz'), 'biff', 'BUZZ');
+              _context17.next = 4;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 4:
+              assert.equal(val, 'BUZZ');
+              assert.equal(count, 1);
+              (0, _metal.set)((0, _metal.get)(obj, 'foo.bar'), 'baz', {
+                biff: 'BLARG'
+              });
+              _context17.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              assert.equal(val, 'BLARG');
+              assert.equal(count, 2);
+              (0, _metal.set)((0, _metal.get)(obj, 'foo'), 'bar', {
+                baz: {
+                  biff: 'BOOM'
+                }
+              });
+              _context17.next = 14;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 14:
+              assert.equal(val, 'BOOM');
+              assert.equal(count, 3);
+              (0, _metal.set)(obj, 'foo', {
+                bar: {
+                  baz: {
+                    biff: 'BLARG'
+                  }
+                }
+              });
+              _context17.next = 19;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 19:
+              assert.equal(val, 'BLARG');
+              assert.equal(count, 4);
+              (0, _metal.set)((0, _metal.get)(obj, 'foo.bar.baz'), 'biff', 'BUZZ');
+              _context17.next = 24;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 24:
+              assert.equal(val, 'BUZZ');
+              assert.equal(count, 5);
+              foo = (0, _metal.get)(obj, 'foo');
+              (0, _metal.set)(obj, 'foo', 'BOO');
+              _context17.next = 30;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 30:
+              assert.equal(val, undefined);
+              assert.equal(count, 6);
+              (0, _metal.set)(foo.bar.baz, 'biff', 'BOOM');
+              _context17.next = 35;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 35:
+              assert.equal(count, 6, 'should be not have invoked observer');
+
+            case 36:
+            case "end":
+              return _context17.stop();
           }
-        }
-      });
-      assert.equal(val, 'BLARG');
-      assert.equal(count, 4);
-      (0, _metal.set)((0, _metal.get)(obj, 'foo.bar.baz'), 'biff', 'BUZZ');
-      assert.equal(val, 'BUZZ');
-      assert.equal(count, 5);
-      let foo = (0, _metal.get)(obj, 'foo');
-      (0, _metal.set)(obj, 'foo', 'BOO');
-      assert.equal(val, undefined);
-      assert.equal(count, 6);
-      (0, _metal.set)(foo.bar.baz, 'biff', 'BOOM');
-      assert.equal(count, 6, 'should be not have invoked observer');
+        }, _callee17);
+      }))();
     }
 
     ['@test depending on a chain with a capitalized first key'](assert) {
-      let val;
-      (0, _metal.addObserver)(obj, 'Capital.foo.bar.baz.biff', function (target, key) {
-        val = (0, _metal.get)(obj, key);
-        count++;
-      });
-      (0, _metal.set)((0, _metal.get)(obj, 'Capital.foo.bar.baz'), 'biff', 'BUZZ');
-      assert.equal(val, 'BUZZ');
-      assert.equal(count, 1);
-      (0, _metal.set)((0, _metal.get)(obj, 'Capital.foo.bar'), 'baz', {
-        biff: 'BLARG'
-      });
-      assert.equal(val, 'BLARG');
-      assert.equal(count, 2);
-      (0, _metal.set)((0, _metal.get)(obj, 'Capital.foo'), 'bar', {
-        baz: {
-          biff: 'BOOM'
-        }
-      });
-      assert.equal(val, 'BOOM');
-      assert.equal(count, 3);
-      (0, _metal.set)(obj, 'Capital.foo', {
-        bar: {
-          baz: {
-            biff: 'BLARG'
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee18() {
+        var val, foo;
+        return regeneratorRuntime.wrap(function _callee18$(_context18) {
+          while (1) switch (_context18.prev = _context18.next) {
+            case 0:
+              (0, _metal.addObserver)(obj, 'Capital.foo.bar.baz.biff', function (target, key) {
+                val = (0, _metal.get)(obj, key);
+                count++;
+              });
+              (0, _metal.set)((0, _metal.get)(obj, 'Capital.foo.bar.baz'), 'biff', 'BUZZ');
+              _context18.next = 4;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 4:
+              assert.equal(val, 'BUZZ');
+              assert.equal(count, 1);
+              (0, _metal.set)((0, _metal.get)(obj, 'Capital.foo.bar'), 'baz', {
+                biff: 'BLARG'
+              });
+              _context18.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              assert.equal(val, 'BLARG');
+              assert.equal(count, 2);
+              (0, _metal.set)((0, _metal.get)(obj, 'Capital.foo'), 'bar', {
+                baz: {
+                  biff: 'BOOM'
+                }
+              });
+              _context18.next = 14;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 14:
+              assert.equal(val, 'BOOM');
+              assert.equal(count, 3);
+              (0, _metal.set)(obj, 'Capital.foo', {
+                bar: {
+                  baz: {
+                    biff: 'BLARG'
+                  }
+                }
+              });
+              _context18.next = 19;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 19:
+              assert.equal(val, 'BLARG');
+              assert.equal(count, 4);
+              (0, _metal.set)((0, _metal.get)(obj, 'Capital.foo.bar.baz'), 'biff', 'BUZZ');
+              _context18.next = 24;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 24:
+              assert.equal(val, 'BUZZ');
+              assert.equal(count, 5);
+              foo = (0, _metal.get)(obj, 'foo');
+              (0, _metal.set)(obj, 'Capital.foo', 'BOO');
+              _context18.next = 30;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 30:
+              assert.equal(val, undefined);
+              assert.equal(count, 6);
+              (0, _metal.set)(foo.bar.baz, 'biff', 'BOOM');
+              _context18.next = 35;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 35:
+              assert.equal(count, 6, 'should be not have invoked observer');
+
+            case 36:
+            case "end":
+              return _context18.stop();
           }
-        }
-      });
-      assert.equal(val, 'BLARG');
-      assert.equal(count, 4);
-      (0, _metal.set)((0, _metal.get)(obj, 'Capital.foo.bar.baz'), 'biff', 'BUZZ');
-      assert.equal(val, 'BUZZ');
-      assert.equal(count, 5);
-      let foo = (0, _metal.get)(obj, 'foo');
-      (0, _metal.set)(obj, 'Capital.foo', 'BOO');
-      assert.equal(val, undefined);
-      assert.equal(count, 6);
-      (0, _metal.set)(foo.bar.baz, 'biff', 'BOOM');
-      assert.equal(count, 6, 'should be not have invoked observer');
+        }, _callee18);
+      }))();
     }
 
   }); // ..........................................................
@@ -45332,120 +46724,175 @@ enifed("@ember/-internals/metal/tests/observer_test", ["@ember/-internals/enviro
 
   (0, _internalTestHelpers.moduleFor)('props/observer_test - setting identical values', class extends _internalTestHelpers.AbstractTestCase {
     ['@test setting simple prop should not trigger'](assert) {
-      let obj = {
-        foo: 'bar'
-      };
-      let count = 0;
-      (0, _metal.addObserver)(obj, 'foo', function () {
-        count++;
-      });
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(count, 0, 'should not trigger observer');
-      (0, _metal.set)(obj, 'foo', 'baz');
-      assert.equal(count, 1, 'should trigger observer');
-      (0, _metal.set)(obj, 'foo', 'baz');
-      assert.equal(count, 1, 'should not trigger observer again');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee19() {
+        var obj, count;
+        return regeneratorRuntime.wrap(function _callee19$(_context19) {
+          while (1) switch (_context19.prev = _context19.next) {
+            case 0:
+              obj = {
+                foo: 'bar'
+              };
+              count = 0;
+              (0, _metal.addObserver)(obj, 'foo', function () {
+                count++;
+              });
+              (0, _metal.set)(obj, 'foo', 'bar');
+              _context19.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              assert.equal(count, 0, 'should not trigger observer');
+              (0, _metal.set)(obj, 'foo', 'baz');
+              _context19.next = 10;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 10:
+              assert.equal(count, 1, 'should trigger observer');
+              (0, _metal.set)(obj, 'foo', 'baz');
+              _context19.next = 14;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 14:
+              assert.equal(count, 1, 'should not trigger observer again');
+
+            case 15:
+            case "end":
+              return _context19.stop();
+          }
+        }, _callee19);
+      }))();
     } // The issue here is when a computed property is directly set with a value, then has a
     // dependent key change (which triggers a cache expiration and recomputation), observers will
     // not be fired if the CP setter is called with the last set value.
 
 
     ['@test setting a cached computed property whose value has changed should trigger'](assert) {
-      let obj = {};
-      (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('baz', {
-        get: function () {
-          return (0, _metal.get)(this, 'baz');
-        },
-        set: function (key, value) {
-          return value;
-        }
-      }));
-      let count = 0;
-      (0, _metal.addObserver)(obj, 'foo', function () {
-        count++;
-      });
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(count, 1);
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar');
-      (0, _metal.set)(obj, 'baz', 'qux');
-      assert.equal(count, 2);
-      assert.equal((0, _metal.get)(obj, 'foo'), 'qux');
-      (0, _metal.get)(obj, 'foo');
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(count, 3);
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee20() {
+        var obj, count;
+        return regeneratorRuntime.wrap(function _callee20$(_context20) {
+          while (1) switch (_context20.prev = _context20.next) {
+            case 0:
+              obj = {};
+              (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)('baz', {
+                get: function () {
+                  return (0, _metal.get)(this, 'baz');
+                },
+                set: function (key, value) {
+                  return value;
+                }
+              }));
+              count = 0;
+              (0, _metal.addObserver)(obj, 'foo', function () {
+                count++;
+              });
+              (0, _metal.set)(obj, 'foo', 'bar');
+              _context20.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 7:
+              assert.equal(count, 1);
+              assert.equal((0, _metal.get)(obj, 'foo'), 'bar');
+              (0, _metal.set)(obj, 'baz', 'qux');
+              _context20.next = 12;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 12:
+              assert.equal(count, 2);
+              assert.equal((0, _metal.get)(obj, 'foo'), 'qux');
+              (0, _metal.set)(obj, 'foo', 'bar');
+              _context20.next = 17;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 17:
+              assert.equal(count, 3);
+              assert.equal((0, _metal.get)(obj, 'foo'), 'bar');
+
+            case 19:
+            case "end":
+              return _context20.stop();
+          }
+        }, _callee20);
+      }))();
     }
 
   });
-  (0, _internalTestHelpers.moduleFor)('changeProperties', class extends _internalTestHelpers.AbstractTestCase {
-    ['@test observers added/removed during changeProperties should do the right thing.'](assert) {
-      let obj = {
-        foo: 0
-      };
 
-      function Observer() {
-        this.didChangeCount = 0;
+  if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    (0, _internalTestHelpers.moduleFor)('changeProperties', class extends _internalTestHelpers.AbstractTestCase {
+      ['@test observers added/removed during changeProperties should do the right thing.'](assert) {
+        let obj = {
+          foo: 0
+        };
+
+        function Observer() {
+          this.didChangeCount = 0;
+        }
+
+        Observer.prototype = {
+          add() {
+            (0, _metal.addObserver)(obj, 'foo', this, 'didChange');
+          },
+
+          remove() {
+            (0, _metal.removeObserver)(obj, 'foo', this, 'didChange');
+          },
+
+          didChange() {
+            this.didChangeCount++;
+          }
+
+        };
+        let addedBeforeFirstChangeObserver = new Observer();
+        let addedAfterFirstChangeObserver = new Observer();
+        let addedAfterLastChangeObserver = new Observer();
+        let removedBeforeFirstChangeObserver = new Observer();
+        let removedBeforeLastChangeObserver = new Observer();
+        let removedAfterLastChangeObserver = new Observer();
+        removedBeforeFirstChangeObserver.add();
+        removedBeforeLastChangeObserver.add();
+        removedAfterLastChangeObserver.add();
+        (0, _metal.changeProperties)(function () {
+          removedBeforeFirstChangeObserver.remove();
+          addedBeforeFirstChangeObserver.add();
+          (0, _metal.set)(obj, 'foo', 1);
+          assert.equal(addedBeforeFirstChangeObserver.didChangeCount, 0, 'addObserver called before the first change is deferred');
+          addedAfterFirstChangeObserver.add();
+          removedBeforeLastChangeObserver.remove();
+          (0, _metal.set)(obj, 'foo', 2);
+          assert.equal(addedAfterFirstChangeObserver.didChangeCount, 0, 'addObserver called after the first change is deferred');
+          addedAfterLastChangeObserver.add();
+          removedAfterLastChangeObserver.remove();
+        });
+        assert.equal(removedBeforeFirstChangeObserver.didChangeCount, 0, 'removeObserver called before the first change sees none');
+        assert.equal(addedBeforeFirstChangeObserver.didChangeCount, 1, 'addObserver called before the first change sees only 1');
+        assert.equal(addedAfterFirstChangeObserver.didChangeCount, 1, 'addObserver called after the first change sees 1');
+        assert.equal(addedAfterLastChangeObserver.didChangeCount, 1, 'addObserver called after the last change sees 1');
+        assert.equal(removedBeforeLastChangeObserver.didChangeCount, 0, 'removeObserver called before the last change sees none');
+        assert.equal(removedAfterLastChangeObserver.didChangeCount, 0, 'removeObserver called after the last change sees none');
       }
 
-      Observer.prototype = {
-        add() {
-          (0, _metal.addObserver)(obj, 'foo', this, 'didChange');
-        },
+      ['@test calling changeProperties while executing deferred observers works correctly'](assert) {
+        let obj = {
+          foo: 0
+        };
+        let fooDidChange = 0;
+        (0, _metal.addObserver)(obj, 'foo', () => {
+          fooDidChange++;
+          (0, _metal.changeProperties)(() => {});
+        });
+        (0, _metal.changeProperties)(() => {
+          (0, _metal.set)(obj, 'foo', 1);
+        });
+        assert.equal(fooDidChange, 1);
+      }
 
-        remove() {
-          (0, _metal.removeObserver)(obj, 'foo', this, 'didChange');
-        },
+    });
+  }
 
-        didChange() {
-          this.didChangeCount++;
-        }
-
-      };
-      let addedBeforeFirstChangeObserver = new Observer();
-      let addedAfterFirstChangeObserver = new Observer();
-      let addedAfterLastChangeObserver = new Observer();
-      let removedBeforeFirstChangeObserver = new Observer();
-      let removedBeforeLastChangeObserver = new Observer();
-      let removedAfterLastChangeObserver = new Observer();
-      removedBeforeFirstChangeObserver.add();
-      removedBeforeLastChangeObserver.add();
-      removedAfterLastChangeObserver.add();
-      (0, _metal.changeProperties)(function () {
-        removedBeforeFirstChangeObserver.remove();
-        addedBeforeFirstChangeObserver.add();
-        (0, _metal.set)(obj, 'foo', 1);
-        assert.equal(addedBeforeFirstChangeObserver.didChangeCount, 0, 'addObserver called before the first change is deferred');
-        addedAfterFirstChangeObserver.add();
-        removedBeforeLastChangeObserver.remove();
-        (0, _metal.set)(obj, 'foo', 2);
-        assert.equal(addedAfterFirstChangeObserver.didChangeCount, 0, 'addObserver called after the first change is deferred');
-        addedAfterLastChangeObserver.add();
-        removedAfterLastChangeObserver.remove();
-      });
-      assert.equal(removedBeforeFirstChangeObserver.didChangeCount, 0, 'removeObserver called before the first change sees none');
-      assert.equal(addedBeforeFirstChangeObserver.didChangeCount, 1, 'addObserver called before the first change sees only 1');
-      assert.equal(addedAfterFirstChangeObserver.didChangeCount, 1, 'addObserver called after the first change sees 1');
-      assert.equal(addedAfterLastChangeObserver.didChangeCount, 1, 'addObserver called after the last change sees 1');
-      assert.equal(removedBeforeLastChangeObserver.didChangeCount, 0, 'removeObserver called before the last change sees none');
-      assert.equal(removedAfterLastChangeObserver.didChangeCount, 0, 'removeObserver called after the last change sees none');
-    }
-
-    ['@test calling changeProperties while executing deferred observers works correctly'](assert) {
-      let obj = {
-        foo: 0
-      };
-      let fooDidChange = 0;
-      (0, _metal.addObserver)(obj, 'foo', () => {
-        fooDidChange++;
-        (0, _metal.changeProperties)(() => {});
-      });
-      (0, _metal.changeProperties)(() => {
-        (0, _metal.set)(obj, 'foo', 1);
-      });
-      assert.equal(fooDidChange, 1);
-    }
-
-  });
   (0, _internalTestHelpers.moduleFor)('Keys behavior with observers', class extends _internalTestHelpers.AbstractTestCase {
     ['@test should not leak properties on the prototype'](assert) {
       function Beer() {}
@@ -45553,6 +47000,42 @@ enifed("@ember/-internals/metal/tests/observer_test", ["@ember/-internals/enviro
 enifed("@ember/-internals/metal/tests/performance_test", ["@ember/-internals/metal", "internal-test-helpers"], function (_metal, _internalTestHelpers) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   /*
     This test file is designed to capture performance regressions related to
     deferred computation. Things like run loops, computed properties, and bindings
@@ -45561,30 +47044,48 @@ enifed("@ember/-internals/metal/tests/performance_test", ["@ember/-internals/met
   */
   (0, _internalTestHelpers.moduleFor)('Computed Properties - Number of times evaluated', class extends _internalTestHelpers.AbstractTestCase {
     ['@test computed properties that depend on multiple properties should run only once per run loop'](assert) {
-      let obj = {
-        a: 'a',
-        b: 'b',
-        c: 'c'
-      };
-      let cpCount = 0;
-      let obsCount = 0;
-      (0, _metal.defineProperty)(obj, 'abc', (0, _metal.computed)('a', 'b', 'c', function (key) {
-        cpCount++;
-        return 'computed ' + key;
-      }));
-      (0, _metal.get)(obj, 'abc');
-      cpCount = 0;
-      (0, _metal.addObserver)(obj, 'abc', function () {
-        obsCount++;
-      });
-      (0, _metal.beginPropertyChanges)();
-      (0, _metal.set)(obj, 'a', 'aa');
-      (0, _metal.set)(obj, 'b', 'bb');
-      (0, _metal.set)(obj, 'c', 'cc');
-      (0, _metal.endPropertyChanges)();
-      (0, _metal.get)(obj, 'abc');
-      assert.equal(cpCount, 1, 'The computed property is only invoked once');
-      assert.equal(obsCount, 1, 'The observer is only invoked once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var obj, cpCount, obsCount;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              obj = {
+                a: 'a',
+                b: 'b',
+                c: 'c'
+              };
+              cpCount = 0;
+              obsCount = 0;
+              (0, _metal.defineProperty)(obj, 'abc', (0, _metal.computed)('a', 'b', 'c', function (key) {
+                cpCount++;
+                return 'computed ' + key;
+              }));
+              (0, _metal.get)(obj, 'abc');
+              cpCount = 0;
+              (0, _metal.addObserver)(obj, 'abc', function () {
+                obsCount++;
+              });
+              (0, _metal.beginPropertyChanges)();
+              (0, _metal.set)(obj, 'a', 'aa');
+              (0, _metal.set)(obj, 'b', 'bb');
+              (0, _metal.set)(obj, 'c', 'cc');
+              (0, _metal.endPropertyChanges)();
+              (0, _metal.get)(obj, 'abc');
+              _context.next = 15;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 15:
+              assert.equal(cpCount, 1, 'The computed property is only invoked once');
+              assert.equal(obsCount, 1, 'The observer is only invoked once');
+
+            case 17:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     ['@test computed properties are not executed if they are the last segment of an observer chain pain'](assert) {
@@ -45884,7 +47385,7 @@ enifed("@ember/-internals/metal/tests/set_properties_test", ["@ember/-internals/
 
   });
 });
-enifed("@ember/-internals/metal/tests/tracked/classic_classes_test", ["internal-test-helpers", "@ember/-internals/metal", "@ember/-internals/metal/tests/tracked/support", "@ember/canary-features"], function (_internalTestHelpers, _metal, _support, _canaryFeatures) {
+enifed("@ember/-internals/metal/tests/tracked/classic_classes_test", ["internal-test-helpers", "@ember/-internals/metal", "@ember/canary-features"], function (_internalTestHelpers, _metal, _canaryFeatures) {
   "use strict";
 
   function _initializerDefineProperty(target, property, descriptor, context) {
@@ -45950,7 +47451,7 @@ enifed("@ember/-internals/metal/tests/tracked/classic_classes_test", ["internal-
         }));
         obj.first = 'Tom';
         obj.last = 'Dale';
-        let tag = (0, _support.track)(() => obj.full);
+        let tag = (0, _metal.track)(() => obj.full);
         let snapshot = tag.value();
         assert.equal(obj.full, 'Tom Dale', 'The full name starts correct');
         assert.equal(tag.validate(snapshot), true);
@@ -46445,26 +47946,7 @@ enifed("@ember/-internals/metal/tests/tracked/set_test", ["internal-test-helpers
       });
     }
 });
-enifed("@ember/-internals/metal/tests/tracked/support", ["exports", "@ember/-internals/metal"], function (_exports, _metal) {
-  "use strict";
-
-  _exports.track = track;
-
-  /**
-    Creates an autotrack stack so we can test field changes as they flow through
-    getters/setters, and through the system overall
-  
-    @private
-  */
-  function track(fn) {
-    let parent = (0, _metal.getCurrentTracker)();
-    let tracker = (0, _metal.setCurrentTracker)();
-    fn();
-    (0, _metal.setCurrentTracker)(parent);
-    return tracker.combine();
-  }
-});
-enifed("@ember/-internals/metal/tests/tracked/validation_test", ["@ember/-internals/metal", "@ember/canary-features", "@ember/-internals/utils", "internal-test-helpers", "@ember/-internals/metal/tests/tracked/support"], function (_metal, _canaryFeatures, _utils, _internalTestHelpers, _support) {
+enifed("@ember/-internals/metal/tests/tracked/validation_test", ["@ember/-internals/metal", "@ember/canary-features", "@ember/-internals/utils", "internal-test-helpers"], function (_metal, _canaryFeatures, _utils, _internalTestHelpers) {
   "use strict";
 
   function _initializerDefineProperty(target, property, descriptor, context) {
@@ -46533,7 +48015,7 @@ enifed("@ember/-internals/metal/tests/tracked/validation_test", ["@ember/-intern
             }
           }), _class);
           let obj = new Tracked('Tom', 'Dale');
-          let tag = (0, _support.track)(() => obj.first);
+          let tag = (0, _metal.track)(() => obj.first);
           let snapshot = tag.value();
           assert.equal(obj.first, 'Tom', 'The full name starts correct');
           assert.equal(tag.validate(snapshot), true);
@@ -46579,7 +48061,7 @@ enifed("@ember/-internals/metal/tests/tracked/validation_test", ["@ember/-intern
             }
           })), _class3);
           let obj = new Tracked('Tom', 'Dale');
-          let tag = (0, _support.track)(() => obj.full);
+          let tag = (0, _metal.track)(() => obj.full);
           let snapshot = tag.value();
           assert.equal(obj.full, 'Tom Dale', 'The full name starts correct');
           assert.equal(tag.validate(snapshot), true);
@@ -46631,7 +48113,7 @@ enifed("@ember/-internals/metal/tests/tracked/validation_test", ["@ember/-intern
             }
           })), _class5);
           let obj = new Tracked('Tom', 'Dale');
-          let tag = (0, _support.track)(() => obj.full);
+          let tag = (0, _metal.track)(() => obj.full);
           let snapshot = tag.value();
           assert.equal(obj.full, 'Tom Dale', 'The full name starts correct');
           assert.equal(tag.validate(snapshot), true);
@@ -46663,7 +48145,7 @@ enifed("@ember/-internals/metal/tests/tracked/validation_test", ["@ember/-intern
             last: 'Dale'
           };
           let obj = new Tracked(tom);
-          let tag = (0, _support.track)(() => obj.full);
+          let tag = (0, _metal.track)(() => obj.full);
           let snapshot = tag.value();
           assert.equal(obj.full, 'Tom Dale');
           assert.equal(tag.validate(snapshot), true);
@@ -46694,7 +48176,7 @@ enifed("@ember/-internals/metal/tests/tracked/validation_test", ["@ember/-intern
 
           }
 
-          (0, _metal.defineProperty)(EmberObject.prototype, 'full', (0, _metal.computed)('name', function () {
+          (0, _metal.defineProperty)(EmberObject.prototype, 'full', (0, _metal.computed)('name.first', 'name.last', function () {
             let name = (0, _metal.get)(this, 'name');
             return name.first + " " + name.last;
           }));
@@ -46852,14 +48334,14 @@ enifed("@ember/-internals/metal/tests/tracked/validation_test", ["@ember/-intern
           let snapshot = tag.value();
           let emberArray = (0, _metal.get)(obj, 'emberArray');
           assert.equal(tag.validate(snapshot), true);
-          (0, _metal.set)(emberArray, 'foo', 123);
+          (0, _metal.notifyPropertyChange)(emberArray, '[]');
           assert.equal(tag.validate(snapshot), false, 'invalid after setting a property on the object');
         }
 
       });
     }
 });
-enifed("@ember/-internals/metal/tests/watching/is_watching_test", ["@ember/-internals/metal", "internal-test-helpers"], function (_metal, _internalTestHelpers) {
+enifed("@ember/-internals/metal/tests/watching/is_watching_test", ["@ember/-internals/metal", "@ember/canary-features", "internal-test-helpers"], function (_metal, _canaryFeatures, _internalTestHelpers) {
   "use strict";
 
   function testObserver(assert, setup, teardown, key = 'key') {
@@ -46871,55 +48353,57 @@ enifed("@ember/-internals/metal/tests/watching/is_watching_test", ["@ember/-inte
     assert.equal((0, _metal.isWatching)(obj, key), false, 'isWatching is false after observers are removed');
   }
 
-  (0, _internalTestHelpers.moduleFor)('isWatching', class extends _internalTestHelpers.AbstractTestCase {
-    ['@test isWatching is true for regular local observers'](assert) {
-      testObserver(assert, (obj, key, fn) => {
-        _metal.Mixin.create({
-          [fn]: (0, _metal.observer)(key, function () {})
-        }).apply(obj);
-      }, (obj, key, fn) => (0, _metal.removeObserver)(obj, key, obj, fn));
-    }
+  if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    (0, _internalTestHelpers.moduleFor)('isWatching', class extends _internalTestHelpers.AbstractTestCase {
+      ['@test isWatching is true for regular local observers'](assert) {
+        testObserver(assert, (obj, key, fn) => {
+          _metal.Mixin.create({
+            [fn]: (0, _metal.observer)(key, function () {})
+          }).apply(obj);
+        }, (obj, key, fn) => (0, _metal.removeObserver)(obj, key, obj, fn));
+      }
 
-    ['@test isWatching is true for nonlocal observers'](assert) {
-      testObserver(assert, (obj, key, fn) => {
-        (0, _metal.addObserver)(obj, key, obj, fn);
-      }, (obj, key, fn) => (0, _metal.removeObserver)(obj, key, obj, fn));
-    }
+      ['@test isWatching is true for nonlocal observers'](assert) {
+        testObserver(assert, (obj, key, fn) => {
+          (0, _metal.addObserver)(obj, key, obj, fn);
+        }, (obj, key, fn) => (0, _metal.removeObserver)(obj, key, obj, fn));
+      }
 
-    ['@test isWatching is true for chained observers'](assert) {
-      testObserver(assert, function (obj, key, fn) {
-        (0, _metal.addObserver)(obj, key + '.bar', obj, fn);
-      }, function (obj, key, fn) {
-        (0, _metal.removeObserver)(obj, key + '.bar', obj, fn);
-      });
-    }
+      ['@test isWatching is true for chained observers'](assert) {
+        testObserver(assert, function (obj, key, fn) {
+          (0, _metal.addObserver)(obj, key + '.bar', obj, fn);
+        }, function (obj, key, fn) {
+          (0, _metal.removeObserver)(obj, key + '.bar', obj, fn);
+        });
+      }
 
-    ['@test isWatching is true for computed properties'](assert) {
-      testObserver(assert, (obj, key, fn) => {
-        (0, _metal.defineProperty)(obj, fn, (0, _metal.computed)(key, function () {}));
-        (0, _metal.get)(obj, fn);
-      }, (obj, key, fn) => (0, _metal.defineProperty)(obj, fn, null));
-    }
+      ['@test isWatching is true for computed properties'](assert) {
+        testObserver(assert, (obj, key, fn) => {
+          (0, _metal.defineProperty)(obj, fn, (0, _metal.computed)(key, function () {}));
+          (0, _metal.get)(obj, fn);
+        }, (obj, key, fn) => (0, _metal.defineProperty)(obj, fn, null));
+      }
 
-    ['@test isWatching is true for chained computed properties'](assert) {
-      testObserver(assert, (obj, key, fn) => {
-        (0, _metal.defineProperty)(obj, fn, (0, _metal.computed)(key + '.bar', function () {}));
-        (0, _metal.get)(obj, fn);
-      }, (obj, key, fn) => (0, _metal.defineProperty)(obj, fn, null));
-    } // can't watch length on Array - it is special...
-    // But you should be able to watch a length property of an object
+      ['@test isWatching is true for chained computed properties'](assert) {
+        testObserver(assert, (obj, key, fn) => {
+          (0, _metal.defineProperty)(obj, fn, (0, _metal.computed)(key + '.bar', function () {}));
+          (0, _metal.get)(obj, fn);
+        }, (obj, key, fn) => (0, _metal.defineProperty)(obj, fn, null));
+      } // can't watch length on Array - it is special...
+      // But you should be able to watch a length property of an object
 
 
-    ["@test isWatching is true for 'length' property on object"](assert) {
-      testObserver(assert, (obj, key, fn) => {
-        (0, _metal.defineProperty)(obj, 'length', null, '26.2 miles');
-        (0, _metal.addObserver)(obj, 'length', obj, fn);
-      }, (obj, key, fn) => (0, _metal.removeObserver)(obj, 'length', obj, fn), 'length');
-    }
+      ["@test isWatching is true for 'length' property on object"](assert) {
+        testObserver(assert, (obj, key, fn) => {
+          (0, _metal.defineProperty)(obj, 'length', null, '26.2 miles');
+          (0, _metal.addObserver)(obj, 'length', obj, fn);
+        }, (obj, key, fn) => (0, _metal.removeObserver)(obj, 'length', obj, fn), 'length');
+      }
 
-  });
+    });
+  }
 });
-enifed("@ember/-internals/metal/tests/watching/unwatch_test", ["@ember/-internals/metal", "internal-test-helpers"], function (_metal, _internalTestHelpers) {
+enifed("@ember/-internals/metal/tests/watching/unwatch_test", ["@ember/-internals/metal", "internal-test-helpers", "@ember/canary-features"], function (_metal, _internalTestHelpers, _canaryFeatures) {
   "use strict";
 
   let didCount;
@@ -46928,100 +48412,102 @@ enifed("@ember/-internals/metal/tests/watching/unwatch_test", ["@ember/-internal
     (0, _metal.addListener)(obj, keyPath + ':change', () => didCount++);
   }
 
-  (0, _internalTestHelpers.moduleFor)('unwatch', class extends _internalTestHelpers.AbstractTestCase {
-    beforeEach() {
-      didCount = 0;
-    }
+  if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    (0, _internalTestHelpers.moduleFor)('unwatch', class extends _internalTestHelpers.AbstractTestCase {
+      beforeEach() {
+        didCount = 0;
+      }
 
-    ['@test unwatching a computed property - regular get/set'](assert) {
-      let obj = {};
-      (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)({
-        get() {
-          return this.__foo;
-        },
+      ['@test unwatching a computed property - regular get/set'](assert) {
+        let obj = {};
+        (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)({
+          get() {
+            return this.__foo;
+          },
 
-        set(keyName, value) {
-          this.__foo = value;
-          return this.__foo;
-        }
+          set(keyName, value) {
+            this.__foo = value;
+            return this.__foo;
+          }
 
-      }));
-      addListeners(obj, 'foo');
-      (0, _metal.watch)(obj, 'foo');
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(didCount, 1, 'should have invoked didCount');
-      (0, _metal.unwatch)(obj, 'foo');
-      didCount = 0;
-      (0, _metal.set)(obj, 'foo', 'BAZ');
-      assert.equal(didCount, 0, 'should NOT have invoked didCount');
-    }
+        }));
+        addListeners(obj, 'foo');
+        (0, _metal.watch)(obj, 'foo');
+        (0, _metal.set)(obj, 'foo', 'bar');
+        assert.equal(didCount, 1, 'should have invoked didCount');
+        (0, _metal.unwatch)(obj, 'foo');
+        didCount = 0;
+        (0, _metal.set)(obj, 'foo', 'BAZ');
+        assert.equal(didCount, 0, 'should NOT have invoked didCount');
+      }
 
-    ['@test unwatching a regular property - regular get/set'](assert) {
-      let obj = {
-        foo: 'BIFF'
-      };
-      addListeners(obj, 'foo');
-      (0, _metal.watch)(obj, 'foo');
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(didCount, 1, 'should have invoked didCount');
-      (0, _metal.unwatch)(obj, 'foo');
-      didCount = 0;
-      (0, _metal.set)(obj, 'foo', 'BAZ');
-      assert.equal(didCount, 0, 'should NOT have invoked didCount');
-    }
+      ['@test unwatching a regular property - regular get/set'](assert) {
+        let obj = {
+          foo: 'BIFF'
+        };
+        addListeners(obj, 'foo');
+        (0, _metal.watch)(obj, 'foo');
+        (0, _metal.set)(obj, 'foo', 'bar');
+        assert.equal(didCount, 1, 'should have invoked didCount');
+        (0, _metal.unwatch)(obj, 'foo');
+        didCount = 0;
+        (0, _metal.set)(obj, 'foo', 'BAZ');
+        assert.equal(didCount, 0, 'should NOT have invoked didCount');
+      }
 
-    ['@test unwatching should be nested'](assert) {
-      let obj = {
-        foo: 'BIFF'
-      };
-      addListeners(obj, 'foo');
-      (0, _metal.watch)(obj, 'foo');
-      (0, _metal.watch)(obj, 'foo');
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(didCount, 1, 'should have invoked didCount');
-      (0, _metal.unwatch)(obj, 'foo');
-      didCount = 0;
-      (0, _metal.set)(obj, 'foo', 'BAZ');
-      assert.equal(didCount, 1, 'should NOT have invoked didCount');
-      (0, _metal.unwatch)(obj, 'foo');
-      didCount = 0;
-      (0, _metal.set)(obj, 'foo', 'BAZ');
-      assert.equal(didCount, 0, 'should NOT have invoked didCount');
-    }
+      ['@test unwatching should be nested'](assert) {
+        let obj = {
+          foo: 'BIFF'
+        };
+        addListeners(obj, 'foo');
+        (0, _metal.watch)(obj, 'foo');
+        (0, _metal.watch)(obj, 'foo');
+        (0, _metal.set)(obj, 'foo', 'bar');
+        assert.equal(didCount, 1, 'should have invoked didCount');
+        (0, _metal.unwatch)(obj, 'foo');
+        didCount = 0;
+        (0, _metal.set)(obj, 'foo', 'BAZ');
+        assert.equal(didCount, 1, 'should NOT have invoked didCount');
+        (0, _metal.unwatch)(obj, 'foo');
+        didCount = 0;
+        (0, _metal.set)(obj, 'foo', 'BAZ');
+        assert.equal(didCount, 0, 'should NOT have invoked didCount');
+      }
 
-    ['@test unwatching "length" property on an object'](assert) {
-      let obj = {
-        foo: 'RUN'
-      };
-      addListeners(obj, 'length'); // Can watch length when it is undefined
+      ['@test unwatching "length" property on an object'](assert) {
+        let obj = {
+          foo: 'RUN'
+        };
+        addListeners(obj, 'length'); // Can watch length when it is undefined
 
-      (0, _metal.watch)(obj, 'length');
-      (0, _metal.set)(obj, 'length', '10k');
-      assert.equal(didCount, 1, 'should have invoked didCount'); // Should stop watching despite length now being defined (making object 'array-like')
+        (0, _metal.watch)(obj, 'length');
+        (0, _metal.set)(obj, 'length', '10k');
+        assert.equal(didCount, 1, 'should have invoked didCount'); // Should stop watching despite length now being defined (making object 'array-like')
 
-      (0, _metal.unwatch)(obj, 'length');
-      didCount = 0;
-      (0, _metal.set)(obj, 'length', '5k');
-      assert.equal(didCount, 0, 'should NOT have invoked didCount');
-    }
+        (0, _metal.unwatch)(obj, 'length');
+        didCount = 0;
+        (0, _metal.set)(obj, 'length', '5k');
+        assert.equal(didCount, 0, 'should NOT have invoked didCount');
+      }
 
-    ['@test unwatching should not destroy non MANDATORY_SETTER descriptor'](assert) {
-      let obj = {
-        get foo() {
-          return 'RUN';
-        }
+      ['@test unwatching should not destroy non MANDATORY_SETTER descriptor'](assert) {
+        let obj = {
+          get foo() {
+            return 'RUN';
+          }
 
-      };
-      assert.equal(obj.foo, 'RUN', 'obj.foo');
-      (0, _metal.watch)(obj, 'foo');
-      assert.equal(obj.foo, 'RUN', 'obj.foo after watch');
-      (0, _metal.unwatch)(obj, 'foo');
-      assert.equal(obj.foo, 'RUN', 'obj.foo after unwatch');
-    }
+        };
+        assert.equal(obj.foo, 'RUN', 'obj.foo');
+        (0, _metal.watch)(obj, 'foo');
+        assert.equal(obj.foo, 'RUN', 'obj.foo after watch');
+        (0, _metal.unwatch)(obj, 'foo');
+        assert.equal(obj.foo, 'RUN', 'obj.foo after unwatch');
+      }
 
-  });
+    });
+  }
 });
-enifed("@ember/-internals/metal/tests/watching/watch_test", ["@ember/-internals/environment", "@ember/-internals/metal", "@ember/-internals/meta", "internal-test-helpers"], function (_environment, _metal, _meta, _internalTestHelpers) {
+enifed("@ember/-internals/metal/tests/watching/watch_test", ["@ember/-internals/metal", "@ember/-internals/environment", "@ember/-internals/meta", "@ember/canary-features", "internal-test-helpers"], function (_metal, _environment, _meta, _canaryFeatures, _internalTestHelpers) {
   "use strict";
 
   let didCount, didKeys, originalLookup;
@@ -47033,208 +48519,210 @@ enifed("@ember/-internals/metal/tests/watching/watch_test", ["@ember/-internals/
     });
   }
 
-  (0, _internalTestHelpers.moduleFor)('watch', class extends _internalTestHelpers.AbstractTestCase {
-    beforeEach() {
-      didCount = 0;
-      didKeys = [];
-      originalLookup = _environment.context.lookup;
-      _environment.context.lookup = {};
-    }
+  if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    (0, _internalTestHelpers.moduleFor)('watch', class extends _internalTestHelpers.AbstractTestCase {
+      beforeEach() {
+        didCount = 0;
+        didKeys = [];
+        originalLookup = _environment.context.lookup;
+        _environment.context.lookup = {};
+      }
 
-    afterEach() {
-      _environment.context.lookup = originalLookup;
-    }
+      afterEach() {
+        _environment.context.lookup = originalLookup;
+      }
 
-    ['@test watching a computed property'](assert) {
-      let obj = {};
-      (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)({
-        get() {
-          return this.__foo;
-        },
+      ['@test watching a computed property'](assert) {
+        let obj = {};
+        (0, _metal.defineProperty)(obj, 'foo', (0, _metal.computed)({
+          get() {
+            return this.__foo;
+          },
 
-        set(keyName, value) {
-          if (value !== undefined) {
-            this.__foo = value;
+          set(keyName, value) {
+            if (value !== undefined) {
+              this.__foo = value;
+            }
+
+            return this.__foo;
           }
 
-          return this.__foo;
-        }
+        }));
+        addListeners(obj, 'foo');
+        (0, _metal.watch)(obj, 'foo');
+        (0, _metal.set)(obj, 'foo', 'bar');
+        assert.equal(didCount, 1, 'should have invoked didCount');
+      }
 
-      }));
-      addListeners(obj, 'foo');
-      (0, _metal.watch)(obj, 'foo');
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(didCount, 1, 'should have invoked didCount');
-    }
+      ['@test watching a regular defined property'](assert) {
+        let obj = {
+          foo: 'baz'
+        };
+        addListeners(obj, 'foo');
+        (0, _metal.watch)(obj, 'foo');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'baz', 'should have original prop');
+        (0, _metal.set)(obj, 'foo', 'bar');
+        assert.equal(didCount, 1, 'should have invoked didCount');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar', 'should get new value');
+        assert.equal(obj.foo, 'bar', 'property should be accessible on obj');
+      }
 
-    ['@test watching a regular defined property'](assert) {
-      let obj = {
-        foo: 'baz'
-      };
-      addListeners(obj, 'foo');
-      (0, _metal.watch)(obj, 'foo');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'baz', 'should have original prop');
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(didCount, 1, 'should have invoked didCount');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar', 'should get new value');
-      assert.equal(obj.foo, 'bar', 'property should be accessible on obj');
-    }
+      ['@test watching a regular undefined property'](assert) {
+        let obj = {};
+        addListeners(obj, 'foo');
+        (0, _metal.watch)(obj, 'foo');
+        assert.equal('foo' in obj, false, 'precond undefined');
+        (0, _metal.set)(obj, 'foo', 'bar');
+        assert.equal(didCount, 1, 'should have invoked didCount');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar', 'should get new value');
+        assert.equal(obj.foo, 'bar', 'property should be accessible on obj');
+      }
 
-    ['@test watching a regular undefined property'](assert) {
-      let obj = {};
-      addListeners(obj, 'foo');
-      (0, _metal.watch)(obj, 'foo');
-      assert.equal('foo' in obj, false, 'precond undefined');
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal(didCount, 1, 'should have invoked didCount');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar', 'should get new value');
-      assert.equal(obj.foo, 'bar', 'property should be accessible on obj');
-    }
+      ['@test watches should inherit'](assert) {
+        let obj = {
+          foo: 'baz'
+        };
+        let objB = Object.create(obj);
+        addListeners(obj, 'foo');
+        (0, _metal.watch)(obj, 'foo');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'baz', 'should have original prop');
+        (0, _metal.set)(objB, 'foo', 'bar');
+        (0, _metal.set)(obj, 'foo', 'baz');
+        assert.equal(didCount, 1, 'should have invoked didCount once only');
+      }
 
-    ['@test watches should inherit'](assert) {
-      let obj = {
-        foo: 'baz'
-      };
-      let objB = Object.create(obj);
-      addListeners(obj, 'foo');
-      (0, _metal.watch)(obj, 'foo');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'baz', 'should have original prop');
-      (0, _metal.set)(objB, 'foo', 'bar');
-      (0, _metal.set)(obj, 'foo', 'baz');
-      assert.equal(didCount, 1, 'should have invoked didCount once only');
-    }
+      ['@test watching an object THEN defining it should work also'](assert) {
+        let obj = {};
+        addListeners(obj, 'foo');
+        (0, _metal.watch)(obj, 'foo');
+        (0, _metal.defineProperty)(obj, 'foo');
+        (0, _metal.set)(obj, 'foo', 'bar');
+        assert.equal((0, _metal.get)(obj, 'foo'), 'bar', 'should have set');
+        assert.equal(didCount, 1, 'should have invoked didChange once');
+      }
 
-    ['@test watching an object THEN defining it should work also'](assert) {
-      let obj = {};
-      addListeners(obj, 'foo');
-      (0, _metal.watch)(obj, 'foo');
-      (0, _metal.defineProperty)(obj, 'foo');
-      (0, _metal.set)(obj, 'foo', 'bar');
-      assert.equal((0, _metal.get)(obj, 'foo'), 'bar', 'should have set');
-      assert.equal(didCount, 1, 'should have invoked didChange once');
-    }
+      ['@test watching a chain then defining the property'](assert) {
+        let obj = {};
+        let foo = {
+          bar: 'bar'
+        };
+        addListeners(obj, 'foo.bar');
+        addListeners(foo, 'bar');
+        (0, _metal.watch)(obj, 'foo.bar');
+        (0, _metal.defineProperty)(obj, 'foo', undefined, foo);
+        (0, _metal.set)(foo, 'bar', 'baz');
+        assert.deepEqual(didKeys, ['foo.bar', 'bar'], 'should have invoked didChange with bar, foo.bar');
+        assert.equal(didCount, 2, 'should have invoked didChange twice');
+      }
 
-    ['@test watching a chain then defining the property'](assert) {
-      let obj = {};
-      let foo = {
-        bar: 'bar'
-      };
-      addListeners(obj, 'foo.bar');
-      addListeners(foo, 'bar');
-      (0, _metal.watch)(obj, 'foo.bar');
-      (0, _metal.defineProperty)(obj, 'foo', undefined, foo);
-      (0, _metal.set)(foo, 'bar', 'baz');
-      assert.deepEqual(didKeys, ['foo.bar', 'bar'], 'should have invoked didChange with bar, foo.bar');
-      assert.equal(didCount, 2, 'should have invoked didChange twice');
-    }
+      ['@test watching a chain then defining the nested property'](assert) {
+        let bar = {};
+        let obj = {
+          foo: bar
+        };
+        let baz = {
+          baz: 'baz'
+        };
+        addListeners(obj, 'foo.bar.baz');
+        addListeners(baz, 'baz');
+        (0, _metal.watch)(obj, 'foo.bar.baz');
+        (0, _metal.defineProperty)(bar, 'bar', undefined, baz);
+        (0, _metal.set)(baz, 'baz', 'BOO');
+        assert.deepEqual(didKeys, ['foo.bar.baz', 'baz'], 'should have invoked didChange with bar, foo.bar');
+        assert.equal(didCount, 2, 'should have invoked didChange twice');
+      }
 
-    ['@test watching a chain then defining the nested property'](assert) {
-      let bar = {};
-      let obj = {
-        foo: bar
-      };
-      let baz = {
-        baz: 'baz'
-      };
-      addListeners(obj, 'foo.bar.baz');
-      addListeners(baz, 'baz');
-      (0, _metal.watch)(obj, 'foo.bar.baz');
-      (0, _metal.defineProperty)(bar, 'bar', undefined, baz);
-      (0, _metal.set)(baz, 'baz', 'BOO');
-      assert.deepEqual(didKeys, ['foo.bar.baz', 'baz'], 'should have invoked didChange with bar, foo.bar');
-      assert.equal(didCount, 2, 'should have invoked didChange twice');
-    }
-
-    ['@test watching an object value then unwatching should restore old value'](assert) {
-      let obj = {
-        foo: {
-          bar: {
-            baz: {
-              biff: 'BIFF'
+      ['@test watching an object value then unwatching should restore old value'](assert) {
+        let obj = {
+          foo: {
+            bar: {
+              baz: {
+                biff: 'BIFF'
+              }
             }
           }
-        }
-      };
-      addListeners(obj, 'foo.bar.baz.biff');
-      (0, _metal.watch)(obj, 'foo.bar.baz.biff');
-      let foo = (0, _metal.get)(obj, 'foo');
-      assert.equal((0, _metal.get)((0, _metal.get)((0, _metal.get)(foo, 'bar'), 'baz'), 'biff'), 'BIFF', 'biff should exist');
-      (0, _metal.unwatch)(obj, 'foo.bar.baz.biff');
-      assert.equal((0, _metal.get)((0, _metal.get)((0, _metal.get)(foo, 'bar'), 'baz'), 'biff'), 'BIFF', 'biff should exist');
-    }
+        };
+        addListeners(obj, 'foo.bar.baz.biff');
+        (0, _metal.watch)(obj, 'foo.bar.baz.biff');
+        let foo = (0, _metal.get)(obj, 'foo');
+        assert.equal((0, _metal.get)((0, _metal.get)((0, _metal.get)(foo, 'bar'), 'baz'), 'biff'), 'BIFF', 'biff should exist');
+        (0, _metal.unwatch)(obj, 'foo.bar.baz.biff');
+        assert.equal((0, _metal.get)((0, _metal.get)((0, _metal.get)(foo, 'bar'), 'baz'), 'biff'), 'BIFF', 'biff should exist');
+      }
 
-    ['@test when watching another object, destroy should remove chain watchers from the other object'](assert) {
-      let objA = {};
-      let objB = {
-        foo: 'bar'
-      };
-      objA.b = objB;
-      addListeners(objA, 'b.foo');
-      (0, _metal.watch)(objA, 'b.foo');
-      let meta_objB = (0, _meta.meta)(objB);
-      let chainNode = (0, _meta.meta)(objA).readableChains().chains.b.chains.foo;
-      assert.equal(meta_objB.peekWatching('foo'), 1, 'should be watching foo');
-      assert.equal(meta_objB.readableChainWatchers().has('foo', chainNode), true, 'should have chain watcher');
-      (0, _meta.deleteMeta)(objA);
-      assert.equal(meta_objB.peekWatching('foo'), 0, 'should not be watching foo');
-      assert.equal(meta_objB.readableChainWatchers().has('foo', chainNode), false, 'should not have chain watcher');
-    } // TESTS for length property
+      ['@test when watching another object, destroy should remove chain watchers from the other object'](assert) {
+        let objA = {};
+        let objB = {
+          foo: 'bar'
+        };
+        objA.b = objB;
+        addListeners(objA, 'b.foo');
+        (0, _metal.watch)(objA, 'b.foo');
+        let meta_objB = (0, _meta.meta)(objB);
+        let chainNode = (0, _meta.meta)(objA).readableChains().chains.b.chains.foo;
+        assert.equal(meta_objB.peekWatching('foo'), 1, 'should be watching foo');
+        assert.equal(meta_objB.readableChainWatchers().has('foo', chainNode), true, 'should have chain watcher');
+        (0, _meta.deleteMeta)(objA);
+        assert.equal(meta_objB.peekWatching('foo'), 0, 'should not be watching foo');
+        assert.equal(meta_objB.readableChainWatchers().has('foo', chainNode), false, 'should not have chain watcher');
+      } // TESTS for length property
 
 
-    ['@test watching "length" property on an object'](assert) {
-      let obj = {
-        length: '26.2 miles'
-      };
-      addListeners(obj, 'length');
-      (0, _metal.watch)(obj, 'length');
-      assert.equal((0, _metal.get)(obj, 'length'), '26.2 miles', 'should have original prop');
-      (0, _metal.set)(obj, 'length', '10k');
-      assert.equal(didCount, 1, 'should have invoked didCount');
-      assert.equal((0, _metal.get)(obj, 'length'), '10k', 'should get new value');
-      assert.equal(obj.length, '10k', 'property should be accessible on obj');
-    }
+      ['@test watching "length" property on an object'](assert) {
+        let obj = {
+          length: '26.2 miles'
+        };
+        addListeners(obj, 'length');
+        (0, _metal.watch)(obj, 'length');
+        assert.equal((0, _metal.get)(obj, 'length'), '26.2 miles', 'should have original prop');
+        (0, _metal.set)(obj, 'length', '10k');
+        assert.equal(didCount, 1, 'should have invoked didCount');
+        assert.equal((0, _metal.get)(obj, 'length'), '10k', 'should get new value');
+        assert.equal(obj.length, '10k', 'property should be accessible on obj');
+      }
 
-    ['@test watching "length" property on an array'](assert) {
-      let arr = [];
-      addListeners(arr, 'length');
-      (0, _metal.watch)(arr, 'length');
-      assert.equal((0, _metal.get)(arr, 'length'), 0, 'should have original prop');
-      (0, _metal.set)(arr, 'length', '10');
-      assert.equal(didCount, 1, 'should NOT have invoked didCount');
-      assert.equal((0, _metal.get)(arr, 'length'), 10, 'should get new value');
-      assert.equal(arr.length, 10, 'property should be accessible on arr');
-    }
+      ['@test watching "length" property on an array'](assert) {
+        let arr = [];
+        addListeners(arr, 'length');
+        (0, _metal.watch)(arr, 'length');
+        assert.equal((0, _metal.get)(arr, 'length'), 0, 'should have original prop');
+        (0, _metal.set)(arr, 'length', '10');
+        assert.equal(didCount, 1, 'should NOT have invoked didCount');
+        assert.equal((0, _metal.get)(arr, 'length'), 10, 'should get new value');
+        assert.equal(arr.length, 10, 'property should be accessible on arr');
+      }
 
-    ['@test watch + ES5 getter'](assert) {
-      let parent = {
-        b: 1
-      };
-      let child = {
-        get b() {
-          return parent.b;
-        }
+      ['@test watch + ES5 getter'](assert) {
+        let parent = {
+          b: 1
+        };
+        let child = {
+          get b() {
+            return parent.b;
+          }
 
-      };
-      assert.equal(parent.b, 1, 'parent.b should be 1');
-      assert.equal(child.b, 1, 'child.b should be 1');
-      assert.equal((0, _metal.get)(child, 'b'), 1, 'get(child, "b") should be 1');
-      (0, _metal.watch)(child, 'b');
-      assert.equal(parent.b, 1, 'parent.b should be 1 (after watch)');
-      assert.equal(child.b, 1, 'child.b should be 1  (after watch)');
-      assert.equal((0, _metal.get)(child, 'b'), 1, 'get(child, "b") should be 1 (after watch)');
-    }
+        };
+        assert.equal(parent.b, 1, 'parent.b should be 1');
+        assert.equal(child.b, 1, 'child.b should be 1');
+        assert.equal((0, _metal.get)(child, 'b'), 1, 'get(child, "b") should be 1');
+        (0, _metal.watch)(child, 'b');
+        assert.equal(parent.b, 1, 'parent.b should be 1 (after watch)');
+        assert.equal(child.b, 1, 'child.b should be 1  (after watch)');
+        assert.equal((0, _metal.get)(child, 'b'), 1, 'get(child, "b") should be 1 (after watch)');
+      }
 
-    ['@test watch + set + no-descriptor'](assert) {
-      let child = {};
-      assert.equal(child.b, undefined, 'child.b ');
-      assert.equal((0, _metal.get)(child, 'b'), undefined, 'get(child, "b")');
-      (0, _metal.watch)(child, 'b');
-      (0, _metal.set)(child, 'b', 1);
-      assert.equal(child.b, 1, 'child.b (after watch)');
-      assert.equal((0, _metal.get)(child, 'b'), 1, 'get(child, "b") (after watch)');
-    }
+      ['@test watch + set + no-descriptor'](assert) {
+        let child = {};
+        assert.equal(child.b, undefined, 'child.b ');
+        assert.equal((0, _metal.get)(child, 'b'), undefined, 'get(child, "b")');
+        (0, _metal.watch)(child, 'b');
+        (0, _metal.set)(child, 'b', 1);
+        assert.equal(child.b, 1, 'child.b (after watch)');
+        assert.equal((0, _metal.get)(child, 'b'), 1, 'get(child, "b") (after watch)');
+      }
 
-  });
+    });
+  }
 });
 enifed("@ember/-internals/routing/tests/ext/controller_test", ["@ember/-internals/owner", "@ember/controller", "internal-test-helpers"], function (_owner, _controller, _internalTestHelpers) {
   "use strict";
@@ -51061,27 +52549,88 @@ enifed("@ember/-internals/runtime/tests/core/type_of_test", ["@ember/-internals/
 enifed("@ember/-internals/runtime/tests/ext/function_test", ["@ember/-internals/environment", "@ember/-internals/metal", "@ember/-internals/runtime/lib/system/object", "@ember/-internals/runtime/lib/mixins/evented", "internal-test-helpers", "@ember/deprecated-features"], function (_environment, _metal, _object, _evented, _internalTestHelpers, _deprecatedFeatures) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   (0, _internalTestHelpers.moduleFor)('Function.prototype.observes() helper', class extends _internalTestHelpers.AbstractTestCase {
     ['@test global observer helper takes multiple params'](assert) {
-      if (!_deprecatedFeatures.FUNCTION_PROTOTYPE_EXTENSIONS || !_environment.ENV.EXTEND_PROTOTYPES.Function) {
-        assert.ok('undefined' === typeof Function.prototype.observes, 'Function.prototype helper disabled');
-        return;
-      }
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              if (!(!_deprecatedFeatures.FUNCTION_PROTOTYPE_EXTENSIONS || !_environment.ENV.EXTEND_PROTOTYPES.Function)) {
+                _context.next = 3;
+                break;
+              }
 
-      let MyMixin;
-      expectDeprecation(() => {
-        MyMixin = _metal.Mixin.create({
-          count: 0,
-          foo: function () {
-            (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-          }.observes('bar', 'baz')
-        });
-      }, /Function prototype extensions have been deprecated, please migrate from function\(\){}.observes\('foo'\) to observer\('foo', function\(\) {}\)/);
-      let obj = (0, _metal.mixin)({}, MyMixin);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj, 'bar', 'BAZ');
-      (0, _metal.set)(obj, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 2, 'should invoke observer after change');
+              assert.ok('undefined' === typeof Function.prototype.observes, 'Function.prototype helper disabled');
+              return _context.abrupt("return");
+
+            case 3:
+              expectDeprecation(() => {
+                MyMixin = _metal.Mixin.create({
+                  count: 0,
+                  foo: function () {
+                    (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                  }.observes('bar', 'baz')
+                });
+              }, /Function prototype extensions have been deprecated, please migrate from function\(\){}.observes\('foo'\) to observer\('foo', function\(\) {}\)/);
+              obj = (0, _metal.mixin)({}, MyMixin);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj, 'bar', 'BAZ');
+              _context.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              (0, _metal.set)(obj, 'baz', 'BAZ');
+              _context.next = 12;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 12:
+              assert.equal((0, _metal.get)(obj, 'count'), 2, 'should invoke observer after change');
+
+            case 13:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
   });
@@ -51109,26 +52658,47 @@ enifed("@ember/-internals/runtime/tests/ext/function_test", ["@ember/-internals/
     }
 
     ['@test can be chained with observes'](assert) {
-      if (!_deprecatedFeatures.FUNCTION_PROTOTYPE_EXTENSIONS || !_environment.ENV.EXTEND_PROTOTYPES.Function) {
-        assert.ok('Function.prototype helper disabled');
-        return;
-      }
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var MyMixin, obj;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              if (!(!_deprecatedFeatures.FUNCTION_PROTOTYPE_EXTENSIONS || !_environment.ENV.EXTEND_PROTOTYPES.Function)) {
+                _context2.next = 3;
+                break;
+              }
 
-      let MyMixin;
-      expectDeprecation(function () {
-        MyMixin = _metal.Mixin.create({
-          count: 0,
-          bay: 'bay',
-          foo: function () {
-            (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-          }.observes('bay').on('bar')
-        });
-      });
-      let obj = (0, _metal.mixin)({}, _evented.default, MyMixin);
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke listener immediately');
-      (0, _metal.set)(obj, 'bay', 'BAY');
-      obj.trigger('bar');
-      assert.equal((0, _metal.get)(obj, 'count'), 2, 'should invoke observer and listener');
+              assert.ok('Function.prototype helper disabled');
+              return _context2.abrupt("return");
+
+            case 3:
+              expectDeprecation(function () {
+                MyMixin = _metal.Mixin.create({
+                  count: 0,
+                  bay: 'bay',
+                  foo: function () {
+                    (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                  }.observes('bay').on('bar')
+                });
+              });
+              obj = (0, _metal.mixin)({}, _evented.default, MyMixin);
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke listener immediately');
+              (0, _metal.set)(obj, 'bay', 'BAY');
+              obj.trigger('bar');
+              _context2.next = 10;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 10:
+              assert.equal((0, _metal.get)(obj, 'count'), 2, 'should invoke observer and listener');
+
+            case 11:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
   });
@@ -51813,8 +53383,44 @@ enifed("@ember/-internals/runtime/tests/inject_test", ["@ember/-internals/metal"
 
   });
 });
-enifed("@ember/-internals/runtime/tests/legacy_1x/mixins/observable/chained_test", ["@ember/runloop", "@ember/-internals/metal", "@ember/-internals/runtime/lib/system/object", "@ember/-internals/runtime/lib/mixins/array", "internal-test-helpers"], function (_runloop, _metal, _object, _array, _internalTestHelpers) {
+enifed("@ember/-internals/runtime/tests/legacy_1x/mixins/observable/chained_test", ["@ember/-internals/metal", "@ember/-internals/runtime/lib/system/object", "@ember/-internals/runtime/lib/mixins/array", "internal-test-helpers"], function (_metal, _object, _array, _internalTestHelpers) {
   "use strict";
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   /*
     NOTE: This test is adapted from the 1.x series of unit tests.  The tests
@@ -51828,55 +53434,134 @@ enifed("@ember/-internals/runtime/tests/legacy_1x/mixins/observable/chained_test
   */
   (0, _internalTestHelpers.moduleFor)('Ember.Observable - Observing with @each', class extends _internalTestHelpers.AbstractTestCase {
     ['@test chained observers on enumerable properties are triggered when the observed property of any item changes'](assert) {
-      let family = _object.default.create({
-        momma: null
-      });
+      var _this = this;
 
-      let momma = _object.default.create({
-        children: []
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var family, momma, child1, child2, child3, child4, observerFiredCount, i;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              family = _object.default.create({
+                momma: null
+              });
+              momma = _object.default.create({
+                children: []
+              });
+              child1 = _object.default.create({
+                name: 'Bartholomew'
+              });
+              child2 = _object.default.create({
+                name: 'Agnes'
+              });
+              child3 = _object.default.create({
+                name: 'Dan'
+              });
+              child4 = _object.default.create({
+                name: 'Nancy'
+              });
+              (0, _metal.set)(family, 'momma', momma);
+              (0, _metal.set)(momma, 'children', (0, _array.A)([child1, child2, child3]));
+              observerFiredCount = 0;
+              (0, _metal.addObserver)(family, 'momma.children.@each.name', _this, function () {
+                observerFiredCount++;
+              });
+              observerFiredCount = 0;
+              i = 0;
 
-      let child1 = _object.default.create({
-        name: 'Bartholomew'
-      });
+            case 12:
+              if (!(i < momma.children.length)) {
+                _context.next = 19;
+                break;
+              }
 
-      let child2 = _object.default.create({
-        name: 'Agnes'
-      });
+              momma.children[i].set('name', 'Juan');
+              _context.next = 16;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let child3 = _object.default.create({
-        name: 'Dan'
-      });
+            case 16:
+              i++;
+              _context.next = 12;
+              break;
 
-      let child4 = _object.default.create({
-        name: 'Nancy'
-      });
+            case 19:
+              assert.equal(observerFiredCount, 3, 'observer fired after changing child names');
+              observerFiredCount = 0;
+              (0, _metal.get)(momma, 'children').pushObject(child4);
+              _context.next = 24;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      (0, _metal.set)(family, 'momma', momma);
-      (0, _metal.set)(momma, 'children', (0, _array.A)([child1, child2, child3]));
-      let observerFiredCount = 0;
-      (0, _metal.addObserver)(family, 'momma.children.@each.name', this, function () {
-        observerFiredCount++;
-      });
-      observerFiredCount = 0;
-      (0, _runloop.run)(() => (0, _metal.get)(momma, 'children').setEach('name', 'Juan'));
-      assert.equal(observerFiredCount, 3, 'observer fired after changing child names');
-      observerFiredCount = 0;
-      (0, _runloop.run)(() => (0, _metal.get)(momma, 'children').pushObject(child4));
-      assert.equal(observerFiredCount, 1, 'observer fired after adding a new item');
-      observerFiredCount = 0;
-      (0, _runloop.run)(() => (0, _metal.set)(child4, 'name', 'Herbert'));
-      assert.equal(observerFiredCount, 1, 'observer fired after changing property on new object');
-      (0, _metal.set)(momma, 'children', []);
-      observerFiredCount = 0;
-      (0, _runloop.run)(() => (0, _metal.set)(child1, 'name', 'Hanna'));
-      assert.equal(observerFiredCount, 0, 'observer did not fire after removing changing property on a removed object');
+            case 24:
+              assert.equal(observerFiredCount, 1, 'observer fired after adding a new item');
+              observerFiredCount = 0;
+              (0, _metal.set)(child4, 'name', 'Herbert');
+              _context.next = 29;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 29:
+              assert.equal(observerFiredCount, 1, 'observer fired after changing property on new object');
+              (0, _metal.set)(momma, 'children', []);
+              _context.next = 33;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 33:
+              observerFiredCount = 0;
+              (0, _metal.set)(child1, 'name', 'Hanna');
+              _context.next = 37;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 37:
+              assert.equal(observerFiredCount, 0, 'observer did not fire after removing changing property on a removed object');
+
+            case 38:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
   });
 });
 enifed("@ember/-internals/runtime/tests/legacy_1x/mixins/observable/observable_test", ["@ember/-internals/environment", "@ember/runloop", "@ember/-internals/metal", "@ember/string", "@ember/-internals/runtime/lib/system/object", "@ember/-internals/runtime/lib/mixins/observable", "@ember/-internals/runtime/lib/mixins/array", "internal-test-helpers"], function (_environment, _runloop, _metal, _string, _object, _observable, _array, _internalTestHelpers) {
   "use strict";
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   /*
     NOTE: This test is adapted from the 1.x series of unit tests.  The tests
@@ -52502,8 +54187,25 @@ enifed("@ember/-internals/runtime/tests/legacy_1x/mixins/observable/observable_t
     }
 
     ['@test should notify array observer when array changes'](assert) {
-      (0, _metal.get)(object, 'normalArray').replace(0, 0, [6]);
-      assert.equal(object.abnormal, 'notifiedObserver', 'observer should be notified');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              (0, _metal.get)(object, 'normalArray').replace(0, 0, [6]);
+              _context.next = 3;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 3:
+              assert.equal(object.abnormal, 'notifiedObserver', 'observer should be notified');
+
+            case 4:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
   });
@@ -52534,18 +54236,56 @@ enifed("@ember/-internals/runtime/tests/legacy_1x/mixins/observable/observable_t
     }
 
     ['@test should register an observer for a property'](assert) {
-      ObjectC.addObserver('normal', ObjectC, 'action');
-      ObjectC.set('normal', 'newValue');
-      assert.equal(ObjectC.normal1, 'newZeroValue');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              ObjectC.addObserver('normal', ObjectC, 'action');
+              ObjectC.set('normal', 'newValue');
+              _context2.next = 4;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 4:
+              assert.equal(ObjectC.normal1, 'newZeroValue');
+
+            case 5:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     ['@test should register an observer for a property - Special case of chained property'](assert) {
-      ObjectC.addObserver('objectE.propertyVal', ObjectC, 'chainedObserver');
-      ObjectC.objectE.set('propertyVal', 'chainedPropertyValue');
-      assert.equal('chainedPropertyObserved', ObjectC.normal2);
-      ObjectC.normal2 = 'dependentValue';
-      ObjectC.set('objectE', '');
-      assert.equal('chainedPropertyObserved', ObjectC.normal2);
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              ObjectC.addObserver('objectE.propertyVal', ObjectC, 'chainedObserver');
+              ObjectC.objectE.set('propertyVal', 'chainedPropertyValue');
+              _context3.next = 4;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 4:
+              assert.equal('chainedPropertyObserved', ObjectC.normal2);
+              ObjectC.normal2 = 'dependentValue';
+              ObjectC.set('objectE', '');
+              _context3.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              assert.equal('chainedPropertyObserved', ObjectC.normal2);
+
+            case 10:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
   });
@@ -52592,48 +54332,114 @@ enifed("@ember/-internals/runtime/tests/legacy_1x/mixins/observable/observable_t
     }
 
     ['@test should unregister an observer for a property'](assert) {
-      ObjectD.addObserver('normal', ObjectD, 'addAction');
-      ObjectD.set('normal', 'newValue');
-      assert.equal(ObjectD.normal1, 'newZeroValue');
-      ObjectD.set('normal1', 'zeroValue');
-      ObjectD.removeObserver('normal', ObjectD, 'addAction');
-      ObjectD.set('normal', 'newValue');
-      assert.equal(ObjectD.normal1, 'zeroValue');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              ObjectD.addObserver('normal', ObjectD, 'addAction');
+              ObjectD.set('normal', 'newValue');
+              _context4.next = 4;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 4:
+              assert.equal(ObjectD.normal1, 'newZeroValue');
+              ObjectD.set('normal1', 'zeroValue');
+              _context4.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              ObjectD.removeObserver('normal', ObjectD, 'addAction');
+              ObjectD.set('normal', 'newValue');
+              assert.equal(ObjectD.normal1, 'zeroValue');
+
+            case 11:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
     ["@test should unregister an observer for a property - special case when key has a '.' in it."](assert) {
-      ObjectD.addObserver('objectF.propertyVal', ObjectD, 'removeChainedObserver');
-      ObjectD.objectF.set('propertyVal', 'chainedPropertyValue');
-      ObjectD.removeObserver('objectF.propertyVal', ObjectD, 'removeChainedObserver');
-      ObjectD.normal2 = 'dependentValue';
-      ObjectD.objectF.set('propertyVal', 'removedPropertyValue');
-      assert.equal('dependentValue', ObjectD.normal2);
-      ObjectD.set('objectF', '');
-      assert.equal('dependentValue', ObjectD.normal2);
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              ObjectD.addObserver('objectF.propertyVal', ObjectD, 'removeChainedObserver');
+              ObjectD.objectF.set('propertyVal', 'chainedPropertyValue');
+              _context5.next = 4;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 4:
+              ObjectD.removeObserver('objectF.propertyVal', ObjectD, 'removeChainedObserver');
+              ObjectD.normal2 = 'dependentValue';
+              ObjectD.objectF.set('propertyVal', 'removedPropertyValue');
+              _context5.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              assert.equal('dependentValue', ObjectD.normal2);
+              ObjectD.set('objectF', '');
+              _context5.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 13:
+              assert.equal('dependentValue', ObjectD.normal2);
+
+            case 14:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     ['@test removing an observer inside of an observer shouldn’t cause any problems'](assert) {
-      // The observable system should be protected against clients removing
-      // observers in the middle of observer notification.
-      var encounteredError = false;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var encounteredError;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              // The observable system should be protected against clients removing
+              // observers in the middle of observer notification.
+              encounteredError = false;
+              _context6.prev = 1;
+              ObjectD.addObserver('observableValue', null, 'observer1');
+              ObjectD.addObserver('observableValue', null, 'observer2');
+              ObjectD.addObserver('observableValue', null, 'observer3');
+              ObjectD.set('observableValue', 'hi world');
+              _context6.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      try {
-        ObjectD.addObserver('observableValue', null, 'observer1');
-        ObjectD.addObserver('observableValue', null, 'observer2');
-        ObjectD.addObserver('observableValue', null, 'observer3');
-        (0, _runloop.run)(function () {
-          ObjectD.set('observableValue', 'hi world');
-        });
-      } catch (e) {
-        encounteredError = true;
-      }
+            case 8:
+              _context6.next = 13;
+              break;
 
-      assert.equal(encounteredError, false);
+            case 10:
+              _context6.prev = 10;
+              _context6.t0 = _context6["catch"](1);
+              encounteredError = true;
+
+            case 13:
+              assert.equal(encounteredError, false);
+
+            case 14:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6, null, [[1, 10]]);
+      }))();
     }
 
   });
 });
-enifed("@ember/-internals/runtime/tests/legacy_1x/mixins/observable/propertyChanges_test", ["@ember/-internals/runtime/lib/system/object", "@ember/-internals/runtime/lib/mixins/observable", "@ember/-internals/metal", "internal-test-helpers"], function (_object, _observable, _metal, _internalTestHelpers) {
+enifed("@ember/-internals/runtime/tests/legacy_1x/mixins/observable/propertyChanges_test", ["@ember/-internals/runtime/lib/system/object", "@ember/-internals/runtime/lib/mixins/observable", "@ember/-internals/metal", "internal-test-helpers", "@ember/canary-features"], function (_object, _observable, _metal, _internalTestHelpers, _canaryFeatures) {
   "use strict";
 
   /*
@@ -52656,103 +54462,106 @@ enifed("@ember/-internals/runtime/tests/legacy_1x/mixins/observable/propertyChan
   const ObservableObject = _object.default.extend(_observable.default);
 
   let ObjectA;
-  (0, _internalTestHelpers.moduleFor)('object.propertyChanges', class extends _internalTestHelpers.AbstractTestCase {
-    beforeEach() {
-      ObjectA = ObservableObject.extend({
-        action: (0, _metal.observer)('foo', function () {
-          this.set('prop', 'changedPropValue');
-        }),
-        notifyAction: (0, _metal.observer)('newFoo', function () {
-          this.set('newProp', 'changedNewPropValue');
-        }),
-        notifyAllAction: (0, _metal.observer)('prop', function () {
-          this.set('newFoo', 'changedNewFooValue');
-        }),
 
-        starObserver(target, key) {
-          this.starProp = key;
-        }
+  if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+    (0, _internalTestHelpers.moduleFor)('object.propertyChanges', class extends _internalTestHelpers.AbstractTestCase {
+      beforeEach() {
+        ObjectA = ObservableObject.extend({
+          action: (0, _metal.observer)('foo', function () {
+            this.set('prop', 'changedPropValue');
+          }),
+          notifyAction: (0, _metal.observer)('newFoo', function () {
+            this.set('newProp', 'changedNewPropValue');
+          }),
+          notifyAllAction: (0, _metal.observer)('prop', function () {
+            this.set('newFoo', 'changedNewFooValue');
+          }),
 
-      }).create({
-        starProp: null,
-        foo: 'fooValue',
-        prop: 'propValue',
-        newFoo: 'newFooValue',
-        newProp: 'newPropValue'
-      });
-    }
+          starObserver(target, key) {
+            this.starProp = key;
+          }
 
-    ['@test should observe the changes within the nested begin / end property changes'](assert) {
-      //start the outer nest
-      ObjectA.beginPropertyChanges(); // Inner nest
-
-      ObjectA.beginPropertyChanges();
-      ObjectA.set('foo', 'changeFooValue');
-      assert.equal(ObjectA.prop, 'propValue');
-      ObjectA.endPropertyChanges(); //end inner nest
-
-      ObjectA.set('prop', 'changePropValue');
-      assert.equal(ObjectA.newFoo, 'newFooValue'); //close the outer nest
-
-      ObjectA.endPropertyChanges();
-      assert.equal(ObjectA.prop, 'changedPropValue');
-      assert.equal(ObjectA.newFoo, 'changedNewFooValue');
-    }
-
-    ['@test should observe the changes within the begin and end property changes'](assert) {
-      ObjectA.beginPropertyChanges();
-      ObjectA.set('foo', 'changeFooValue');
-      assert.equal(ObjectA.prop, 'propValue');
-      ObjectA.endPropertyChanges();
-      assert.equal(ObjectA.prop, 'changedPropValue');
-    }
-
-    ['@test should indicate that the property of an object has just changed'](assert) {
-      //change the value of foo.
-      ObjectA.set('foo', 'changeFooValue'); // Indicate the subscribers of foo that the value has just changed
-
-      ObjectA.notifyPropertyChange('foo', null); // Values of prop has just changed
-
-      assert.equal(ObjectA.prop, 'changedPropValue');
-    }
-
-    ['@test should notify that the property of an object has changed'](assert) {
-      // Notify to its subscriber that the values of 'newFoo' will be changed. In this
-      // case the observer is "newProp". Therefore this will call the notifyAction function
-      // and value of "newProp" will be changed.
-      ObjectA.notifyPropertyChange('newFoo', 'fooValue'); //value of newProp changed.
-
-      assert.equal(ObjectA.newProp, 'changedNewPropValue');
-    }
-
-    ['@test should invalidate function property cache when notifyPropertyChange is called'](assert) {
-      let a;
-      expectDeprecation(() => {
-        a = ObservableObject.extend({
-          b: (0, _metal.computed)({
-            get() {
-              return this._b;
-            },
-
-            set(key, value) {
-              this._b = value;
-              return this;
-            }
-
-          }).volatile()
         }).create({
-          _b: null
+          starProp: null,
+          foo: 'fooValue',
+          prop: 'propValue',
+          newFoo: 'newFooValue',
+          newProp: 'newPropValue'
         });
-      }, /Setting a computed property as volatile has been deprecated/);
-      a.set('b', 'foo');
-      assert.equal(a.get('b'), 'foo', 'should have set the correct value for property b');
-      a._b = 'bar';
-      a.notifyPropertyChange('b');
-      a.set('b', 'foo');
-      assert.equal(a.get('b'), 'foo', 'should have invalidated the cache so that the newly set value is actually set');
-    }
+      }
 
-  });
+      ['@test should observe the changes within the nested begin / end property changes'](assert) {
+        //start the outer nest
+        ObjectA.beginPropertyChanges(); // Inner nest
+
+        ObjectA.beginPropertyChanges();
+        ObjectA.set('foo', 'changeFooValue');
+        assert.equal(ObjectA.prop, 'propValue');
+        ObjectA.endPropertyChanges(); //end inner nest
+
+        ObjectA.set('prop', 'changePropValue');
+        assert.equal(ObjectA.newFoo, 'newFooValue'); //close the outer nest
+
+        ObjectA.endPropertyChanges();
+        assert.equal(ObjectA.prop, 'changedPropValue');
+        assert.equal(ObjectA.newFoo, 'changedNewFooValue');
+      }
+
+      ['@test should observe the changes within the begin and end property changes'](assert) {
+        ObjectA.beginPropertyChanges();
+        ObjectA.set('foo', 'changeFooValue');
+        assert.equal(ObjectA.prop, 'propValue');
+        ObjectA.endPropertyChanges();
+        assert.equal(ObjectA.prop, 'changedPropValue');
+      }
+
+      ['@test should indicate that the property of an object has just changed'](assert) {
+        //change the value of foo.
+        ObjectA.set('foo', 'changeFooValue'); // Indicate the subscribers of foo that the value has just changed
+
+        ObjectA.notifyPropertyChange('foo', null); // Values of prop has just changed
+
+        assert.equal(ObjectA.prop, 'changedPropValue');
+      }
+
+      ['@test should notify that the property of an object has changed'](assert) {
+        // Notify to its subscriber that the values of 'newFoo' will be changed. In this
+        // case the observer is "newProp". Therefore this will call the notifyAction function
+        // and value of "newProp" will be changed.
+        ObjectA.notifyPropertyChange('newFoo', 'fooValue'); //value of newProp changed.
+
+        assert.equal(ObjectA.newProp, 'changedNewPropValue');
+      }
+
+      ['@test should invalidate function property cache when notifyPropertyChange is called'](assert) {
+        let a;
+        expectDeprecation(() => {
+          a = ObservableObject.extend({
+            b: (0, _metal.computed)({
+              get() {
+                return this._b;
+              },
+
+              set(key, value) {
+                this._b = value;
+                return this;
+              }
+
+            }).volatile()
+          }).create({
+            _b: null
+          });
+        }, /Setting a computed property as volatile has been deprecated/);
+        a.set('b', 'foo');
+        assert.equal(a.get('b'), 'foo', 'should have set the correct value for property b');
+        a._b = 'bar';
+        a.notifyPropertyChange('b');
+        a.set('b', 'foo');
+        assert.equal(a.get('b'), 'foo', 'should have invalidated the cache so that the newly set value is actually set');
+      }
+
+    });
+  }
 });
 enifed("@ember/-internals/runtime/tests/legacy_1x/system/object/base_test", ["@ember/-internals/metal", "@ember/-internals/runtime/lib/system/object", "internal-test-helpers"], function (_metal, _object, _internalTestHelpers) {
   "use strict";
@@ -52949,6 +54758,42 @@ enifed("@ember/-internals/runtime/tests/legacy_1x/system/object/concatenated_tes
 enifed("@ember/-internals/runtime/tests/mixins/array_test", ["@ember/-internals/metal", "@ember/-internals/runtime/lib/system/object", "@ember/-internals/runtime/lib/mixins/array", "internal-test-helpers"], function (_metal, _object, _array, _internalTestHelpers) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   /*
     Implement a basic fake mutable array.  This validates that any non-native
     enumerable can impl this API.
@@ -53034,17 +54879,34 @@ enifed("@ember/-internals/runtime/tests/mixins/array_test", ["@ember/-internals/
 
   (0, _internalTestHelpers.moduleFor)('mixins/array/arrayContent[Will|Did]Change', class extends _internalTestHelpers.AbstractTestCase {
     ['@test should notify observers of []'](assert) {
-      obj = DummyArray.extend({
-        enumerablePropertyDidChange: (0, _metal.observer)('[]', function () {
-          this._count++;
-        })
-      }).create({
-        _count: 0
-      });
-      assert.equal(obj._count, 0, 'should not have invoked yet');
-      (0, _metal.arrayContentWillChange)(obj, 0, 1, 1);
-      (0, _metal.arrayContentDidChange)(obj, 0, 1, 1);
-      assert.equal(obj._count, 1, 'should have invoked');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              obj = DummyArray.extend({
+                enumerablePropertyDidChange: (0, _metal.observer)('[]', function () {
+                  this._count++;
+                })
+              }).create({
+                _count: 0
+              });
+              assert.equal(obj._count, 0, 'should not have invoked yet');
+              (0, _metal.arrayContentWillChange)(obj, 0, 1, 1);
+              (0, _metal.arrayContentDidChange)(obj, 0, 1, 1);
+              _context.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              assert.equal(obj._count, 1, 'should have invoked');
+
+            case 7:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
   }); // ..........................................................
@@ -53068,25 +54930,88 @@ enifed("@ember/-internals/runtime/tests/mixins/array_test", ["@ember/-internals/
     }
 
     ['@test should notify observers when call with no params'](assert) {
-      (0, _metal.arrayContentWillChange)(obj);
-      assert.equal(obj._after, 0);
-      (0, _metal.arrayContentDidChange)(obj);
-      assert.equal(obj._after, 1);
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              (0, _metal.arrayContentWillChange)(obj);
+              _context2.next = 3;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 3:
+              assert.equal(obj._after, 0);
+              (0, _metal.arrayContentDidChange)(obj);
+              _context2.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 7:
+              assert.equal(obj._after, 1);
+
+            case 8:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     } // API variation that included items only
 
 
     ['@test should not notify when passed lengths are same'](assert) {
-      (0, _metal.arrayContentWillChange)(obj, 0, 1, 1);
-      assert.equal(obj._after, 0);
-      (0, _metal.arrayContentDidChange)(obj, 0, 1, 1);
-      assert.equal(obj._after, 0);
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              (0, _metal.arrayContentWillChange)(obj, 0, 1, 1);
+              _context3.next = 3;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 3:
+              assert.equal(obj._after, 0);
+              (0, _metal.arrayContentDidChange)(obj, 0, 1, 1);
+              _context3.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 7:
+              assert.equal(obj._after, 0);
+
+            case 8:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     ['@test should notify when passed lengths are different'](assert) {
-      (0, _metal.arrayContentWillChange)(obj, 0, 1, 2);
-      assert.equal(obj._after, 0);
-      (0, _metal.arrayContentDidChange)(obj, 0, 1, 2);
-      assert.equal(obj._after, 1);
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              (0, _metal.arrayContentWillChange)(obj, 0, 1, 2);
+              _context4.next = 3;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 3:
+              assert.equal(obj._after, 0);
+              (0, _metal.arrayContentDidChange)(obj, 0, 1, 2);
+              _context4.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 7:
+              assert.equal(obj._after, 1);
+
+            case 8:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
   }); // ..........................................................
@@ -53179,47 +55104,81 @@ enifed("@ember/-internals/runtime/tests/mixins/array_test", ["@ember/-internals/
     }
 
     ['@test adding an object should notify (@each.isDone)'](assert) {
-      let called = 0;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var called, observerObject;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              called = 0;
+              observerObject = _object.default.create({
+                wasCalled() {
+                  called++;
+                }
 
-      let observerObject = _object.default.create({
-        wasCalled() {
-          called++;
-        }
+              });
+              (0, _metal.addObserver)(ary, '@each.isDone', observerObject, 'wasCalled');
+              ary.addObject(_object.default.create({
+                desc: 'foo',
+                isDone: false
+              }));
+              _context5.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      });
+            case 6:
+              assert.equal(called, 1, 'calls observer when object is pushed');
 
-      (0, _metal.addObserver)(ary, '@each.isDone', observerObject, 'wasCalled');
-      ary.addObject(_object.default.create({
-        desc: 'foo',
-        isDone: false
-      }));
-      assert.equal(called, 1, 'calls observer when object is pushed');
+            case 7:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     ['@test using @each to observe arrays that does not return objects raise error'](assert) {
-      let called = 0;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var called, observerObject;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              called = 0;
+              observerObject = _object.default.create({
+                wasCalled() {
+                  called++;
+                }
 
-      let observerObject = _object.default.create({
-        wasCalled() {
-          called++;
-        }
+              });
+              _context6.t0 = TestArray;
+              _context6.t1 = {
+                objectAt(idx) {
+                  return (0, _metal.get)(this._content[idx], 'desc');
+                }
 
-      });
+              };
+              ary = _context6.t0.create.call(_context6.t0, _context6.t1);
+              ary.addObject({
+                desc: 'foo',
+                isDone: false
+              });
+              assert.throwsAssertion(() => {
+                (0, _metal.addObserver)(ary, '@each.isDone', observerObject, 'wasCalled');
+              }, /When using @each to observe the array/);
+              _context6.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      ary = TestArray.create({
-        objectAt(idx) {
-          return (0, _metal.get)(this._content[idx], 'desc');
-        }
+            case 9:
+              assert.equal(called, 0, 'not calls observer when object is pushed');
 
-      });
-      (0, _metal.addObserver)(ary, '@each.isDone', observerObject, 'wasCalled');
-      expectAssertion(() => {
-        ary.addObject(_object.default.create({
-          desc: 'foo',
-          isDone: false
-        }));
-      }, /When using @each to observe the array/);
-      assert.equal(called, 0, 'not calls observer when object is pushed');
+            case 10:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6, this);
+      }))();
     }
 
     ['@test `objectAt` returns correct object'](assert) {
@@ -53250,26 +55209,48 @@ enifed("@ember/-internals/runtime/tests/mixins/array_test", ["@ember/-internals/
     }
 
     ['@test observers that contain @each in the path should fire only once the first time they are accessed'](assert) {
-      let count = 0;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee7() {
+        var count,
+            obj,
+            _args7 = arguments;
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
+          while (1) switch (_context7.prev = _context7.next) {
+            case 0:
+              count = 0;
+              obj = _object.default.extend({
+                init() {
+                  this._super(..._args7); // Observer does not fire on init
 
-      let obj = _object.default.extend({
-        init() {
-          this._super(...arguments); // Observer does not fire on init
 
+                  (0, _metal.set)(this, 'resources', (0, _array.A)());
+                },
 
-          (0, _metal.set)(this, 'resources', (0, _array.A)());
-        },
+                commonDidChange: (0, _metal.observer)('resources.@each.common', () => count++)
+              }).create(); // Observer fires first time when new object is added
 
-        commonDidChange: (0, _metal.observer)('resources.@each.common', () => count++)
-      }).create(); // Observer fires second time when new object is added
+              (0, _metal.get)(obj, 'resources').pushObject(_object.default.create({
+                common: 'HI!'
+              }));
+              _context7.next = 5;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
+            case 5:
+              // Observer fires second time when property on an object is changed
+              (0, _metal.set)((0, _metal.objectAt)((0, _metal.get)(obj, 'resources'), 0), 'common', 'BYE!');
+              _context7.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      (0, _metal.get)(obj, 'resources').pushObject(_object.default.create({
-        common: 'HI!'
-      })); // Observer fires third time when property on an object is changed
+            case 8:
+              assert.equal(count, 2, 'observers should be called twice');
 
-      (0, _metal.set)((0, _metal.objectAt)((0, _metal.get)(obj, 'resources'), 0), 'common', 'BYE!');
-      assert.equal(count, 2, 'observers should only be called once');
+            case 9:
+            case "end":
+              return _context7.stop();
+          }
+        }, _callee7, this);
+      }))();
     }
 
   });
@@ -53400,6 +55381,42 @@ enifed("@ember/-internals/runtime/tests/mixins/mutable_enumerable_test", ["@embe
 enifed("@ember/-internals/runtime/tests/mixins/observable_test", ["@ember/-internals/metal", "@ember/-internals/runtime/lib/system/object", "internal-test-helpers"], function (_metal, _object, _internalTestHelpers) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   (0, _internalTestHelpers.moduleFor)('mixins/observable', class extends _internalTestHelpers.AbstractTestCase {
     ['@test should be able to use getProperties to get a POJO of provided keys'](assert) {
       let obj = _object.default.create({
@@ -53441,40 +55458,70 @@ enifed("@ember/-internals/runtime/tests/mixins/observable_test", ["@ember/-inter
     }
 
     ['@test calling setProperties completes safely despite exceptions'](assert) {
-      let exc = new Error('Something unexpected happened!');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var exc, obj, firstNameChangedCount;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              exc = new Error('Something unexpected happened!');
+              _context.t0 = _object.default;
+              _context.t1 = _metal.computed;
+              _context.t2 = {
+                get() {
+                  return 'Apple, Inc.';
+                },
 
-      let obj = _object.default.extend({
-        companyName: (0, _metal.computed)({
-          get() {
-            return 'Apple, Inc.';
-          },
+                set() {
+                  throw exc;
+                }
 
-          set() {
-            throw exc;
+              };
+              _context.t3 = (0, _context.t1)(_context.t2);
+              _context.t4 = {
+                companyName: _context.t3
+              };
+              _context.t5 = {
+                firstName: 'Steve',
+                lastName: 'Jobs'
+              };
+              obj = _context.t0.extend.call(_context.t0, _context.t4).create(_context.t5);
+              firstNameChangedCount = 0;
+              (0, _metal.addObserver)(obj, 'firstName', () => firstNameChangedCount++);
+              _context.prev = 10;
+              obj.setProperties({
+                firstName: 'Tim',
+                lastName: 'Cook',
+                companyName: 'Fruit Co., Inc.'
+              });
+              _context.next = 18;
+              break;
+
+            case 14:
+              _context.prev = 14;
+              _context.t6 = _context["catch"](10);
+
+              if (!(_context.t6 !== exc)) {
+                _context.next = 18;
+                break;
+              }
+
+              throw _context.t6;
+
+            case 18:
+              _context.next = 20;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 20:
+              assert.equal(firstNameChangedCount, 1, 'firstName should have fired once');
+
+            case 21:
+            case "end":
+              return _context.stop();
           }
-
-        })
-      }).create({
-        firstName: 'Steve',
-        lastName: 'Jobs'
-      });
-
-      let firstNameChangedCount = 0;
-      (0, _metal.addObserver)(obj, 'firstName', () => firstNameChangedCount++);
-
-      try {
-        obj.setProperties({
-          firstName: 'Tim',
-          lastName: 'Cook',
-          companyName: 'Fruit Co., Inc.'
-        });
-      } catch (err) {
-        if (err !== exc) {
-          throw err;
-        }
-      }
-
-      assert.equal(firstNameChangedCount, 1, 'firstName should have fired once');
+        }, _callee, null, [[10, 14]]);
+      }))();
     }
 
     ['@test should be able to retrieve cached values of computed properties without invoking the computed property'](assert) {
@@ -54008,6 +56055,42 @@ enifed("@ember/-internals/runtime/tests/mixins/target_action_support_test", ["@e
 enifed("@ember/-internals/runtime/tests/mutable-array/addObject-test", ["@ember/-internals/metal", "internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array"], function (_metal, _internalTestHelpers, _array) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class AddObjectTest extends _internalTestHelpers.AbstractTestCase {
     '@test should return receiver'() {
       let before = (0, _array.newFixture)(3);
@@ -54016,48 +56099,100 @@ enifed("@ember/-internals/runtime/tests/mutable-array/addObject-test", ["@ember/
     }
 
     '@test [A,B].addObject(C) => [A,B,C] + notify'() {
-      let before = (0, _array.newFixture)(2);
-      let item = (0, _array.newFixture)(1)[0];
-      let after = [before[0], before[1], item];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      obj.addObject(item);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, item, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = (0, _array.newFixture)(2);
+              item = (0, _array.newFixture)(1)[0];
+              after = [before[0], before[1], item];
+              obj = _this.newObject(before);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-        this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-        this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-        this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
-        this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-      }
+              obj.addObject(item); // flush observers
+
+              _context.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+                _this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+                _this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+                _this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+                _this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+              }
+
+            case 12:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [A,B,C].addObject(A) => [A,B,C] + NO notify'() {
-      let before = (0, _array.newFixture)(3);
-      let after = before;
-      let item = before[0];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      obj.addObject(item); // note: item in set
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var before, after, item, obj, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              after = before;
+              item = before[0];
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
 
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+              obj.addObject(item); // note: item in set
+              // flush observers
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.validate('[]'), false, 'should NOT have notified []');
-        this.assert.equal(observer.validate('@each'), false, 'should NOT have notified @each');
-        this.assert.equal(observer.validate('length'), false, 'should NOT have notified length');
-        this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-        this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
-      }
+              _context2.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this2.assert.equal(observer.validate('[]'), false, 'should NOT have notified []');
+
+                _this2.assert.equal(observer.validate('@each'), false, 'should NOT have notified @each');
+
+                _this2.assert.equal(observer.validate('length'), false, 'should NOT have notified length');
+
+                _this2.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+                _this2.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+              }
+
+            case 12:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
   }
@@ -54067,42 +56202,133 @@ enifed("@ember/-internals/runtime/tests/mutable-array/addObject-test", ["@ember/
 enifed("@ember/-internals/runtime/tests/mutable-array/clear-test", ["@ember/-internals/metal", "internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array"], function (_metal, _internalTestHelpers, _array) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class ClearTests extends _internalTestHelpers.AbstractTestCase {
     '@test [].clear() => [] + notify'() {
-      let before = [];
-      let after = [];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      this.assert.equal(obj.clear(), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.validate('[]'), false, 'should NOT have notified [] once');
-      this.assert.equal(observer.validate('@each'), false, 'should NOT have notified @each once');
-      this.assert.equal(observer.validate('length'), false, 'should NOT have notified length once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = [];
+              after = [];
+              obj = _this.newObject(before);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject'); // flush observers
+
+              _context.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this.assert.equal(obj.clear(), obj, 'return self');
+
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this.assert.equal(observer.validate('[]'), false, 'should NOT have notified [] once');
+
+              _this.assert.equal(observer.validate('@each'), false, 'should NOT have notified @each once');
+
+              _this.assert.equal(observer.validate('length'), false, 'should NOT have notified length once');
+
+              _this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+              _this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [X].clear() => [] + notify'() {
-      var obj, before, after, observer;
-      before = (0, _array.newFixture)(1);
-      after = [];
-      obj = this.newObject(before);
-      observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      this.assert.equal(obj.clear(), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var obj, before, after, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array.newFixture)(1);
+              after = [];
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this2.assert.equal(obj.clear(), obj, 'return self'); // flush observers
+
+
+              _context2.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this2.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this2.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this2.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this2.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this2.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
   }
@@ -54112,22 +56338,85 @@ enifed("@ember/-internals/runtime/tests/mutable-array/clear-test", ["@ember/-int
 enifed("@ember/-internals/runtime/tests/mutable-array/insertAt-test", ["@ember/-internals/metal", "internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array"], function (_metal, _internalTestHelpers, _array) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class InsertAtTests extends _internalTestHelpers.AbstractTestCase {
     '@test [].insertAt(0, X) => [X] + notify'() {
-      let after = (0, _array.newFixture)(1);
-      let obj = this.newObject([]);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      obj.insertAt(0, after[0]);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] did change once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each did change once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length did change once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject did change once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject did change once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              after = (0, _array.newFixture)(1);
+              obj = _this.newObject([]);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.insertAt(0, after[0]); // flush observers
+
+              _context.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 7:
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] did change once');
+
+              _this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each did change once');
+
+              _this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length did change once');
+
+              _this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject did change once');
+
+              _this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject did change once');
+
+            case 14:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [].insertAt(200,X) => OUT_OF_RANGE_EXCEPTION exception'() {
@@ -54137,41 +56426,95 @@ enifed("@ember/-internals/runtime/tests/mutable-array/insertAt-test", ["@ember/-
     }
 
     '@test [A].insertAt(0, X) => [X,A] + notify'() {
-      let item = (0, _array.newFixture)(1)[0];
-      let before = (0, _array.newFixture)(1);
-      let after = [item, before[0]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      obj.insertAt(0, item);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var item, before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              item = (0, _array.newFixture)(1)[0];
+              before = (0, _array.newFixture)(1);
+              after = [item, before[0]];
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.insertAt(0, item); // flush observers
+
+              _context2.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this2.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this2.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this2.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this2.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this2.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+
+            case 16:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     '@test [A].insertAt(1, X) => [A,X] + notify'() {
-      let item = (0, _array.newFixture)(1)[0];
-      let before = (0, _array.newFixture)(1);
-      let after = [before[0], item];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this3 = this;
 
-      obj.insertAt(1, item);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var item, before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              item = (0, _array.newFixture)(1)[0];
+              before = (0, _array.newFixture)(1);
+              after = [before[0], item];
+              obj = _this3.newObject(before);
+              observer = _this3.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.insertAt(1, item); // flush observers
+
+              _context3.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this3.assert.deepEqual(_this3.toArray(obj), after, 'post item results');
+
+              _this3.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this3.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this3.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this3.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this3.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+              _this3.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+
+            case 16:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     '@test [A].insertAt(200,X) => OUT_OF_RANGE exception'() {
@@ -54181,70 +56524,151 @@ enifed("@ember/-internals/runtime/tests/mutable-array/insertAt-test", ["@ember/-
     }
 
     '@test [A,B,C].insertAt(0,X) => [X,A,B,C] + notify'() {
-      let item = (0, _array.newFixture)(1)[0];
-      let before = (0, _array.newFixture)(3);
-      let after = [item, before[0], before[1], before[2]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this4 = this;
 
-      obj.insertAt(0, item);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        var item, before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              item = (0, _array.newFixture)(1)[0];
+              before = (0, _array.newFixture)(3);
+              after = [item, before[0], before[1], before[2]];
+              obj = _this4.newObject(before);
+              observer = _this4.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.insertAt(0, item);
+              _context4.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this4.assert.deepEqual(_this4.toArray(obj), after, 'post item results');
+
+              _this4.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this4.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this4.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this4.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this4.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this4.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+
+            case 16:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
     '@test [A,B,C].insertAt(1,X) => [A,X,B,C] + notify'() {
-      let item = (0, _array.newFixture)(1)[0];
-      let before = (0, _array.newFixture)(3);
-      let after = [before[0], item, before[1], before[2]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      let objectAtCalls = [];
-      let objectAt = obj.objectAt;
+      var _this5 = this;
 
-      obj.objectAt = ix => {
-        objectAtCalls.push(ix);
-        return objectAt.call(obj, ix);
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var item, before, after, obj, observer, objectAtCalls, objectAt;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              item = (0, _array.newFixture)(1)[0];
+              before = (0, _array.newFixture)(3);
+              after = [before[0], item, before[1], before[2]];
+              obj = _this5.newObject(before);
+              observer = _this5.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              objectAtCalls = [];
+              objectAt = obj.objectAt;
 
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+              obj.objectAt = ix => {
+                objectAtCalls.push(ix);
+                return objectAt.call(obj, ix);
+              };
 
-      objectAtCalls.splice(0, objectAtCalls.length);
-      obj.insertAt(1, item);
-      this.assert.deepEqual(objectAtCalls, [], 'objectAt is not called when only inserting items');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              objectAtCalls.splice(0, objectAtCalls.length);
+              obj.insertAt(1, item); // flush observers
+
+              _context5.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 13:
+              _this5.assert.deepEqual(objectAtCalls, [], 'objectAt is not called when only inserting items');
+
+              _this5.assert.deepEqual(_this5.toArray(obj), after, 'post item results');
+
+              _this5.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this5.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this5.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this5.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this5.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+
+              _this5.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+
+            case 21:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     '@test [A,B,C].insertAt(3,X) => [A,B,C,X] + notify'() {
-      let item = (0, _array.newFixture)(1)[0];
-      let before = (0, _array.newFixture)(3);
-      let after = [before[0], before[1], before[2], item];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this6 = this;
 
-      obj.insertAt(3, item);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var item, before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              item = (0, _array.newFixture)(1)[0];
+              before = (0, _array.newFixture)(3);
+              after = [before[0], before[1], before[2], item];
+              obj = _this6.newObject(before);
+              observer = _this6.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.insertAt(3, item); // flush observers
+
+              _context6.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this6.assert.deepEqual(_this6.toArray(obj), after, 'post item results');
+
+              _this6.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this6.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this6.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this6.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this6.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+              _this6.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+
+            case 16:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6);
+      }))();
     }
 
   }
@@ -54254,58 +56678,177 @@ enifed("@ember/-internals/runtime/tests/mutable-array/insertAt-test", ["@ember/-
 enifed("@ember/-internals/runtime/tests/mutable-array/popObject-test", ["@ember/-internals/metal", "internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array"], function (_metal, _internalTestHelpers, _array) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class PopObjectTests extends _internalTestHelpers.AbstractTestCase {
     '@test [].popObject() => [] + returns undefined + NO notify'() {
-      let obj = this.newObject([]);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      this.assert.equal(obj.popObject(), undefined, 'popObject results');
-      this.assert.deepEqual(this.toArray(obj), [], 'post item results');
-      this.assert.equal(observer.validate('[]'), false, 'should NOT have notified []');
-      this.assert.equal(observer.validate('@each'), false, 'should NOT have notified @each');
-      this.assert.equal(observer.validate('length'), false, 'should NOT have notified length');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              obj = _this.newObject([]);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this.assert.equal(obj.popObject(), undefined, 'popObject results'); // flush observers
+
+
+              _context.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              _this.assert.deepEqual(_this.toArray(obj), [], 'post item results');
+
+              _this.assert.equal(observer.validate('[]'), false, 'should NOT have notified []');
+
+              _this.assert.equal(observer.validate('@each'), false, 'should NOT have notified @each');
+
+              _this.assert.equal(observer.validate('length'), false, 'should NOT have notified length');
+
+              _this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+
+              _this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+
+            case 12:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [X].popObject() => [] + notify'() {
-      let before = (0, _array.newFixture)(1);
-      let after = [];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      let ret = obj.popObject();
-      this.assert.equal(ret, before[0], 'return object');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var before, after, obj, observer, ret;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array.newFixture)(1);
+              after = [];
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              ret = obj.popObject(); // flush observers
+
+              _context2.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this2.assert.equal(ret, before[0], 'return object');
+
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this2.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this2.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this2.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this2.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this2.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 16:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     '@test [A,B,C].popObject() => [A,B] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let after = [before[0], before[1]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this3 = this;
 
-      let ret = obj.popObject();
-      this.assert.equal(ret, before[2], 'return object');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var before, after, obj, observer, ret;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              after = [before[0], before[1]];
+              obj = _this3.newObject(before);
+              observer = _this3.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              ret = obj.popObject(); // flush observers
+
+              _context3.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this3.assert.equal(ret, before[2], 'return object');
+
+              _this3.assert.deepEqual(_this3.toArray(obj), after, 'post item results');
+
+              _this3.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this3.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this3.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this3.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this3.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+              _this3.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+
+            case 16:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
   }
@@ -54315,6 +56858,42 @@ enifed("@ember/-internals/runtime/tests/mutable-array/popObject-test", ["@ember/
 enifed("@ember/-internals/runtime/tests/mutable-array/pushObject-test", ["@ember/-internals/metal", "internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array"], function (_metal, _internalTestHelpers, _array) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class PushObjectTests extends _internalTestHelpers.AbstractTestCase {
     '@test returns pushed object'() {
       let exp = (0, _array.newFixture)(1)[0];
@@ -54323,60 +56902,141 @@ enifed("@ember/-internals/runtime/tests/mutable-array/pushObject-test", ["@ember
     }
 
     '@test [].pushObject(X) => [X] + notify'() {
-      let before = [];
-      let after = (0, _array.newFixture)(1);
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      obj.pushObject(after[0]);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = [];
+              after = (0, _array.newFixture)(1);
+              obj = _this.newObject(before);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.pushObject(after[0]); // flush observers
+
+              _context.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [A,B,C].pushObject(X) => [A,B,C,X] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let item = (0, _array.newFixture)(1)[0];
-      let after = [before[0], before[1], before[2], item];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      obj.pushObject(item);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var before, item, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              item = (0, _array.newFixture)(1)[0];
+              after = [before[0], before[1], before[2], item];
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.pushObject(item); // flush observers
+
+              _context2.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this2.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this2.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this2.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this2.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+              _this2.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+
+            case 16:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     '@test [A,B,C,C].pushObject(A) => [A,B,C,C] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let item = before[2]; // note same object as current tail. should end up twice
+      var _this3 = this;
 
-      let after = [before[0], before[1], before[2], item];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var before, item, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              item = before[2]; // note same object as current tail. should end up twice
 
-      obj.pushObject(item);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
-      this.assert.equal(observer.validate('lastObject'), true, 'should have notified lastObject');
+              after = [before[0], before[1], before[2], item];
+              obj = _this3.newObject(before);
+              observer = _this3.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.pushObject(item); // flush observers
+
+              _context3.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this3.assert.deepEqual(_this3.toArray(obj), after, 'post item results');
+
+              _this3.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this3.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this3.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this3.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this3.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+
+              _this3.assert.equal(observer.validate('lastObject'), true, 'should have notified lastObject');
+
+            case 16:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
   }
@@ -54399,23 +57059,87 @@ enifed("@ember/-internals/runtime/tests/mutable-array/pushObjects-test", ["inter
 enifed("@ember/-internals/runtime/tests/mutable-array/removeAt-test", ["internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array", "@ember/-internals/runtime/lib/mixins/array", "@ember/-internals/metal"], function (_internalTestHelpers, _array, _array2, _metal) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class RemoveAtTests extends _internalTestHelpers.AbstractTestCase {
     '@test removeAt([X], 0) => [] + notify'() {
-      let before = (0, _array.newFixture)(1);
-      let after = [];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      this.assert.equal((0, _array2.removeAt)(obj, 0), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = (0, _array.newFixture)(1);
+              after = [];
+              obj = _this.newObject(before);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this.assert.equal((0, _array2.removeAt)(obj, 0), obj, 'return self'); // flush observers
+
+
+              _context.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test removeAt([], 200) => OUT_OF_RANGE_EXCEPTION exception'() {
@@ -54424,94 +57148,233 @@ enifed("@ember/-internals/runtime/tests/mutable-array/removeAt-test", ["internal
     }
 
     '@test removeAt([A,B], 0) => [B] + notify'() {
-      let before = (0, _array.newFixture)(2);
-      let after = [before[1]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      this.assert.equal((0, _array2.removeAt)(obj, 0), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array.newFixture)(2);
+              after = [before[1]];
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this2.assert.equal((0, _array2.removeAt)(obj, 0), obj, 'return self'); // flush observers
+
+
+              _context2.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this2.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this2.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this2.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this2.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this2.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+
+            case 15:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     '@test removeAt([A,B], 1) => [A] + notify'() {
-      let before = (0, _array.newFixture)(2);
-      let after = [before[0]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this3 = this;
 
-      this.assert.equal((0, _array2.removeAt)(obj, 1), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              before = (0, _array.newFixture)(2);
+              after = [before[0]];
+              obj = _this3.newObject(before);
+              observer = _this3.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this3.assert.equal((0, _array2.removeAt)(obj, 1), obj, 'return self'); // flush observers
+
+
+              _context3.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this3.assert.deepEqual(_this3.toArray(obj), after, 'post item results');
+
+              _this3.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this3.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this3.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this3.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this3.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+              _this3.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+            case 15:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     '@test removeAt([A,B,C], 1) => [A,C] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let after = [before[0], before[2]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this4 = this;
 
-      this.assert.equal((0, _array2.removeAt)(obj, 1), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              after = [before[0], before[2]];
+              obj = _this4.newObject(before);
+              observer = _this4.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this4.assert.equal((0, _array2.removeAt)(obj, 1), obj, 'return self'); // flush observers
+
+
+              _context4.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this4.assert.deepEqual(_this4.toArray(obj), after, 'post item results');
+
+              _this4.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this4.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this4.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this4.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this4.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+              _this4.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
     '@test removeAt([A,B,C,D], 1,2) => [A,D] + notify'() {
-      let before = (0, _array.newFixture)(4);
-      let after = [before[0], before[3]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this5 = this;
 
-      this.assert.equal((0, _array2.removeAt)(obj, 1, 2), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              before = (0, _array.newFixture)(4);
+              after = [before[0], before[3]];
+              obj = _this5.newObject(before);
+              observer = _this5.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this5.assert.equal((0, _array2.removeAt)(obj, 1, 2), obj, 'return self'); // flush observers
+
+
+              _context5.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this5.assert.deepEqual(_this5.toArray(obj), after, 'post item results');
+
+              _this5.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this5.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this5.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this5.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this5.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+              _this5.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     '@test [A,B,C,D].removeAt(1,2) => [A,D] + notify'() {
-      var obj, before, after, observer;
-      before = (0, _array.newFixture)(4);
-      after = [before[0], before[3]];
-      obj = this.newObject(before);
-      observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this6 = this;
 
-      this.assert.equal(obj.removeAt(1, 2), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var obj, before, after, observer;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              before = (0, _array.newFixture)(4);
+              after = [before[0], before[3]];
+              obj = _this6.newObject(before);
+              observer = _this6.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this6.assert.equal(obj.removeAt(1, 2), obj, 'return self'); // flush observers
+
+
+              _context6.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this6.assert.deepEqual(_this6.toArray(obj), after, 'post item results');
+
+              _this6.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this6.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this6.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this6.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this6.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+              _this6.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6);
+      }))();
     }
 
   }
@@ -54521,6 +57384,42 @@ enifed("@ember/-internals/runtime/tests/mutable-array/removeAt-test", ["internal
 enifed("@ember/-internals/runtime/tests/mutable-array/removeObject-test", ["@ember/-internals/metal", "internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array"], function (_metal, _internalTestHelpers, _array) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class RemoveObjectTests extends _internalTestHelpers.AbstractTestCase {
     '@test should return receiver'() {
       let before = (0, _array.newFixture)(3);
@@ -54529,47 +57428,99 @@ enifed("@ember/-internals/runtime/tests/mutable-array/removeObject-test", ["@emb
     }
 
     '@test [A,B,C].removeObject(B) => [A,C] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let after = [before[0], before[2]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      obj.removeObject(before[1]);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              after = [before[0], before[2]];
+              obj = _this.newObject(before);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-        this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-        this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-        this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-        this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
-      }
+              obj.removeObject(before[1]); // flush observers
+
+              _context.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+                _this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+                _this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+                _this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+                _this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+              }
+
+            case 11:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [A,B,C].removeObject(D) => [A,B,C]'() {
-      let before = (0, _array.newFixture)(3);
-      let after = before;
-      let item = (0, _array.newFixture)(1)[0];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      obj.removeObject(item); // note: item not in set
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var before, after, item, obj, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              after = before;
+              item = (0, _array.newFixture)(1)[0];
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
 
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+              obj.removeObject(item); // note: item not in set
+              // flush observers
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.validate('[]'), false, 'should NOT have notified []');
-        this.assert.equal(observer.validate('@each'), false, 'should NOT have notified @each');
-        this.assert.equal(observer.validate('length'), false, 'should NOT have notified length');
-        this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-        this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
-      }
+              _context2.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this2.assert.equal(observer.validate('[]'), false, 'should NOT have notified []');
+
+                _this2.assert.equal(observer.validate('@each'), false, 'should NOT have notified @each');
+
+                _this2.assert.equal(observer.validate('length'), false, 'should NOT have notified length');
+
+                _this2.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+                _this2.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+              }
+
+            case 12:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
   }
@@ -54579,6 +57530,42 @@ enifed("@ember/-internals/runtime/tests/mutable-array/removeObject-test", ["@emb
 enifed("@ember/-internals/runtime/tests/mutable-array/removeObjects-test", ["@ember/-internals/metal", "internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array", "@ember/-internals/runtime/lib/mixins/array"], function (_metal, _internalTestHelpers, _array, _array2) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class RemoveObjectsTests extends _internalTestHelpers.AbstractTestCase {
     '@test should return receiver'() {
       let before = (0, _array2.A)((0, _array.newFixture)(3));
@@ -54587,138 +57574,313 @@ enifed("@ember/-internals/runtime/tests/mutable-array/removeObjects-test", ["@em
     }
 
     '@test [A,B,C].removeObjects([B]) => [A,C] + notify'() {
-      let before = (0, _array2.A)((0, _array.newFixture)(3));
-      let after = [before[0], before[2]];
-      let obj = before;
-      let observer = this.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject'); // Prime the cache
+      var _this = this;
 
-      obj.removeObjects([before[1]]);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = (0, _array2.A)((0, _array.newFixture)(3));
+              after = [before[0], before[2]];
+              obj = before;
+              observer = _this.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject'); // Prime the cache
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-        this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-        this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
-        this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
-      }
+              obj.removeObjects([before[1]]); // flush observers
+
+              _context.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+                _this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+                _this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+
+                _this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+              }
+
+            case 11:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [{A},{B},{C}].removeObjects([{B}]) => [{A},{C}] + notify'() {
-      let before = (0, _array2.A)((0, _array.newObjectsFixture)(3));
-      let after = [before[0], before[2]];
-      let obj = before;
-      let observer = this.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject'); // Prime the cache
+      var _this2 = this;
 
-      obj.removeObjects([before[1]]);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array2.A)((0, _array.newObjectsFixture)(3));
+              after = [before[0], before[2]];
+              obj = before;
+              observer = _this2.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject'); // Prime the cache
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-        this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-        this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
-        this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
-      }
+              obj.removeObjects([before[1]]); // flush observers
+
+              _context2.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this2.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+                _this2.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+                _this2.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+
+                _this2.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+              }
+
+            case 11:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     '@test [A,B,C].removeObjects([A,B]) => [C] + notify'() {
-      let before = (0, _array2.A)((0, _array.newFixture)(3));
-      let after = [before[2]];
-      let obj = before;
-      let observer = this.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject'); // Prime the cache
+      var _this3 = this;
 
-      obj.removeObjects([before[0], before[1]]);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              before = (0, _array2.A)((0, _array.newFixture)(3));
+              after = [before[2]];
+              obj = before;
+              observer = _this3.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject'); // Prime the cache
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-        this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-        this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject');
-        this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
-      }
+              obj.removeObjects([before[0], before[1]]); // flush observers
+
+              _context3.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this3.assert.deepEqual(_this3.toArray(obj), after, 'post item results');
+
+              _this3.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this3.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+                _this3.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+                _this3.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject');
+
+                _this3.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+              }
+
+            case 11:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     '@test [{A},{B},{C}].removeObjects([{A},{B}]) => [{C}] + notify'() {
-      let before = (0, _array2.A)((0, _array.newObjectsFixture)(3));
-      let after = [before[2]];
-      let obj = before;
-      let observer = this.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject'); // Prime the cache
+      var _this4 = this;
 
-      obj.removeObjects([before[0], before[1]]);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              before = (0, _array2.A)((0, _array.newObjectsFixture)(3));
+              after = [before[2]];
+              obj = before;
+              observer = _this4.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject'); // Prime the cache
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-        this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-        this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject');
-        this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
-      }
+              obj.removeObjects([before[0], before[1]]); // flush observers
+
+              _context4.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this4.assert.deepEqual(_this4.toArray(obj), after, 'post item results');
+
+              _this4.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this4.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+                _this4.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+                _this4.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject');
+
+                _this4.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+              }
+
+            case 11:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
     '@test [A,B,C].removeObjects([A,B,C]) => [] + notify'() {
-      let before = (0, _array2.A)((0, _array.newFixture)(3));
-      let after = [];
-      let obj = before;
-      let observer = this.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject'); // Prime the cache
+      var _this5 = this;
 
-      obj.removeObjects([before[0], before[1], before[2]]);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              before = (0, _array2.A)((0, _array.newFixture)(3));
+              after = [];
+              obj = before;
+              observer = _this5.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject'); // Prime the cache
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-        this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-        this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject');
-        this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject');
-      }
+              obj.removeObjects([before[0], before[1], before[2]]); // flush observers
+
+              _context5.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this5.assert.deepEqual(_this5.toArray(obj), after, 'post item results');
+
+              _this5.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this5.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+                _this5.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+                _this5.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject');
+
+                _this5.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject');
+              }
+
+            case 11:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     '@test [{A},{B},{C}].removeObjects([{A},{B},{C}]) => [] + notify'() {
-      let before = (0, _array2.A)((0, _array.newObjectsFixture)(3));
-      let after = [];
-      let obj = before;
-      let observer = this.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject'); // Prime the cache
+      var _this6 = this;
 
-      obj.removeObjects(before);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              before = (0, _array2.A)((0, _array.newObjectsFixture)(3));
+              after = [];
+              obj = before;
+              observer = _this6.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject'); // Prime the cache
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-        this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-        this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject');
-        this.assert.equal(observer.validate('lastObject'), 1, 'should have notified lastObject');
-      }
+              obj.removeObjects(before); // flush observers
+
+              _context6.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this6.assert.deepEqual(_this6.toArray(obj), after, 'post item results');
+
+              _this6.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this6.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+                _this6.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+                _this6.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject');
+
+                _this6.assert.equal(observer.validate('lastObject'), 1, 'should have notified lastObject');
+              }
+
+            case 11:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6);
+      }))();
     }
 
     '@test [A,B,C].removeObjects([D]) => [A,B,C]'() {
-      let before = (0, _array2.A)((0, _array.newFixture)(3));
-      let after = before;
-      let item = (0, _array.newFixture)(1)[0];
-      let obj = before;
-      let observer = this.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject'); // Prime the cache
+      var _this7 = this;
 
-      obj.removeObjects([item]); // Note: item not in set
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee7() {
+        var before, after, item, obj, observer;
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
+          while (1) switch (_context7.prev = _context7.next) {
+            case 0:
+              before = (0, _array2.A)((0, _array.newFixture)(3));
+              after = before;
+              item = (0, _array.newFixture)(1)[0];
+              obj = before;
+              observer = _this7.newObserver(obj, '[]', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject'); // Prime the cache
 
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+              obj.removeObjects([item]); // Note: item not in set
+              // flush observers
 
-      if (observer.isEnabled) {
-        this.assert.equal(observer.validate('[]'), false, 'should NOT have notified []');
-        this.assert.equal(observer.validate('length'), false, 'should NOT have notified length');
-        this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
-        this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
-      }
+              _context7.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this7.assert.deepEqual(_this7.toArray(obj), after, 'post item results');
+
+              _this7.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              if (observer.isEnabled) {
+                _this7.assert.equal(observer.validate('[]'), false, 'should NOT have notified []');
+
+                _this7.assert.equal(observer.validate('length'), false, 'should NOT have notified length');
+
+                _this7.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject');
+
+                _this7.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+              }
+
+            case 12:
+            case "end":
+              return _context7.stop();
+          }
+        }, _callee7);
+      }))();
     }
 
   }
@@ -54728,136 +57890,372 @@ enifed("@ember/-internals/runtime/tests/mutable-array/removeObjects-test", ["@em
 enifed("@ember/-internals/runtime/tests/mutable-array/replace-test", ["internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array"], function (_internalTestHelpers, _array) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class ReplaceTests extends _internalTestHelpers.AbstractTestCase {
     "@test [].replace(0,0,'X') => ['X'] + notify"() {
-      let exp = (0, _array.newFixture)(1);
-      let obj = this.newObject([]);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      obj.replace(0, 0, exp);
-      this.assert.deepEqual(this.toArray(obj), exp, 'post item results');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var exp, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              exp = (0, _array.newFixture)(1);
+              obj = _this.newObject([]);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.replace(0, 0, exp); // flush observers
+
+              _context.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 7:
+              _this.assert.deepEqual(_this.toArray(obj), exp, 'post item results');
+
+              _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 13:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [].replace(0,0,"X") => ["X"] + avoid calling objectAt and notifying fistObject/lastObject when not in cache'() {
-      var obj, exp, observer;
-      var called = 0;
-      exp = (0, _array.newFixture)(1);
-      obj = this.newObject([]);
+      var _this2 = this;
 
-      obj.objectAt = function () {
-        called++;
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var obj, exp, observer, called;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              called = 0;
+              exp = (0, _array.newFixture)(1);
+              obj = _this2.newObject([]);
 
-      observer = this.newObserver(obj, 'firstObject', 'lastObject');
-      obj.replace(0, 0, exp);
-      this.assert.equal(called, 0, 'should NOT have called objectAt upon replace when firstObject/lastObject are not cached');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject since not cached');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject since not cached');
+              obj.objectAt = function () {
+                called++;
+              };
+
+              observer = _this2.newObserver(obj, 'firstObject', 'lastObject');
+              obj.replace(0, 0, exp); // flush observers
+
+              _context2.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this2.assert.equal(called, 0, 'should NOT have called objectAt upon replace when firstObject/lastObject are not cached');
+
+              _this2.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject since not cached');
+
+              _this2.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject since not cached');
+
+            case 11:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     '@test [A,B,C,D].replace(1,2,X) => [A,X,D] + notify'() {
-      let before = (0, _array.newFixture)(4);
-      let replace = (0, _array.newFixture)(1);
-      let after = [before[0], replace[0], before[3]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this3 = this;
 
-      obj.replace(1, 2, replace);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var before, replace, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              before = (0, _array.newFixture)(4);
+              replace = (0, _array.newFixture)(1);
+              after = [before[0], replace[0], before[3]];
+              obj = _this3.newObject(before);
+              observer = _this3.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.replace(1, 2, replace); // flush observers
+
+              _context3.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this3.assert.deepEqual(_this3.toArray(obj), after, 'post item results');
+
+              _this3.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this3.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this3.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this3.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+              _this3.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     '@test [A,B,C,D].replace(1,2,[X,Y]) => [A,X,Y,D] + notify'() {
-      let before = (0, _array.newFixture)(4);
-      let replace = (0, _array.newFixture)(2);
-      let after = [before[0], replace[0], replace[1], before[3]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this4 = this;
 
-      obj.replace(1, 2, replace);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.validate('length'), false, 'should NOT have notified length');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        var before, replace, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              before = (0, _array.newFixture)(4);
+              replace = (0, _array.newFixture)(2);
+              after = [before[0], replace[0], replace[1], before[3]];
+              obj = _this4.newObject(before);
+              observer = _this4.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.replace(1, 2, replace); // flush observers
+
+              _context4.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this4.assert.deepEqual(_this4.toArray(obj), after, 'post item results');
+
+              _this4.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this4.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this4.assert.equal(observer.validate('length'), false, 'should NOT have notified length');
+
+              _this4.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+              _this4.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
     '@test [A,B].replace(1,0,[X,Y]) => [A,X,Y,B] + notify'() {
-      let before = (0, _array.newFixture)(2);
-      let replace = (0, _array.newFixture)(2);
-      let after = [before[0], replace[0], replace[1], before[1]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this5 = this;
 
-      obj.replace(1, 0, replace);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var before, replace, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              before = (0, _array.newFixture)(2);
+              replace = (0, _array.newFixture)(2);
+              after = [before[0], replace[0], replace[1], before[1]];
+              obj = _this5.newObject(before);
+              observer = _this5.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.replace(1, 0, replace); // flush observers
+
+              _context5.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this5.assert.deepEqual(_this5.toArray(obj), after, 'post item results');
+
+              _this5.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this5.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this5.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this5.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+              _this5.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     '@test [A,B,C,D].replace(2,2) => [A,B] + notify'() {
-      let before = (0, _array.newFixture)(4);
-      let after = [before[0], before[1]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this6 = this;
 
-      obj.replace(2, 2);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              before = (0, _array.newFixture)(4);
+              after = [before[0], before[1]];
+              obj = _this6.newObject(before);
+              observer = _this6.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.replace(2, 2); // flush observers
+
+              _context6.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this6.assert.deepEqual(_this6.toArray(obj), after, 'post item results');
+
+              _this6.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this6.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this6.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this6.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+              _this6.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+            case 14:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6);
+      }))();
     }
 
     '@test [A,B,C,D].replace(-1,1) => [A,B,C] + notify'() {
-      let before = (0, _array.newFixture)(4);
-      let after = [before[0], before[1], before[2]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this7 = this;
 
-      obj.replace(-1, 1);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee7() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
+          while (1) switch (_context7.prev = _context7.next) {
+            case 0:
+              before = (0, _array.newFixture)(4);
+              after = [before[0], before[1], before[2]];
+              obj = _this7.newObject(before);
+              observer = _this7.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.replace(-1, 1); // flush observers
+
+              _context7.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this7.assert.deepEqual(_this7.toArray(obj), after, 'post item results');
+
+              _this7.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this7.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this7.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this7.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+              _this7.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+            case 14:
+            case "end":
+              return _context7.stop();
+          }
+        }, _callee7);
+      }))();
     }
 
     '@test Adding object should notify array observer'() {
-      let fixtures = (0, _array.newFixture)(4);
-      let obj = this.newObject(fixtures);
-      let observer = this.newObserver(obj).observeArray(obj);
-      let item = (0, _array.newFixture)(1)[0];
-      obj.replace(2, 2, [item]);
-      this.assert.deepEqual(observer._before, [obj, 2, 2, 1], 'before');
-      this.assert.deepEqual(observer._after, [obj, 2, 2, 1], 'after');
+      var _this8 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee8() {
+        var fixtures, obj, observer, item;
+        return regeneratorRuntime.wrap(function _callee8$(_context8) {
+          while (1) switch (_context8.prev = _context8.next) {
+            case 0:
+              fixtures = (0, _array.newFixture)(4);
+              obj = _this8.newObject(fixtures);
+              observer = _this8.newObserver(obj).observeArray(obj);
+              item = (0, _array.newFixture)(1)[0];
+              obj.replace(2, 2, [item]); // flush observers
+
+              _context8.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 7:
+              _this8.assert.deepEqual(observer._before, [obj, 2, 2, 1], 'before');
+
+              _this8.assert.deepEqual(observer._after, [obj, 2, 2, 1], 'after');
+
+            case 9:
+            case "end":
+              return _context8.stop();
+          }
+        }, _callee8);
+      }))();
     }
 
   }
@@ -54867,23 +58265,87 @@ enifed("@ember/-internals/runtime/tests/mutable-array/replace-test", ["internal-
 enifed("@ember/-internals/runtime/tests/mutable-array/reverseObjects-test", ["internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array", "@ember/-internals/metal"], function (_internalTestHelpers, _array, _metal) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class ReverseObjectsTests extends _internalTestHelpers.AbstractTestCase {
     '@test [A,B,C].reverseObjects() => [] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let after = [before[2], before[1], before[0]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      this.assert.equal(obj.reverseObjects(), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 0, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              after = [before[2], before[1], before[0]];
+              obj = _this.newObject(before);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this.assert.equal(obj.reverseObjects(), obj, 'return self'); // flush observers
+
+
+              _context.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this.assert.equal(observer.timesCalled('length'), 0, 'should have notified length once');
+
+              _this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
   }
@@ -54893,41 +58355,133 @@ enifed("@ember/-internals/runtime/tests/mutable-array/reverseObjects-test", ["in
 enifed("@ember/-internals/runtime/tests/mutable-array/setObjects-test", ["internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array", "@ember/-internals/metal"], function (_internalTestHelpers, _array, _metal) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class SetObjectsTests extends _internalTestHelpers.AbstractTestCase {
     '@test [A,B,C].setObjects([]) = > [] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let after = [];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      this.assert.equal(obj.setObjects(after), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              after = [];
+              obj = _this.newObject(before);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this.assert.equal(obj.setObjects(after), obj, 'return self'); // flush observers
+
+
+              _context.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [A,B,C].setObjects([D, E, F, G]) = > [D, E, F, G] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let after = (0, _array.newFixture)(4);
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      this.assert.equal(obj.setObjects(after), obj, 'return self');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              after = (0, _array.newFixture)(4);
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this2.assert.equal(obj.setObjects(after), obj, 'return self'); // flush observers
+
+
+              _context2.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this2.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this2.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this2.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this2.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this2.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
   }
@@ -54937,59 +58491,179 @@ enifed("@ember/-internals/runtime/tests/mutable-array/setObjects-test", ["intern
 enifed("@ember/-internals/runtime/tests/mutable-array/shiftObject-test", ["internal-test-helpers", "@ember/-internals/runtime/tests/helpers/array", "@ember/-internals/metal"], function (_internalTestHelpers, _array, _metal) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class ShiftObjectTests extends _internalTestHelpers.AbstractTestCase {
     '@test [].shiftObject() => [] + returns undefined + NO notify'() {
-      let before = [];
-      let after = [];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      this.assert.equal(obj.shiftObject(), undefined);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.validate('[]', undefined, 1), false, 'should NOT have notified [] once');
-      this.assert.equal(observer.validate('@each', undefined, 1), false, 'should NOT have notified @each once');
-      this.assert.equal(observer.validate('length', undefined, 1), false, 'should NOT have notified length once');
-      this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = [];
+              after = [];
+              obj = _this.newObject(before);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this.assert.equal(obj.shiftObject(), undefined); // flush observers
+
+
+              _context.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this.assert.equal(observer.validate('[]', undefined, 1), false, 'should NOT have notified [] once');
+
+              _this.assert.equal(observer.validate('@each', undefined, 1), false, 'should NOT have notified @each once');
+
+              _this.assert.equal(observer.validate('length', undefined, 1), false, 'should NOT have notified length once');
+
+              _this.assert.equal(observer.validate('firstObject'), false, 'should NOT have notified firstObject once');
+
+              _this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [X].shiftObject() => [] + notify'() {
-      let before = (0, _array.newFixture)(1);
-      let after = [];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      this.assert.equal(obj.shiftObject(), before[0], 'should return object');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array.newFixture)(1);
+              after = [];
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this2.assert.equal(obj.shiftObject(), before[0], 'should return object'); // flush observers
+
+
+              _context2.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this2.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this2.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this2.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this2.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this2.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     '@test [A,B,C].shiftObject() => [B,C] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let after = [before[1], before[2]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this3 = this;
 
-      this.assert.equal(obj.shiftObject(), before[0], 'should return object');
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var before, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              after = [before[1], before[2]];
+              obj = _this3.newObject(before);
+              observer = _this3.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              _this3.assert.equal(obj.shiftObject(), before[0], 'should return object'); // flush observers
+
+
+              _context3.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this3.assert.deepEqual(_this3.toArray(obj), after, 'post item results');
+
+              _this3.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this3.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this3.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this3.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this3.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this3.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
   }
@@ -54999,6 +58673,42 @@ enifed("@ember/-internals/runtime/tests/mutable-array/shiftObject-test", ["inter
 enifed("@ember/-internals/runtime/tests/mutable-array/unshiftObject-test", ["internal-test-helpers", "@ember/-internals/metal", "@ember/-internals/runtime/tests/helpers/array"], function (_internalTestHelpers, _metal, _array) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class UnshiftObjectTests extends _internalTestHelpers.AbstractTestCase {
     '@test returns unshifted object'() {
       let obj = this.newObject([]);
@@ -55007,61 +58717,142 @@ enifed("@ember/-internals/runtime/tests/mutable-array/unshiftObject-test", ["int
     }
 
     '@test [].unshiftObject(X) => [X] + notify'() {
-      let before = [];
-      let item = (0, _array.newFixture)(1)[0];
-      let after = [item];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      obj.unshiftObject(item);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, item, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = [];
+              item = (0, _array.newFixture)(1)[0];
+              after = [item];
+              obj = _this.newObject(before);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.unshiftObject(item); // flush observers
+
+              _context.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this.assert.deepEqual(_this.toArray(obj), after, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 16:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [A,B,C].unshiftObject(X) => [X,A,B,C] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let item = (0, _array.newFixture)(1)[0];
-      let after = [item, before[0], before[1], before[2]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      obj.unshiftObject(item);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var before, item, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              item = (0, _array.newFixture)(1)[0];
+              after = [item, before[0], before[1], before[2]];
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.unshiftObject(item); // flush observers
+
+              _context2.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this2.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this2.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this2.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this2.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this2.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+
+            case 16:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     '@test [A,B,C].unshiftObject(A) => [A,A,B,C] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let item = before[0]; // note same object as current head. should end up twice
+      var _this3 = this;
 
-      let after = [item, before[0], before[1], before[2]];
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var before, item, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              item = before[0]; // note same object as current head. should end up twice
 
-      obj.unshiftObject(item);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.validate('firstObject'), true, 'should have notified firstObject');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+              after = [item, before[0], before[1], before[2]];
+              obj = _this3.newObject(before);
+              observer = _this3.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.unshiftObject(item); // flush observers
+
+              _context3.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this3.assert.deepEqual(_this3.toArray(obj), after, 'post item results');
+
+              _this3.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this3.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this3.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this3.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this3.assert.equal(observer.validate('firstObject'), true, 'should have notified firstObject');
+
+              _this3.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+
+            case 16:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
   }
@@ -55071,6 +58862,42 @@ enifed("@ember/-internals/runtime/tests/mutable-array/unshiftObject-test", ["int
 enifed("@ember/-internals/runtime/tests/mutable-array/unshiftObjects-test", ["internal-test-helpers", "@ember/-internals/metal", "@ember/-internals/runtime/tests/helpers/array"], function (_internalTestHelpers, _metal, _array) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class UnshiftObjectsTests extends _internalTestHelpers.AbstractTestCase {
     '@test returns receiver'() {
       let obj = this.newObject([]);
@@ -55079,60 +58906,141 @@ enifed("@ember/-internals/runtime/tests/mutable-array/unshiftObjects-test", ["in
     }
 
     '@test [].unshiftObjects([A,B,C]) => [A,B,C] + notify'() {
-      let before = [];
-      let items = (0, _array.newFixture)(3);
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this = this;
 
-      obj.unshiftObjects(items);
-      this.assert.deepEqual(this.toArray(obj), items, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), items.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var before, items, obj, observer;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              before = [];
+              items = (0, _array.newFixture)(3);
+              obj = _this.newObject(before);
+              observer = _this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.unshiftObjects(items); // flush observers
+
+              _context.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 8:
+              _this.assert.deepEqual(_this.toArray(obj), items, 'post item results');
+
+              _this.assert.equal((0, _metal.get)(obj, 'length'), items.length, 'length');
+
+              _this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this.assert.equal(observer.timesCalled('lastObject'), 1, 'should have notified lastObject once');
+
+            case 15:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     '@test [A,B,C].unshiftObjects([X,Y]) => [X,Y,A,B,C] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let items = (0, _array.newFixture)(2);
-      let after = items.concat(before);
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      var _this2 = this;
 
-      obj.unshiftObjects(items);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var before, items, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              items = (0, _array.newFixture)(2);
+              after = items.concat(before);
+              obj = _this2.newObject(before);
+              observer = _this2.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.unshiftObjects(items); // flush observers
+
+              _context2.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this2.assert.deepEqual(_this2.toArray(obj), after, 'post item results');
+
+              _this2.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this2.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this2.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this2.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this2.assert.equal(observer.timesCalled('firstObject'), 1, 'should have notified firstObject once');
+
+              _this2.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+
+            case 16:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     '@test [A,B,C].unshiftObjects([A,B]) => [A,B,A,B,C] + notify'() {
-      let before = (0, _array.newFixture)(3);
-      let items = [before[0], before[1]]; // note same object as current head. should end up twice
+      var _this3 = this;
 
-      let after = items.concat(before);
-      let obj = this.newObject(before);
-      let observer = this.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
-      obj.getProperties('firstObject', 'lastObject');
-      /* Prime the cache */
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var before, items, after, obj, observer;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              before = (0, _array.newFixture)(3);
+              items = [before[0], before[1]]; // note same object as current head. should end up twice
 
-      obj.unshiftObjects(items);
-      this.assert.deepEqual(this.toArray(obj), after, 'post item results');
-      this.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
-      this.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
-      this.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
-      this.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
-      this.assert.equal(observer.validate('firstObject'), true, 'should NOT have notified firstObject');
-      this.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+              after = items.concat(before);
+              obj = _this3.newObject(before);
+              observer = _this3.newObserver(obj, '[]', '@each', 'length', 'firstObject', 'lastObject');
+              obj.getProperties('firstObject', 'lastObject');
+              /* Prime the cache */
+
+              obj.unshiftObjects(items); // flush observers
+
+              _context3.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this3.assert.deepEqual(_this3.toArray(obj), after, 'post item results');
+
+              _this3.assert.equal((0, _metal.get)(obj, 'length'), after.length, 'length');
+
+              _this3.assert.equal(observer.timesCalled('[]'), 1, 'should have notified [] once');
+
+              _this3.assert.equal(observer.timesCalled('@each'), 0, 'should not have notified @each once');
+
+              _this3.assert.equal(observer.timesCalled('length'), 1, 'should have notified length once');
+
+              _this3.assert.equal(observer.validate('firstObject'), true, 'should NOT have notified firstObject');
+
+              _this3.assert.equal(observer.validate('lastObject'), false, 'should NOT have notified lastObject');
+
+            case 16:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
   }
@@ -55524,6 +59432,42 @@ enifed("@ember/-internals/runtime/tests/system/array_proxy/content_change_test",
 enifed("@ember/-internals/runtime/tests/system/array_proxy/length_test", ["@ember/-internals/runtime/lib/system/array_proxy", "@ember/-internals/runtime/lib/system/object", "@ember/-internals/metal", "@ember/object/computed", "@ember/-internals/runtime/lib/mixins/array", "internal-test-helpers"], function (_array_proxy, _object, _metal, _computed, _array, _internalTestHelpers) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   (0, _internalTestHelpers.moduleFor)('Ember.ArrayProxy - content change (length)', class extends _internalTestHelpers.AbstractTestCase {
     ['@test should update length for null content'](assert) {
       let proxy = _array_proxy.default.create({
@@ -55661,44 +59605,65 @@ enifed("@ember/-internals/runtime/tests/system/array_proxy/length_test", ["@embe
     }
 
     ['@test array proxy + aliasedProperty complex test'](assert) {
-      let aCalled, bCalled, cCalled, dCalled, eCalled;
-      aCalled = bCalled = cCalled = dCalled = eCalled = 0;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var aCalled, bCalled, cCalled, dCalled, eCalled, obj;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              aCalled = bCalled = cCalled = dCalled = eCalled = 0;
+              obj = _object.default.extend({
+                colors: (0, _computed.oneWay)('model'),
+                length: (0, _computed.oneWay)('colors.length'),
+                a: (0, _metal.observer)('length', () => aCalled++),
+                b: (0, _metal.observer)('colors.length', () => bCalled++),
+                c: (0, _metal.observer)('colors.content.length', () => cCalled++),
+                d: (0, _metal.observer)('colors.[]', () => dCalled++),
+                e: (0, _metal.observer)('colors.content.[]', () => eCalled++)
+              }).create();
+              obj.set('model', _array_proxy.default.create({
+                content: (0, _array.A)(['red', 'yellow', 'blue'])
+              })); // bootstrap aliases
 
-      let obj = _object.default.extend({
-        colors: (0, _computed.oneWay)('model'),
-        length: (0, _computed.oneWay)('colors.length'),
-        a: (0, _metal.observer)('length', () => aCalled++),
-        b: (0, _metal.observer)('colors.length', () => bCalled++),
-        c: (0, _metal.observer)('colors.content.length', () => cCalled++),
-        d: (0, _metal.observer)('colors.[]', () => dCalled++),
-        e: (0, _metal.observer)('colors.content.[]', () => eCalled++)
-      }).create();
+              obj.length;
+              _context.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      obj.set('model', _array_proxy.default.create({
-        content: (0, _array.A)(['red', 'yellow', 'blue'])
-      }));
-      assert.equal(obj.get('colors.content.length'), 3);
-      assert.equal(obj.get('colors.length'), 3);
-      assert.equal(obj.get('length'), 3);
-      assert.equal(aCalled, 1, 'expected observer `length` to be called ONCE');
-      assert.equal(bCalled, 1, 'expected observer `colors.length` to be called ONCE');
-      assert.equal(cCalled, 1, 'expected observer `colors.content.length` to be called ONCE');
-      assert.equal(dCalled, 1, 'expected observer `colors.[]` to be called ONCE');
-      assert.equal(eCalled, 1, 'expected observer `colors.content.[]` to be called ONCE');
-      obj.get('colors').pushObjects(['green', 'red']);
-      assert.equal(obj.get('colors.content.length'), 5);
-      assert.equal(obj.get('colors.length'), 5);
-      assert.equal(obj.get('length'), 5);
-      assert.equal(aCalled, 2, 'expected observer `length` to be called TWICE');
-      assert.equal(bCalled, 2, 'expected observer `colors.length` to be called TWICE');
-      assert.equal(cCalled, 2, 'expected observer `colors.content.length` to be called TWICE');
-      assert.equal(dCalled, 2, 'expected observer `colors.[]` to be called TWICE');
-      assert.equal(eCalled, 2, 'expected observer `colors.content.[]` to be called TWICE');
+            case 6:
+              assert.equal(obj.get('colors.content.length'), 3);
+              assert.equal(obj.get('colors.length'), 3);
+              assert.equal(obj.get('length'), 3);
+              assert.equal(aCalled, 1, 'expected observer `length` to be called ONCE');
+              assert.equal(bCalled, 1, 'expected observer `colors.length` to be called ONCE');
+              assert.equal(cCalled, 1, 'expected observer `colors.content.length` to be called ONCE');
+              assert.equal(dCalled, 1, 'expected observer `colors.[]` to be called ONCE');
+              assert.equal(eCalled, 1, 'expected observer `colors.content.[]` to be called ONCE');
+              obj.get('colors').pushObjects(['green', 'red']);
+              _context.next = 17;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 17:
+              assert.equal(obj.get('colors.content.length'), 5);
+              assert.equal(obj.get('colors.length'), 5);
+              assert.equal(obj.get('length'), 5);
+              assert.equal(aCalled, 2, 'expected observer `length` to be called TWICE');
+              assert.equal(bCalled, 2, 'expected observer `colors.length` to be called TWICE');
+              assert.equal(cCalled, 2, 'expected observer `colors.content.length` to be called TWICE');
+              assert.equal(dCalled, 2, 'expected observer `colors.[]` to be called TWICE');
+              assert.equal(eCalled, 2, 'expected observer `colors.content.[]` to be called TWICE');
+
+            case 25:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
   });
 });
-enifed("@ember/-internals/runtime/tests/system/array_proxy/watching_and_listening_test", ["@ember/-internals/meta", "@ember/-internals/metal", "@ember/-internals/runtime/lib/system/array_proxy", "@ember/-internals/runtime/lib/mixins/array", "internal-test-helpers"], function (_meta, _metal, _array_proxy, _array, _internalTestHelpers) {
+enifed("@ember/-internals/runtime/tests/system/array_proxy/watching_and_listening_test", ["@ember/-internals/meta", "@ember/-internals/metal", "@ember/-internals/runtime/lib/system/array_proxy", "@ember/-internals/runtime/lib/mixins/array", "internal-test-helpers", "@ember/canary-features"], function (_meta, _metal, _array_proxy, _array, _internalTestHelpers, _canaryFeatures) {
   "use strict";
 
   function sortedListenersFor(obj, eventName) {
@@ -55743,6 +59708,11 @@ enifed("@ember/-internals/runtime/tests/system/array_proxy/watching_and_listenin
     }
 
     ["@test regression test for https://github.com/emberjs/ember.js/issues/12475"](assert) {
+      if (_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+        // Test is primarily about watching values, which is not necessary anymore
+        return assert.expect(0);
+      }
+
       let item1a = {
         id: 1
       };
@@ -55836,6 +59806,42 @@ enifed("@ember/-internals/runtime/tests/system/array_proxy/watching_and_listenin
 });
 enifed("@ember/-internals/runtime/tests/system/core_object_test", ["@ember/-internals/owner", "@ember/-internals/metal", "@ember/-internals/runtime/lib/system/core_object", "internal-test-helpers"], function (_owner, _metal, _core_object, _internalTestHelpers) {
   "use strict";
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   (0, _internalTestHelpers.moduleFor)('Ember.CoreObject', class extends _internalTestHelpers.AbstractTestCase {
     ['@test throws an error with new (one arg)']() {
@@ -55936,25 +59942,41 @@ enifed("@ember/-internals/runtime/tests/system/core_object_test", ["@ember/-inte
     }
 
     ['@test observed properties are enumerable when set GH#14594'](assert) {
-      let callCount = 0;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var callCount, Test, test;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              callCount = 0;
+              Test = _core_object.default.extend({
+                myProp: null,
+                anotherProp: undefined,
+                didChangeMyProp: (0, _metal.observer)('myProp', function () {
+                  callCount++;
+                })
+              });
+              test = Test.create();
+              (0, _metal.set)(test, 'id', '3');
+              (0, _metal.set)(test, 'myProp', {
+                id: 1
+              });
+              assert.deepEqual(Object.keys(test).sort(), ['id', 'myProp']);
+              (0, _metal.set)(test, 'anotherProp', 'nice');
+              assert.deepEqual(Object.keys(test).sort(), ['anotherProp', 'id', 'myProp']);
+              _context.next = 10;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let Test = _core_object.default.extend({
-        myProp: null,
-        anotherProp: undefined,
-        didChangeMyProp: (0, _metal.observer)('myProp', function () {
-          callCount++;
-        })
-      });
+            case 10:
+              assert.equal(callCount, 1);
 
-      let test = Test.create();
-      (0, _metal.set)(test, 'id', '3');
-      (0, _metal.set)(test, 'myProp', {
-        id: 1
-      });
-      assert.deepEqual(Object.keys(test).sort(), ['id', 'myProp']);
-      (0, _metal.set)(test, 'anotherProp', 'nice');
-      assert.deepEqual(Object.keys(test).sort(), ['anotherProp', 'id', 'myProp']);
-      assert.equal(callCount, 1);
+            case 11:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
   });
@@ -56599,6 +60621,42 @@ enifed("@ember/-internals/runtime/tests/system/object/create_test", ["@ember/-in
 enifed("@ember/-internals/runtime/tests/system/object/destroy_test", ["@ember/runloop", "@ember/-internals/metal", "@ember/-internals/meta", "@ember/-internals/runtime/lib/system/object", "internal-test-helpers"], function (_runloop, _metal, _meta, _object, _internalTestHelpers) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   (0, _internalTestHelpers.moduleFor)('@ember/-internals/runtime/system/object/destroy_test', class extends _internalTestHelpers.AbstractTestCase {
     ['@test should schedule objects to be destroyed at the end of the run loop'](assert) {
       let obj = _object.default.create();
@@ -56636,98 +60694,127 @@ enifed("@ember/-internals/runtime/tests/system/object/destroy_test", ["@ember/ru
     }
 
     ['@test observers should not fire after an object has been destroyed'](assert) {
-      let count = 0;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var count, obj;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              count = 0;
+              obj = _object.default.extend({
+                fooDidChange: (0, _metal.observer)('foo', function () {
+                  count++;
+                })
+              }).create();
+              obj.set('foo', 'bar');
+              _context.next = 5;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let obj = _object.default.extend({
-        fooDidChange: (0, _metal.observer)('foo', function () {
-          count++;
-        })
-      }).create();
+            case 5:
+              assert.equal(count, 1, 'observer was fired once');
+              (0, _metal.beginPropertyChanges)();
+              obj.set('foo', 'quux');
+              obj.destroy();
+              (0, _metal.endPropertyChanges)();
+              _context.next = 12;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      obj.set('foo', 'bar');
-      assert.equal(count, 1, 'observer was fired once');
-      (0, _runloop.run)(() => {
-        (0, _metal.beginPropertyChanges)();
-        obj.set('foo', 'quux');
-        obj.destroy();
-        (0, _metal.endPropertyChanges)();
-      });
-      assert.equal(count, 1, 'observer was not called after object was destroyed');
+            case 12:
+              assert.equal(count, 1, 'observer was not called after object was destroyed');
+
+            case 13:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     ['@test destroyed objects should not see each others changes during teardown but a long lived object should'](assert) {
-      let shouldChange = 0;
-      let shouldNotChange = 0;
-      let objs = {};
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var shouldChange, shouldNotChange, objs, A, B, C, LongLivedObject, obj;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              shouldChange = 0;
+              shouldNotChange = 0;
+              objs = {};
+              A = _object.default.extend({
+                objs: objs,
+                isAlive: true,
 
-      let A = _object.default.extend({
-        objs: objs,
-        isAlive: true,
+                willDestroy() {
+                  this.set('isAlive', false);
+                },
 
-        willDestroy() {
-          this.set('isAlive', false);
-        },
+                bDidChange: (0, _metal.observer)('objs.b.isAlive', function () {
+                  shouldNotChange++;
+                }),
+                cDidChange: (0, _metal.observer)('objs.c.isAlive', function () {
+                  shouldNotChange++;
+                })
+              });
+              B = _object.default.extend({
+                objs: objs,
+                isAlive: true,
 
-        bDidChange: (0, _metal.observer)('objs.b.isAlive', function () {
-          shouldNotChange++;
-        }),
-        cDidChange: (0, _metal.observer)('objs.c.isAlive', function () {
-          shouldNotChange++;
-        })
-      });
+                willDestroy() {
+                  this.set('isAlive', false);
+                },
 
-      let B = _object.default.extend({
-        objs: objs,
-        isAlive: true,
+                aDidChange: (0, _metal.observer)('objs.a.isAlive', function () {
+                  shouldNotChange++;
+                }),
+                cDidChange: (0, _metal.observer)('objs.c.isAlive', function () {
+                  shouldNotChange++;
+                })
+              });
+              C = _object.default.extend({
+                objs: objs,
+                isAlive: true,
 
-        willDestroy() {
-          this.set('isAlive', false);
-        },
+                willDestroy() {
+                  this.set('isAlive', false);
+                },
 
-        aDidChange: (0, _metal.observer)('objs.a.isAlive', function () {
-          shouldNotChange++;
-        }),
-        cDidChange: (0, _metal.observer)('objs.c.isAlive', function () {
-          shouldNotChange++;
-        })
-      });
+                aDidChange: (0, _metal.observer)('objs.a.isAlive', function () {
+                  shouldNotChange++;
+                }),
+                bDidChange: (0, _metal.observer)('objs.b.isAlive', function () {
+                  shouldNotChange++;
+                })
+              });
+              LongLivedObject = _object.default.extend({
+                objs: objs,
+                isAliveDidChange: (0, _metal.observer)('objs.a.isAlive', function () {
+                  shouldChange++;
+                })
+              });
+              objs.a = A.create();
+              objs.b = B.create();
+              objs.c = C.create();
+              LongLivedObject.create();
 
-      let C = _object.default.extend({
-        objs: objs,
-        isAlive: true,
+              for (obj in objs) {
+                objs[obj].destroy();
+              }
 
-        willDestroy() {
-          this.set('isAlive', false);
-        },
+              _context2.next = 14;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-        aDidChange: (0, _metal.observer)('objs.a.isAlive', function () {
-          shouldNotChange++;
-        }),
-        bDidChange: (0, _metal.observer)('objs.b.isAlive', function () {
-          shouldNotChange++;
-        })
-      });
+            case 14:
+              assert.equal(shouldNotChange, 0, 'destroyed graph objs should not see change in willDestroy');
+              assert.equal(shouldChange, 1, 'long lived should see change in willDestroy');
 
-      let LongLivedObject = _object.default.extend({
-        objs: objs,
-        isAliveDidChange: (0, _metal.observer)('objs.a.isAlive', function () {
-          shouldChange++;
-        })
-      });
-
-      objs.a = A.create();
-      objs.b = B.create();
-      objs.c = C.create();
-      LongLivedObject.create();
-      (0, _runloop.run)(() => {
-        let keys = Object.keys(objs);
-
-        for (let i = 0; i < keys.length; i++) {
-          objs[keys[i]].destroy();
-        }
-      });
-      assert.equal(shouldNotChange, 0, 'destroyed graph objs should not see change in willDestroy');
-      assert.equal(shouldChange, 1, 'long lived should see change in willDestroy');
+            case 16:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2, this);
+      }))();
     }
 
   });
@@ -56798,6 +60885,42 @@ enifed("@ember/-internals/runtime/tests/system/object/detect_test", ["@ember/-in
 });
 enifed("@ember/-internals/runtime/tests/system/object/es-compatibility-test", ["@ember/-internals/runtime/lib/system/object", "@ember/-internals/metal", "internal-test-helpers"], function (_object, _metal, _internalTestHelpers) {
   "use strict";
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   (0, _internalTestHelpers.moduleFor)('EmberObject ES Compatibility', class extends _internalTestHelpers.AbstractTestCase {
     ['@test extending an Ember.Object'](assert) {
@@ -57106,23 +61229,44 @@ enifed("@ember/-internals/runtime/tests/system/object/es-compatibility-test", ["
       assert.equal(someEventA, 0);
       assert.equal(someEventB, 0);
       let a = A.create();
-      a.set('foo', 'something');
-      assert.equal(fooDidChangeBase, 1);
-      assert.equal(fooDidChangeA, 1);
-      assert.equal(fooDidChangeB, 0);
-      (0, _metal.sendEvent)(a, 'someEvent');
-      assert.equal(someEventBase, 1);
-      assert.equal(someEventA, 1);
-      assert.equal(someEventB, 0);
-      let b = B.create();
-      b.set('foo', 'something');
-      assert.equal(fooDidChangeBase, 1);
-      assert.equal(fooDidChangeA, 1);
-      assert.equal(fooDidChangeB, 0);
-      (0, _metal.sendEvent)(b, 'someEvent');
-      assert.equal(someEventBase, 1);
-      assert.equal(someEventA, 1);
-      assert.equal(someEventB, 0);
+      a.set('foo', 'something'); // TODO: Generator transpilation code doesn't play nice with class definitions/hoisting
+
+      return (0, _internalTestHelpers.runLoopSettled)().then(
+      /*#__PURE__*/
+      _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var b;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              assert.equal(fooDidChangeBase, 1);
+              assert.equal(fooDidChangeA, 1);
+              assert.equal(fooDidChangeB, 0);
+              (0, _metal.sendEvent)(a, 'someEvent');
+              assert.equal(someEventBase, 1);
+              assert.equal(someEventA, 1);
+              assert.equal(someEventB, 0);
+              b = B.create();
+              b.set('foo', 'something');
+              _context.next = 11;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 11:
+              assert.equal(fooDidChangeBase, 1);
+              assert.equal(fooDidChangeA, 1);
+              assert.equal(fooDidChangeB, 0);
+              (0, _metal.sendEvent)(b, 'someEvent');
+              assert.equal(someEventBase, 1);
+              assert.equal(someEventA, 1);
+              assert.equal(someEventB, 0);
+
+            case 18:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      })));
     }
 
     '@test super and _super interop between old and new methods'(assert) {
@@ -57269,11 +61413,14 @@ enifed("@ember/-internals/runtime/tests/system/object/es-compatibility-test", ["
       d.setProperties({
         first: 'Kris',
         last: 'Selden'
+      }); // TODO: Generator transpilation code doesn't play nice with class definitions/hoisting
+
+      return (0, _internalTestHelpers.runLoopSettled)().then(() => {
+        assert.deepEqual(changes, ['D fullNameDidChange before super.fullNameDidChange', 'B fullNameDidChange', 'D fullNameDidChange after super.fullNameDidChange']);
+        assert.equal(d.full, 'Kris Selden');
+        d.triggerSomeEvent('event arg');
+        assert.deepEqual(events, ['D onSomeEvent before super.onSomeEvent', 'B onSomeEvent event arg', 'D onSomeEvent after super.onSomeEvent']);
       });
-      assert.deepEqual(changes, ['D fullNameDidChange before super.fullNameDidChange', 'B fullNameDidChange', 'D fullNameDidChange after super.fullNameDidChange']);
-      assert.equal(d.full, 'Kris Selden');
-      d.triggerSomeEvent('event arg');
-      assert.deepEqual(events, ['D onSomeEvent before super.onSomeEvent', 'B onSomeEvent event arg', 'D onSomeEvent after super.onSomeEvent']);
     }
 
   });
@@ -57415,6 +61562,42 @@ enifed("@ember/-internals/runtime/tests/system/object/events_test", ["@ember/-in
 enifed("@ember/-internals/runtime/tests/system/object/extend_test", ["@ember/-internals/metal", "@ember/-internals/runtime/lib/system/object", "internal-test-helpers"], function (_metal, _object, _internalTestHelpers) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   (0, _internalTestHelpers.moduleFor)('EmberObject.extend', class extends _internalTestHelpers.AbstractTestCase {
     ['@test Basic extend'](assert) {
       let SomeClass = _object.default.extend({
@@ -57539,26 +61722,47 @@ enifed("@ember/-internals/runtime/tests/system/object/extend_test", ["@ember/-in
     }
 
     ['@test Overriding a computed property with an observer'](assert) {
-      let Parent = _object.default.extend({
-        foo: (0, _metal.computed)(function () {
-          return 'FOO';
-        })
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var Parent, seen, Child, child;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              Parent = _object.default.extend({
+                foo: (0, _metal.computed)(function () {
+                  return 'FOO';
+                })
+              });
+              seen = [];
+              Child = Parent.extend({
+                foo: (0, _metal.observer)('bar', function () {
+                  seen.push(this.get('bar'));
+                })
+              });
+              child = Child.create({
+                bar: 0
+              });
+              assert.deepEqual(seen, []);
+              child.set('bar', 1);
+              _context.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let seen = [];
-      let Child = Parent.extend({
-        foo: (0, _metal.observer)('bar', function () {
-          seen.push(this.get('bar'));
-        })
-      });
-      let child = Child.create({
-        bar: 0
-      });
-      assert.deepEqual(seen, []);
-      child.set('bar', 1);
-      assert.deepEqual(seen, [1]);
-      child.set('bar', 2);
-      assert.deepEqual(seen, [1, 2]);
+            case 8:
+              assert.deepEqual(seen, [1]);
+              child.set('bar', 2);
+              _context.next = 12;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 12:
+              assert.deepEqual(seen, [1, 2]);
+
+            case 13:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
   });
@@ -57566,75 +61770,187 @@ enifed("@ember/-internals/runtime/tests/system/object/extend_test", ["@ember/-in
 enifed("@ember/-internals/runtime/tests/system/object/observer_test", ["@ember/runloop", "@ember/-internals/metal", "@ember/-internals/runtime/lib/system/object", "internal-test-helpers"], function (_runloop, _metal, _object, _internalTestHelpers) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   (0, _internalTestHelpers.moduleFor)('EmberObject observer', class extends _internalTestHelpers.AbstractTestCase {
     ['@test observer on class'](assert) {
-      let MyClass = _object.default.extend({
-        count: 0,
-        foo: (0, _metal.observer)('bar', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var MyClass, obj;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              MyClass = _object.default.extend({
+                count: 0,
+                foo: (0, _metal.observer)('bar', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj = MyClass.create();
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj, 'bar', 'BAZ');
+              _context.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let obj = MyClass.create();
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj, 'bar', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 6:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+
+            case 7:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     ['@test observer on subclass'](assert) {
-      let MyClass = _object.default.extend({
-        count: 0,
-        foo: (0, _metal.observer)('bar', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var MyClass, Subclass, obj;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              MyClass = _object.default.extend({
+                count: 0,
+                foo: (0, _metal.observer)('bar', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              Subclass = MyClass.extend({
+                foo: (0, _metal.observer)('baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj = Subclass.create();
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj, 'bar', 'BAZ');
+              _context2.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let Subclass = MyClass.extend({
-        foo: (0, _metal.observer)('baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
-      let obj = Subclass.create();
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj, 'bar', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer after change');
-      (0, _metal.set)(obj, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 7:
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer after change');
+              (0, _metal.set)(obj, 'baz', 'BAZ');
+              _context2.next = 11;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 11:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+
+            case 12:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     ['@test observer on instance'](assert) {
-      let obj = _object.default.extend({
-        foo: (0, _metal.observer)('bar', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      }).create({
-        count: 0
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var obj;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              obj = _object.default.extend({
+                foo: (0, _metal.observer)('bar', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              }).create({
+                count: 0
+              });
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj, 'bar', 'BAZ');
+              _context3.next = 5;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj, 'bar', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 5:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+
+            case 6:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     ['@test observer on instance overriding class'](assert) {
-      let MyClass = _object.default.extend({
-        count: 0,
-        foo: (0, _metal.observer)('bar', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        var MyClass, obj;
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              MyClass = _object.default.extend({
+                count: 0,
+                foo: (0, _metal.observer)('bar', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj = MyClass.extend({
+                foo: (0, _metal.observer)('baz', function () {
+                  // <-- change property we observe
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              }).create();
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
+              (0, _metal.set)(obj, 'bar', 'BAZ');
+              _context4.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let obj = MyClass.extend({
-        foo: (0, _metal.observer)('baz', function () {
-          // <-- change property we observe
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      }).create();
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer immediately');
-      (0, _metal.set)(obj, 'bar', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer after change');
-      (0, _metal.set)(obj, 'baz', 'BAZ');
-      assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+            case 6:
+              assert.equal((0, _metal.get)(obj, 'count'), 0, 'should not invoke observer after change');
+              (0, _metal.set)(obj, 'baz', 'BAZ');
+              _context4.next = 10;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 10:
+              assert.equal((0, _metal.get)(obj, 'count'), 1, 'should invoke observer after change');
+
+            case 11:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
     ['@test observer should not fire after being destroyed'](assert) {
@@ -57657,102 +61973,167 @@ enifed("@ember/-internals/runtime/tests/system/object/observer_test", ["@ember/r
 
 
     ['@test chain observer on class'](assert) {
-      let MyClass = _object.default.extend({
-        count: 0,
-        foo: (0, _metal.observer)('bar.baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var MyClass, obj1, obj2;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              MyClass = _object.default.extend({
+                count: 0,
+                foo: (0, _metal.observer)('bar.baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj1 = MyClass.create({
+                bar: {
+                  baz: 'biff'
+                }
+              });
+              obj2 = MyClass.create({
+                bar: {
+                  baz: 'biff2'
+                }
+              });
+              assert.equal((0, _metal.get)(obj1, 'count'), 0, 'should not invoke yet');
+              assert.equal((0, _metal.get)(obj2, 'count'), 0, 'should not invoke yet');
+              (0, _metal.set)((0, _metal.get)(obj1, 'bar'), 'baz', 'BIFF1');
+              _context5.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let obj1 = MyClass.create({
-        bar: {
-          baz: 'biff'
-        }
-      });
-      let obj2 = MyClass.create({
-        bar: {
-          baz: 'biff2'
-        }
-      });
-      assert.equal((0, _metal.get)(obj1, 'count'), 0, 'should not invoke yet');
-      assert.equal((0, _metal.get)(obj2, 'count'), 0, 'should not invoke yet');
-      (0, _metal.set)((0, _metal.get)(obj1, 'bar'), 'baz', 'BIFF1');
-      assert.equal((0, _metal.get)(obj1, 'count'), 1, 'should invoke observer on obj1');
-      assert.equal((0, _metal.get)(obj2, 'count'), 0, 'should not invoke yet');
-      (0, _metal.set)((0, _metal.get)(obj2, 'bar'), 'baz', 'BIFF2');
-      assert.equal((0, _metal.get)(obj1, 'count'), 1, 'should not invoke again');
-      assert.equal((0, _metal.get)(obj2, 'count'), 1, 'should invoke observer on obj2');
+            case 8:
+              assert.equal((0, _metal.get)(obj1, 'count'), 1, 'should invoke observer on obj1');
+              assert.equal((0, _metal.get)(obj2, 'count'), 0, 'should not invoke yet');
+              (0, _metal.set)((0, _metal.get)(obj2, 'bar'), 'baz', 'BIFF2');
+              _context5.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 13:
+              assert.equal((0, _metal.get)(obj1, 'count'), 1, 'should not invoke again');
+              assert.equal((0, _metal.get)(obj2, 'count'), 1, 'should invoke observer on obj2');
+
+            case 15:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     ['@test chain observer on class'](assert) {
-      let MyClass = _object.default.extend({
-        count: 0,
-        foo: (0, _metal.observer)('bar.baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var MyClass, obj1, obj2;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              MyClass = _object.default.extend({
+                count: 0,
+                foo: (0, _metal.observer)('bar.baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              });
+              obj1 = MyClass.extend().create({
+                bar: {
+                  baz: 'biff'
+                }
+              });
+              obj2 = MyClass.extend({
+                foo: (0, _metal.observer)('bar2.baz', function () {
+                  (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
+                })
+              }).create({
+                bar: {
+                  baz: 'biff2'
+                },
+                bar2: {
+                  baz: 'biff3'
+                }
+              });
+              assert.equal((0, _metal.get)(obj1, 'count'), 0, 'should not invoke yet');
+              assert.equal((0, _metal.get)(obj2, 'count'), 0, 'should not invoke yet');
+              (0, _metal.set)((0, _metal.get)(obj1, 'bar'), 'baz', 'BIFF1');
+              _context6.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let obj1 = MyClass.extend().create({
-        bar: {
-          baz: 'biff'
-        }
-      });
-      let obj2 = MyClass.extend({
-        foo: (0, _metal.observer)('bar2.baz', function () {
-          (0, _metal.set)(this, 'count', (0, _metal.get)(this, 'count') + 1);
-        })
-      }).create({
-        bar: {
-          baz: 'biff2'
-        },
-        bar2: {
-          baz: 'biff3'
-        }
-      });
-      assert.equal((0, _metal.get)(obj1, 'count'), 0, 'should not invoke yet');
-      assert.equal((0, _metal.get)(obj2, 'count'), 0, 'should not invoke yet');
-      (0, _metal.set)((0, _metal.get)(obj1, 'bar'), 'baz', 'BIFF1');
-      assert.equal((0, _metal.get)(obj1, 'count'), 1, 'should invoke observer on obj1');
-      assert.equal((0, _metal.get)(obj2, 'count'), 0, 'should not invoke yet');
-      (0, _metal.set)((0, _metal.get)(obj2, 'bar'), 'baz', 'BIFF2');
-      assert.equal((0, _metal.get)(obj1, 'count'), 1, 'should not invoke again');
-      assert.equal((0, _metal.get)(obj2, 'count'), 0, 'should not invoke yet');
-      (0, _metal.set)((0, _metal.get)(obj2, 'bar2'), 'baz', 'BIFF3');
-      assert.equal((0, _metal.get)(obj1, 'count'), 1, 'should not invoke again');
-      assert.equal((0, _metal.get)(obj2, 'count'), 1, 'should invoke observer on obj2');
+            case 8:
+              assert.equal((0, _metal.get)(obj1, 'count'), 1, 'should invoke observer on obj1');
+              assert.equal((0, _metal.get)(obj2, 'count'), 0, 'should not invoke yet');
+              (0, _metal.set)((0, _metal.get)(obj2, 'bar'), 'baz', 'BIFF2');
+              _context6.next = 13;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 13:
+              assert.equal((0, _metal.get)(obj1, 'count'), 1, 'should not invoke again');
+              assert.equal((0, _metal.get)(obj2, 'count'), 0, 'should not invoke yet');
+              (0, _metal.set)((0, _metal.get)(obj2, 'bar2'), 'baz', 'BIFF3');
+              _context6.next = 18;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 18:
+              assert.equal((0, _metal.get)(obj1, 'count'), 1, 'should not invoke again');
+              assert.equal((0, _metal.get)(obj2, 'count'), 1, 'should invoke observer on obj2');
+
+            case 20:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6);
+      }))();
     }
 
     ['@test chain observer on class that has a reference to an uninitialized object will finish chains that reference it'](assert) {
-      let changed = false;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee7() {
+        var changed, ChildClass, ParentClass, parent;
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
+          while (1) switch (_context7.prev = _context7.next) {
+            case 0:
+              changed = false;
+              ChildClass = _object.default.extend({
+                parent: null,
+                parentOneTwoDidChange: (0, _metal.observer)('parent.one.two', function () {
+                  changed = true;
+                })
+              });
+              ParentClass = _object.default.extend({
+                one: {
+                  two: 'old'
+                },
 
-      let ChildClass = _object.default.extend({
-        parent: null,
-        parentOneTwoDidChange: (0, _metal.observer)('parent.one.two', function () {
-          changed = true;
-        })
-      });
+                init() {
+                  this.child = ChildClass.create({
+                    parent: this
+                  });
+                }
 
-      let ParentClass = _object.default.extend({
-        one: {
-          two: 'old'
-        },
+              });
+              parent = ParentClass.create();
+              assert.equal(changed, false, 'precond');
+              (0, _metal.set)(parent, 'one.two', 'new');
+              _context7.next = 8;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-        init() {
-          this.child = ChildClass.create({
-            parent: this
-          });
-        }
+            case 8:
+              assert.equal(changed, true, 'child should have been notified of change to path');
+              (0, _metal.set)(parent, 'one', {
+                two: 'newer'
+              });
+              _context7.next = 12;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      });
+            case 12:
+              assert.equal(changed, true, 'child should have been notified of change to path');
 
-      let parent = ParentClass.create();
-      assert.equal(changed, false, 'precond');
-      (0, _metal.set)(parent, 'one.two', 'new');
-      assert.equal(changed, true, 'child should have been notified of change to path');
-      (0, _metal.set)(parent, 'one', {
-        two: 'newer'
-      });
-      assert.equal(changed, true, 'child should have been notified of change to path');
+            case 13:
+            case "end":
+              return _context7.stop();
+          }
+        }, _callee7, this);
+      }))();
     }
 
   });
@@ -57968,8 +62349,44 @@ enifed("@ember/-internals/runtime/tests/system/object/toString_test", ["@ember/r
 
   });
 });
-enifed("@ember/-internals/runtime/tests/system/object_proxy_test", ["@ember/-internals/metal", "@ember/-internals/utils", "@ember/-internals/runtime/lib/system/object_proxy", "internal-test-helpers"], function (_metal, _utils, _object_proxy, _internalTestHelpers) {
+enifed("@ember/-internals/runtime/tests/system/object_proxy_test", ["@ember/-internals/metal", "@ember/-internals/utils", "@ember/canary-features", "@ember/-internals/runtime/lib/system/object_proxy", "internal-test-helpers"], function (_metal, _utils, _canaryFeatures, _object_proxy, _internalTestHelpers) {
   "use strict";
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   (0, _internalTestHelpers.moduleFor)('ObjectProxy', class extends _internalTestHelpers.AbstractTestCase {
     ['@test should not proxy properties passed to create'](assert) {
@@ -58130,127 +62547,203 @@ enifed("@ember/-internals/runtime/tests/system/object_proxy_test", ["@ember/-int
     }
 
     ['@test should work with watched properties'](assert) {
-      let content1 = {
-        firstName: 'Tom',
-        lastName: 'Dale'
-      };
-      let content2 = {
-        firstName: 'Yehuda',
-        lastName: 'Katz'
-      };
-      let count = 0;
-      let last;
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var content1, content2, count, last, Proxy, proxy;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              content1 = {
+                firstName: 'Tom',
+                lastName: 'Dale'
+              };
+              content2 = {
+                firstName: 'Yehuda',
+                lastName: 'Katz'
+              };
+              count = 0;
+              Proxy = _object_proxy.default.extend({
+                fullName: (0, _metal.computed)('firstName', 'lastName', function () {
+                  let firstName = this.get('firstName');
+                  let lastName = this.get('lastName');
 
-      let Proxy = _object_proxy.default.extend({
-        fullName: (0, _metal.computed)('firstName', 'lastName', function () {
-          let firstName = this.get('firstName');
-          let lastName = this.get('lastName');
+                  if (firstName && lastName) {
+                    return firstName + ' ' + lastName;
+                  }
 
-          if (firstName && lastName) {
-            return firstName + ' ' + lastName;
+                  return firstName || lastName;
+                })
+              });
+              proxy = Proxy.create();
+              (0, _metal.addObserver)(proxy, 'fullName', () => {
+                last = (0, _metal.get)(proxy, 'fullName');
+              }); // We need separate observers for each property for async observers
+
+              (0, _metal.addObserver)(proxy, 'firstName', function () {
+                count++;
+              });
+              (0, _metal.addObserver)(proxy, 'lastName', function () {
+                count++;
+              }); // proxy without content returns undefined
+
+              assert.equal((0, _metal.get)(proxy, 'fullName'), undefined); // setting content causes all watched properties to change
+
+              (0, _metal.set)(proxy, 'content', content1);
+              _context.next = 12;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 12:
+              // both dependent keys changed
+              assert.equal(count, 2);
+              assert.equal(last, 'Tom Dale'); // setting property in content causes proxy property to change
+
+              (0, _metal.set)(content1, 'lastName', 'Huda');
+              _context.next = 17;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 17:
+              assert.equal(count, 3);
+              assert.equal(last, 'Tom Huda'); // replacing content causes all watched properties to change
+
+              (0, _metal.set)(proxy, 'content', content2);
+              _context.next = 22;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 22:
+              // both dependent keys changed
+              assert.equal(count, 5);
+              assert.equal(last, 'Yehuda Katz');
+
+              if (!_canaryFeatures.EMBER_METAL_TRACKED_PROPERTIES) {
+                // content1 is no longer watched
+                assert.ok(!(0, _metal.isWatching)(content1, 'firstName'), 'not watching firstName');
+                assert.ok(!(0, _metal.isWatching)(content1, 'lastName'), 'not watching lastName');
+              } // setting property in new content
+
+
+              (0, _metal.set)(content2, 'firstName', 'Tomhuda');
+              _context.next = 28;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 28:
+              assert.equal(last, 'Tomhuda Katz');
+              assert.equal(count, 6); // setting property in proxy syncs with new content
+
+              (0, _metal.set)(proxy, 'lastName', 'Katzdale');
+              _context.next = 33;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 33:
+              assert.equal(count, 7);
+              assert.equal(last, 'Tomhuda Katzdale');
+              assert.equal((0, _metal.get)(content2, 'firstName'), 'Tomhuda');
+              assert.equal((0, _metal.get)(content2, 'lastName'), 'Katzdale');
+
+            case 37:
+            case "end":
+              return _context.stop();
           }
-
-          return firstName || lastName;
-        })
-      });
-
-      let proxy = Proxy.create();
-      (0, _metal.addObserver)(proxy, 'fullName', function () {
-        last = (0, _metal.get)(proxy, 'fullName');
-        count++;
-      }); // proxy without content returns undefined
-
-      assert.equal((0, _metal.get)(proxy, 'fullName'), undefined); // setting content causes all watched properties to change
-
-      (0, _metal.set)(proxy, 'content', content1); // both dependent keys changed
-
-      assert.equal(count, 2);
-      assert.equal(last, 'Tom Dale'); // setting property in content causes proxy property to change
-
-      (0, _metal.set)(content1, 'lastName', 'Huda');
-      assert.equal(count, 3);
-      assert.equal(last, 'Tom Huda'); // replacing content causes all watched properties to change
-
-      (0, _metal.set)(proxy, 'content', content2); // both dependent keys changed
-
-      assert.equal(count, 5);
-      assert.equal(last, 'Yehuda Katz'); // content1 is no longer watched
-
-      assert.ok(!(0, _metal.isWatching)(content1, 'firstName'), 'not watching firstName');
-      assert.ok(!(0, _metal.isWatching)(content1, 'lastName'), 'not watching lastName'); // setting property in new content
-
-      (0, _metal.set)(content2, 'firstName', 'Tomhuda');
-      assert.equal(last, 'Tomhuda Katz');
-      assert.equal(count, 6); // setting property in proxy syncs with new content
-
-      (0, _metal.set)(proxy, 'lastName', 'Katzdale');
-      assert.equal(count, 7);
-      assert.equal(last, 'Tomhuda Katzdale');
-      assert.equal((0, _metal.get)(content2, 'firstName'), 'Tomhuda');
-      assert.equal((0, _metal.get)(content2, 'lastName'), 'Katzdale');
+        }, _callee);
+      }))();
     }
 
     ['@test set and get should work with paths'](assert) {
-      let content = {
-        foo: {
-          bar: 'baz'
-        }
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var content, proxy, count;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              content = {
+                foo: {
+                  bar: 'baz'
+                }
+              };
+              proxy = _object_proxy.default.create({
+                content
+              });
+              count = 0;
+              proxy.set('foo.bar', 'hello');
+              assert.equal(proxy.get('foo.bar'), 'hello');
+              assert.equal(proxy.get('content.foo.bar'), 'hello');
+              proxy.addObserver('foo.bar', function () {
+                count++;
+              });
+              proxy.set('foo.bar', 'bye');
+              _context2.next = 10;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let proxy = _object_proxy.default.create({
-        content
-      });
+            case 10:
+              assert.equal(count, 1);
+              assert.equal(proxy.get('foo.bar'), 'bye');
+              assert.equal(proxy.get('content.foo.bar'), 'bye');
 
-      let count = 0;
-      proxy.set('foo.bar', 'hello');
-      assert.equal(proxy.get('foo.bar'), 'hello');
-      assert.equal(proxy.get('content.foo.bar'), 'hello');
-      proxy.addObserver('foo.bar', function () {
-        count++;
-      });
-      proxy.set('foo.bar', 'bye');
-      assert.equal(count, 1);
-      assert.equal(proxy.get('foo.bar'), 'bye');
-      assert.equal(proxy.get('content.foo.bar'), 'bye');
+            case 13:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     ['@test should transition between watched and unwatched strategies'](assert) {
-      let content = {
-        foo: 'foo'
-      };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var content, proxy, count, observer;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              observer = function _ref() {
+                count++;
+              };
 
-      let proxy = _object_proxy.default.create({
-        content: content
-      });
+              content = {
+                foo: 'foo'
+              };
+              proxy = _object_proxy.default.create({
+                content: content
+              });
+              count = 0;
+              assert.equal((0, _metal.get)(proxy, 'foo'), 'foo');
+              (0, _metal.set)(content, 'foo', 'bar');
+              assert.equal((0, _metal.get)(proxy, 'foo'), 'bar');
+              (0, _metal.set)(proxy, 'foo', 'foo');
+              assert.equal((0, _metal.get)(content, 'foo'), 'foo');
+              assert.equal((0, _metal.get)(proxy, 'foo'), 'foo');
+              (0, _metal.addObserver)(proxy, 'foo', observer);
+              assert.equal(count, 0);
+              assert.equal((0, _metal.get)(proxy, 'foo'), 'foo');
+              (0, _metal.set)(content, 'foo', 'bar');
+              _context3.next = 16;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      let count = 0;
+            case 16:
+              assert.equal(count, 1);
+              assert.equal((0, _metal.get)(proxy, 'foo'), 'bar');
+              (0, _metal.set)(proxy, 'foo', 'foo');
+              _context3.next = 21;
+              return (0, _internalTestHelpers.runLoopSettled)();
 
-      function observer() {
-        count++;
-      }
+            case 21:
+              assert.equal(count, 2);
+              assert.equal((0, _metal.get)(content, 'foo'), 'foo');
+              assert.equal((0, _metal.get)(proxy, 'foo'), 'foo');
+              (0, _metal.removeObserver)(proxy, 'foo', observer);
+              (0, _metal.set)(content, 'foo', 'bar');
+              assert.equal((0, _metal.get)(proxy, 'foo'), 'bar');
+              (0, _metal.set)(proxy, 'foo', 'foo');
+              assert.equal((0, _metal.get)(content, 'foo'), 'foo');
+              assert.equal((0, _metal.get)(proxy, 'foo'), 'foo');
 
-      assert.equal((0, _metal.get)(proxy, 'foo'), 'foo');
-      (0, _metal.set)(content, 'foo', 'bar');
-      assert.equal((0, _metal.get)(proxy, 'foo'), 'bar');
-      (0, _metal.set)(proxy, 'foo', 'foo');
-      assert.equal((0, _metal.get)(content, 'foo'), 'foo');
-      assert.equal((0, _metal.get)(proxy, 'foo'), 'foo');
-      (0, _metal.addObserver)(proxy, 'foo', observer);
-      assert.equal(count, 0);
-      assert.equal((0, _metal.get)(proxy, 'foo'), 'foo');
-      (0, _metal.set)(content, 'foo', 'bar');
-      assert.equal(count, 1);
-      assert.equal((0, _metal.get)(proxy, 'foo'), 'bar');
-      (0, _metal.set)(proxy, 'foo', 'foo');
-      assert.equal(count, 2);
-      assert.equal((0, _metal.get)(content, 'foo'), 'foo');
-      assert.equal((0, _metal.get)(proxy, 'foo'), 'foo');
-      (0, _metal.removeObserver)(proxy, 'foo', observer);
-      (0, _metal.set)(content, 'foo', 'bar');
-      assert.equal((0, _metal.get)(proxy, 'foo'), 'bar');
-      (0, _metal.set)(proxy, 'foo', 'foo');
-      assert.equal((0, _metal.get)(content, 'foo'), 'foo');
-      assert.equal((0, _metal.get)(proxy, 'foo'), 'foo');
+            case 30:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
     ['@test setting `undefined` to a proxied content property should override its existing value'](assert) {
@@ -58262,6 +62755,14 @@ enifed("@ember/-internals/runtime/tests/system/object_proxy_test", ["@ember/-int
 
       (0, _metal.set)(proxyObject, 'prop', undefined);
       assert.equal((0, _metal.get)(proxyObject, 'prop'), undefined, 'sets the `undefined` value to the proxied content');
+    }
+
+    ['@test should not throw or deprecate when adding an observer to an ObjectProxy based class'](assert) {
+      assert.expect(0);
+
+      _object_proxy.default.extend({
+        observe: (0, _metal.observer)('foo', function () {})
+      }).create();
     }
 
   });
@@ -63015,6 +67516,7 @@ enifed("@ember/engine/tests/engine_test", ["@ember/-internals/environment", "@em
       }, "optionsForType 'view'");
       (0, _internalTestHelpers.verifyRegistration)(assert, engine, 'controller:basic');
       (0, _internalTestHelpers.verifyInjection)(assert, engine, 'view', '_viewRegistry', '-view-registry:main');
+      (0, _internalTestHelpers.verifyInjection)(assert, engine, 'renderer', '_viewRegistry', '-view-registry:main');
       (0, _internalTestHelpers.verifyInjection)(assert, engine, 'route', '_topLevelViewTemplate', 'template:-outlet');
       (0, _internalTestHelpers.verifyInjection)(assert, engine, 'view:-outlet', 'namespace', 'application:main');
       (0, _internalTestHelpers.verifyInjection)(assert, engine, 'controller', 'target', 'router:main');
@@ -64697,6 +69199,42 @@ enifed("@ember/object/tests/computed/macro_decorators_test", ["internal-test-hel
 enifed("@ember/object/tests/computed/reduce_computed_macros_test", ["@ember/runloop", "@ember/-internals/metal", "@ember/-internals/runtime", "@ember/object/computed", "@ember/canary-features", "internal-test-helpers"], function (_runloop, _metal, _runtime, _computed, _canaryFeatures, _internalTestHelpers) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   function _initializerDefineProperty(target, property, descriptor, context) {
     if (!descriptor) return;
     Object.defineProperty(target, property, {
@@ -64958,13 +69496,31 @@ enifed("@ember/object/tests/computed/reduce_computed_macros_test", ["@ember/runl
     }
 
     ['@test it is observable'](assert) {
-      let calls = 0;
-      assert.deepEqual(obj.get('mapped'), [1, 3, 2, 1]);
-      (0, _metal.addObserver)(obj, 'mapped.@each', () => calls++);
-      obj.get('array').pushObject({
-        v: 5
-      });
-      assert.equal(calls, 1, 'mapBy is observable');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var calls;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              calls = 0;
+              assert.deepEqual(obj.get('mapped'), [1, 3, 2, 1]);
+              (0, _metal.addObserver)(obj, 'mapped.@each', () => calls++);
+              obj.get('array').pushObject({
+                v: 5
+              });
+              _context.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              assert.equal(calls, 1, 'mapBy is observable');
+
+            case 7:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
   });
@@ -66488,15 +71044,33 @@ enifed("@ember/object/tests/computed/reduce_computed_macros_test", ["@ember/runl
     }
 
     ['@test it computes interdependent array computed properties'](assert) {
-      assert.equal(obj.get('max'), 3, 'sanity - it properly computes the maximum value');
-      let calls = 0;
-      (0, _metal.addObserver)(obj, 'max', () => calls++);
-      obj.get('array').pushObject({
-        v: 5
-      });
-      assert.equal(obj.get('max'), 5, 'maximum value is updated correctly');
-      assert.equal(userFnCalls, 1, 'object defined observers fire');
-      assert.equal(calls, 1, 'runtime created observers fire');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var calls;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              assert.equal(obj.get('max'), 3, 'sanity - it properly computes the maximum value');
+              calls = 0;
+              (0, _metal.addObserver)(obj, 'max', () => calls++);
+              obj.get('array').pushObject({
+                v: 5
+              });
+              _context2.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              assert.equal(obj.get('max'), 5, 'maximum value is updated correctly');
+              assert.equal(userFnCalls, 1, 'object defined observers fire');
+              assert.equal(calls, 1, 'runtime created observers fire');
+
+            case 9:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
   });
@@ -70973,7 +75547,7 @@ enifed("ember/tests/routing/decoupled_basic_test", ["@ember/-internals/owner", "
       this.add('model:menu_item', MenuItem);
       this.addTemplate('special', '<p>{{model.id}}</p>');
       this.addTemplate('loading', '<p>LOADING!</p>');
-      let visited = this.visit('/specials/1');
+      let visited = (0, _internalTestHelpers.runTask)(() => this.visit('/specials/1'));
       this.assertText('LOADING!', 'The app is in the loading state');
       resolve(menuItem);
       return visited.then(() => {
@@ -71053,7 +75627,7 @@ enifed("ember/tests/routing/decoupled_basic_test", ["@ember/-internals/owner", "
 
         }
       }));
-      this.handleURLRejectsWith(this, assert, 'specials/1', 'Setup error');
+      (0, _internalTestHelpers.runTask)(() => this.handleURLRejectsWith(this, assert, 'specials/1', 'Setup error'));
       resolve(menuItem);
     }
 
@@ -71096,7 +75670,7 @@ enifed("ember/tests/routing/decoupled_basic_test", ["@ember/-internals/owner", "
         }
 
       }));
-      let promise = this.handleURLRejectsWith(this, assert, '/specials/1', 'Setup error');
+      let promise = (0, _internalTestHelpers.runTask)(() => this.handleURLRejectsWith(this, assert, '/specials/1', 'Setup error'));
       resolve(menuItem);
       return promise;
     }
@@ -72580,7 +77154,6 @@ enifed("ember/tests/routing/decoupled_basic_test", ["@ember/-internals/owner", "
 
     ['@test ApplicationRoute with model does not proxy the currentPath'](assert) {
       let model = {};
-      let currentPath;
       this.router.map(function () {
         this.route('index', {
           path: '/'
@@ -72592,15 +77165,9 @@ enifed("ember/tests/routing/decoupled_basic_test", ["@ember/-internals/owner", "
         }
 
       }));
-      this.add('controller:application', _controller.default.extend({
-        currentPathDidChange: (0, _metal.observer)('currentPath', function () {
-          expectDeprecation(() => {
-            currentPath = this.currentPath;
-          }, 'Accessing `currentPath` on `controller:application` is deprecated, use the `currentPath` property on `service:router` instead.');
-        })
-      }));
       return this.visit('/').then(() => {
-        assert.equal(currentPath, 'index', 'currentPath is index');
+        let routerService = this.applicationInstance.lookup('service:router');
+        assert.equal(routerService.currentRouteName, 'index', 'currentPath is index');
         assert.equal('currentPath' in model, false, 'should have defined currentPath on controller');
       });
     }
@@ -73384,7 +77951,9 @@ enifed("ember/tests/routing/decoupled_basic_test", ["@ember/-internals/owner", "
               _context9.t0.add.call(_context9.t0, 'route:yippie', _context9.t3);
 
               _context9.next = 12;
-              return assert.rejects(_this9.visit('/'), function (err) {
+              return assert.rejects(_this9.visit('/'), function ({
+                errorThrown: err
+              }) {
                 assert.equal(err.message, rejectedMessage);
                 return true;
               }, 'expected an exception');
@@ -74332,75 +78901,109 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
 
   (0, _internalTestHelpers.moduleFor)('Query Params - main', class extends _internalTestHelpers.QueryParamTestCase {
     refreshModelWhileLoadingTest(loadingReturn) {
-      let assert = this.assert;
-      assert.expect(9);
-      let appModelCount = 0;
-      let promiseResolve;
-      this.add('route:application', _routing.Route.extend({
-        queryParams: {
-          appomg: {
-            defaultValue: 'applol'
+      var _this = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var assert, appModelCount, promiseResolve, actionName, indexModelCount, indexController;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              assert = _this.assert;
+              assert.expect(9);
+              appModelCount = 0;
+
+              _this.add('route:application', _routing.Route.extend({
+                queryParams: {
+                  appomg: {
+                    defaultValue: 'applol'
+                  }
+                },
+
+                model()
+                /* params */
+                {
+                  appModelCount++;
+                }
+
+              }));
+
+              _this.setSingleQPController('index', 'omg', undefined, {
+                omg: undefined
+              });
+
+              actionName = typeof loadingReturn !== 'undefined' ? 'loading' : 'ignore';
+              indexModelCount = 0;
+              _context.t0 = _this;
+              _context.t1 = _routing.Route;
+              _context.t2 = {
+                omg: {
+                  refreshModel: true
+                }
+              };
+              _context.t3 = {
+                [actionName]: function () {
+                  return loadingReturn;
+                }
+              };
+              _context.t4 = {
+                queryParams: _context.t2,
+                actions: _context.t3,
+
+                model(params) {
+                  indexModelCount++;
+
+                  if (indexModelCount === 2) {
+                    assert.deepEqual(params, {
+                      omg: 'lex'
+                    });
+                    return new _runtime.RSVP.Promise(function (resolve) {
+                      promiseResolve = resolve;
+                      return;
+                    });
+                  } else if (indexModelCount === 3) {
+                    assert.deepEqual(params, {
+                      omg: 'hello'
+                    }, "Model hook reruns even if the previous one didn't finish");
+                  }
+                }
+
+              };
+              _context.t5 = _context.t1.extend.call(_context.t1, _context.t4);
+
+              _context.t0.add.call(_context.t0, 'route:index', _context.t5);
+
+              _context.next = 16;
+              return _this.visit('/');
+
+            case 16:
+              assert.equal(appModelCount, 1, 'appModelCount is 1');
+              assert.equal(indexModelCount, 1);
+              indexController = _this.getController('index');
+              _context.next = 21;
+              return _this.setAndFlush(indexController, 'omg', 'lex');
+
+            case 21:
+              assert.equal(appModelCount, 1, 'appModelCount is 1');
+              assert.equal(indexModelCount, 2);
+              _context.next = 25;
+              return _this.setAndFlush(indexController, 'omg', 'hello');
+
+            case 25:
+              assert.equal(appModelCount, 1, 'appModelCount is 1');
+              assert.equal(indexModelCount, 3);
+              (0, _runloop.run)(function () {
+                promiseResolve();
+              });
+              assert.equal((0, _metal.get)(indexController, 'omg'), 'hello', 'At the end last value prevails');
+
+            case 29:
+            case "end":
+              return _context.stop();
           }
-        },
-
-        model()
-        /* params */
-        {
-          appModelCount++;
-        }
-
-      }));
-      this.setSingleQPController('index', 'omg', undefined, {
-        omg: undefined
-      });
-      let actionName = typeof loadingReturn !== 'undefined' ? 'loading' : 'ignore';
-      let indexModelCount = 0;
-      this.add('route:index', _routing.Route.extend({
-        queryParams: {
-          omg: {
-            refreshModel: true
-          }
-        },
-        actions: {
-          [actionName]: function () {
-            return loadingReturn;
-          }
-        },
-
-        model(params) {
-          indexModelCount++;
-
-          if (indexModelCount === 2) {
-            assert.deepEqual(params, {
-              omg: 'lex'
-            });
-            return new _runtime.RSVP.Promise(function (resolve) {
-              promiseResolve = resolve;
-              return;
-            });
-          } else if (indexModelCount === 3) {
-            assert.deepEqual(params, {
-              omg: 'hello'
-            }, "Model hook reruns even if the previous one didn't finish");
-          }
-        }
-
-      }));
-      return this.visit('/').then(() => {
-        assert.equal(appModelCount, 1, 'appModelCount is 1');
-        assert.equal(indexModelCount, 1);
-        let indexController = this.getController('index');
-        this.setAndFlush(indexController, 'omg', 'lex');
-        assert.equal(appModelCount, 1, 'appModelCount is 1');
-        assert.equal(indexModelCount, 2);
-        this.setAndFlush(indexController, 'omg', 'hello');
-        assert.equal(appModelCount, 1, 'appModelCount is 1');
-        assert.equal(indexModelCount, 3);
-        (0, _runloop.run)(function () {
-          promiseResolve();
-        });
-        assert.equal((0, _metal.get)(indexController, 'omg'), 'hello', 'At the end last value prevails');
-      });
+        }, _callee);
+      }))();
     }
 
     ["@test No replaceURL occurs on startup because default values don't show up in URL"](assert) {
@@ -74431,92 +79034,234 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ['@test Single query params can be set on the controller and reflected in the url'](assert) {
-      assert.expect(3);
-      this.router.map(function () {
-        this.route('home', {
-          path: '/'
-        });
-      });
-      this.setSingleQPController('home');
-      return this.visitAndAssert('/').then(() => {
-        let controller = this.getController('home');
-        this.setAndFlush(controller, 'foo', '456');
-        this.assertCurrentPath('/?foo=456');
-        this.setAndFlush(controller, 'foo', '987');
-        this.assertCurrentPath('/?foo=987');
-      });
+      var _this2 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var controller;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              assert.expect(3);
+
+              _this2.router.map(function () {
+                this.route('home', {
+                  path: '/'
+                });
+              });
+
+              _this2.setSingleQPController('home');
+
+              _context2.next = 5;
+              return _this2.visitAndAssert('/');
+
+            case 5:
+              controller = _this2.getController('home');
+              _context2.next = 8;
+              return _this2.setAndFlush(controller, 'foo', '456');
+
+            case 8:
+              _this2.assertCurrentPath('/?foo=456');
+
+              _context2.next = 11;
+              return _this2.setAndFlush(controller, 'foo', '987');
+
+            case 11:
+              _this2.assertCurrentPath('/?foo=987');
+
+            case 12:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     ['@test Query params can map to different url keys configured on the controller'](assert) {
-      assert.expect(6);
-      this.add('controller:index', _controller.default.extend({
-        queryParams: [{
-          foo: 'other_foo',
-          bar: {
-            as: 'other_bar'
+      var _this3 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var controller;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              assert.expect(6);
+
+              _this3.add('controller:index', _controller.default.extend({
+                queryParams: [{
+                  foo: 'other_foo',
+                  bar: {
+                    as: 'other_bar'
+                  }
+                }],
+                foo: 'FOO',
+                bar: 'BAR'
+              }));
+
+              _context3.next = 4;
+              return _this3.visitAndAssert('/');
+
+            case 4:
+              controller = _this3.getController('index');
+              _context3.next = 7;
+              return _this3.setAndFlush(controller, 'foo', 'LEX');
+
+            case 7:
+              _this3.assertCurrentPath('/?other_foo=LEX', "QP mapped correctly without 'as'");
+
+              _context3.next = 10;
+              return _this3.setAndFlush(controller, 'foo', 'WOO');
+
+            case 10:
+              _this3.assertCurrentPath('/?other_foo=WOO', "QP updated correctly without 'as'");
+
+              _this3.transitionTo('/?other_foo=NAW');
+
+              assert.equal(controller.get('foo'), 'NAW', 'QP managed correctly on URL transition');
+              _context3.next = 15;
+              return _this3.setAndFlush(controller, 'bar', 'NERK');
+
+            case 15:
+              _this3.assertCurrentPath('/?other_bar=NERK&other_foo=NAW', "QP mapped correctly with 'as'");
+
+              _context3.next = 18;
+              return _this3.setAndFlush(controller, 'bar', 'NUKE');
+
+            case 18:
+              _this3.assertCurrentPath('/?other_bar=NUKE&other_foo=NAW', "QP updated correctly with 'as'");
+
+            case 19:
+            case "end":
+              return _context3.stop();
           }
-        }],
-        foo: 'FOO',
-        bar: 'BAR'
-      }));
-      return this.visitAndAssert('/').then(() => {
-        let controller = this.getController('index');
-        this.setAndFlush(controller, 'foo', 'LEX');
-        this.assertCurrentPath('/?other_foo=LEX', "QP mapped correctly without 'as'");
-        this.setAndFlush(controller, 'foo', 'WOO');
-        this.assertCurrentPath('/?other_foo=WOO', "QP updated correctly without 'as'");
-        this.transitionTo('/?other_foo=NAW');
-        assert.equal(controller.get('foo'), 'NAW', 'QP managed correctly on URL transition');
-        this.setAndFlush(controller, 'bar', 'NERK');
-        this.assertCurrentPath('/?other_bar=NERK&other_foo=NAW', "QP mapped correctly with 'as'");
-        this.setAndFlush(controller, 'bar', 'NUKE');
-        this.assertCurrentPath('/?other_bar=NUKE&other_foo=NAW', "QP updated correctly with 'as'");
-      });
+        }, _callee3);
+      }))();
     }
 
     ['@test Routes have a private overridable serializeQueryParamKey hook'](assert) {
-      assert.expect(2);
-      this.add('route:index', _routing.Route.extend({
-        serializeQueryParamKey: _string.dasherize
-      }));
-      this.setSingleQPController('index', 'funTimes', '');
-      return this.visitAndAssert('/').then(() => {
-        let controller = this.getController('index');
-        this.setAndFlush(controller, 'funTimes', 'woot');
-        this.assertCurrentPath('/?fun-times=woot');
-      });
+      var _this4 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        var controller;
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              assert.expect(2);
+
+              _this4.add('route:index', _routing.Route.extend({
+                serializeQueryParamKey: _string.dasherize
+              }));
+
+              _this4.setSingleQPController('index', 'funTimes', '');
+
+              _context4.next = 5;
+              return _this4.visitAndAssert('/');
+
+            case 5:
+              controller = _this4.getController('index');
+              _context4.next = 8;
+              return _this4.setAndFlush(controller, 'funTimes', 'woot');
+
+            case 8:
+              _this4.assertCurrentPath('/?fun-times=woot');
+
+            case 9:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
     ['@test Can override inherited QP behavior by specifying queryParams as a computed property'](assert) {
-      assert.expect(3);
-      this.setSingleQPController('index', 'a', 0, {
-        queryParams: (0, _metal.computed)(function () {
-          return ['c'];
-        }),
-        c: true
-      });
-      return this.visitAndAssert('/').then(() => {
-        let indexController = this.getController('index');
-        this.setAndFlush(indexController, 'a', 1);
-        this.assertCurrentPath('/', 'QP did not update due to being overriden');
-        this.setAndFlush(indexController, 'c', false);
-        this.assertCurrentPath('/?c=false', 'QP updated with overridden param');
-      });
+      var _this5 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var indexController;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              assert.expect(3);
+
+              _this5.setSingleQPController('index', 'a', 0, {
+                queryParams: (0, _metal.computed)(function () {
+                  return ['c'];
+                }),
+                c: true
+              });
+
+              _context5.next = 4;
+              return _this5.visitAndAssert('/');
+
+            case 4:
+              indexController = _this5.getController('index');
+              _context5.next = 7;
+              return _this5.setAndFlush(indexController, 'a', 1);
+
+            case 7:
+              _this5.assertCurrentPath('/', 'QP did not update due to being overriden');
+
+              _context5.next = 10;
+              return _this5.setAndFlush(indexController, 'c', false);
+
+            case 10:
+              _this5.assertCurrentPath('/?c=false', 'QP updated with overridden param');
+
+            case 11:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     ['@test Can concatenate inherited QP behavior by specifying queryParams as an array'](assert) {
-      assert.expect(3);
-      this.setSingleQPController('index', 'a', 0, {
-        queryParams: ['c'],
-        c: true
-      });
-      return this.visitAndAssert('/').then(() => {
-        let indexController = this.getController('index');
-        this.setAndFlush(indexController, 'a', 1);
-        this.assertCurrentPath('/?a=1', 'Inherited QP did update');
-        this.setAndFlush(indexController, 'c', false);
-        this.assertCurrentPath('/?a=1&c=false', 'New QP did update');
-      });
+      var _this6 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var indexController;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              assert.expect(3);
+
+              _this6.setSingleQPController('index', 'a', 0, {
+                queryParams: ['c'],
+                c: true
+              });
+
+              _context6.next = 4;
+              return _this6.visitAndAssert('/');
+
+            case 4:
+              indexController = _this6.getController('index');
+              _context6.next = 7;
+              return _this6.setAndFlush(indexController, 'a', 1);
+
+            case 7:
+              _this6.assertCurrentPath('/?a=1', 'Inherited QP did update');
+
+              _context6.next = 10;
+              return _this6.setAndFlush(indexController, 'c', false);
+
+            case 10:
+              _this6.assertCurrentPath('/?a=1&c=false', 'New QP did update');
+
+            case 11:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6);
+      }))();
     }
 
     ['@test model hooks receives query params'](assert) {
@@ -74574,30 +79319,30 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ['@test error is thrown if dynamic segment and query param have same name'](assert) {
-      var _this = this;
+      var _this7 = this;
 
       return _asyncToGenerator(
       /*#__PURE__*/
-      regeneratorRuntime.mark(function _callee() {
-        return regeneratorRuntime.wrap(function _callee$(_context) {
-          while (1) switch (_context.prev = _context.next) {
+      regeneratorRuntime.mark(function _callee7() {
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
+          while (1) switch (_context7.prev = _context7.next) {
             case 0:
-              _this.router.map(function () {
+              _this7.router.map(function () {
                 this.route('index', {
                   path: '/:foo'
                 });
               });
 
-              _this.setSingleQPController('index');
+              _this7.setSingleQPController('index');
 
-              _context.next = 4;
-              return assert.rejectsAssertion(_this.visitAndAssert('/boo?foo=baz'), "The route 'index' has both a dynamic segment and query param with name 'foo'. Please rename one to avoid collisions.");
+              _context7.next = 4;
+              return assert.rejectsAssertion(_this7.visitAndAssert('/boo?foo=baz'), "The route 'index' has both a dynamic segment and query param with name 'foo'. Please rename one to avoid collisions.");
 
             case 4:
             case "end":
-              return _context.stop();
+              return _context7.stop();
           }
-        }, _callee);
+        }, _callee7);
       }))();
     }
 
@@ -74768,127 +79513,209 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ['@test can opt into full transition by setting refreshModel in route queryParams'](assert) {
-      assert.expect(7);
-      this.setSingleQPController('application', 'appomg', 'applol');
-      this.setSingleQPController('index', 'omg', 'lol');
-      let appModelCount = 0;
-      this.add('route:application', _routing.Route.extend({
-        model()
-        /* params, transition */
-        {
-          appModelCount++;
-        }
+      var _this8 = this;
 
-      }));
-      let indexModelCount = 0;
-      this.add('route:index', _routing.Route.extend({
-        queryParams: {
-          omg: {
-            refreshModel: true
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee8() {
+        var appModelCount, indexModelCount, indexController;
+        return regeneratorRuntime.wrap(function _callee8$(_context8) {
+          while (1) switch (_context8.prev = _context8.next) {
+            case 0:
+              assert.expect(7);
+
+              _this8.setSingleQPController('application', 'appomg', 'applol');
+
+              _this8.setSingleQPController('index', 'omg', 'lol');
+
+              appModelCount = 0;
+
+              _this8.add('route:application', _routing.Route.extend({
+                model()
+                /* params, transition */
+                {
+                  appModelCount++;
+                }
+
+              }));
+
+              indexModelCount = 0;
+
+              _this8.add('route:index', _routing.Route.extend({
+                queryParams: {
+                  omg: {
+                    refreshModel: true
+                  }
+                },
+
+                model(params) {
+                  indexModelCount++;
+
+                  if (indexModelCount === 1) {
+                    assert.deepEqual(params, {
+                      omg: 'lol'
+                    }, 'params are correct on first pass');
+                  } else if (indexModelCount === 2) {
+                    assert.deepEqual(params, {
+                      omg: 'lex'
+                    }, 'params are correct on second pass');
+                  }
+                }
+
+              }));
+
+              _context8.next = 9;
+              return _this8.visitAndAssert('/');
+
+            case 9:
+              assert.equal(appModelCount, 1, 'app model hook ran');
+              assert.equal(indexModelCount, 1, 'index model hook ran');
+              indexController = _this8.getController('index');
+              _context8.next = 14;
+              return _this8.setAndFlush(indexController, 'omg', 'lex');
+
+            case 14:
+              assert.equal(appModelCount, 1, 'app model hook did not run again');
+              assert.equal(indexModelCount, 2, 'index model hook ran again due to refreshModel');
+
+            case 16:
+            case "end":
+              return _context8.stop();
           }
-        },
-
-        model(params) {
-          indexModelCount++;
-
-          if (indexModelCount === 1) {
-            assert.deepEqual(params, {
-              omg: 'lol'
-            }, 'params are correct on first pass');
-          } else if (indexModelCount === 2) {
-            assert.deepEqual(params, {
-              omg: 'lex'
-            }, 'params are correct on second pass');
-          }
-        }
-
-      }));
-      return this.visitAndAssert('/').then(() => {
-        assert.equal(appModelCount, 1, 'app model hook ran');
-        assert.equal(indexModelCount, 1, 'index model hook ran');
-        let indexController = this.getController('index');
-        this.setAndFlush(indexController, 'omg', 'lex');
-        assert.equal(appModelCount, 1, 'app model hook did not run again');
-        assert.equal(indexModelCount, 2, 'index model hook ran again due to refreshModel');
-      });
+        }, _callee8);
+      }))();
     }
 
     ['@test refreshModel and replace work together'](assert) {
-      assert.expect(8);
-      this.setSingleQPController('application', 'appomg', 'applol');
-      this.setSingleQPController('index', 'omg', 'lol');
-      let appModelCount = 0;
-      this.add('route:application', _routing.Route.extend({
-        model()
-        /* params */
-        {
-          appModelCount++;
-        }
+      var _this9 = this;
 
-      }));
-      let indexModelCount = 0;
-      this.add('route:index', _routing.Route.extend({
-        queryParams: {
-          omg: {
-            refreshModel: true,
-            replace: true
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee9() {
+        var appModelCount, indexModelCount, indexController;
+        return regeneratorRuntime.wrap(function _callee9$(_context9) {
+          while (1) switch (_context9.prev = _context9.next) {
+            case 0:
+              assert.expect(8);
+
+              _this9.setSingleQPController('application', 'appomg', 'applol');
+
+              _this9.setSingleQPController('index', 'omg', 'lol');
+
+              appModelCount = 0;
+
+              _this9.add('route:application', _routing.Route.extend({
+                model()
+                /* params */
+                {
+                  appModelCount++;
+                }
+
+              }));
+
+              indexModelCount = 0;
+
+              _this9.add('route:index', _routing.Route.extend({
+                queryParams: {
+                  omg: {
+                    refreshModel: true,
+                    replace: true
+                  }
+                },
+
+                model(params) {
+                  indexModelCount++;
+
+                  if (indexModelCount === 1) {
+                    assert.deepEqual(params, {
+                      omg: 'lol'
+                    }, 'params are correct on first pass');
+                  } else if (indexModelCount === 2) {
+                    assert.deepEqual(params, {
+                      omg: 'lex'
+                    }, 'params are correct on second pass');
+                  }
+                }
+
+              }));
+
+              _context9.next = 9;
+              return _this9.visitAndAssert('/');
+
+            case 9:
+              assert.equal(appModelCount, 1, 'app model hook ran');
+              assert.equal(indexModelCount, 1, 'index model hook ran');
+              indexController = _this9.getController('index');
+              _this9.expectedReplaceURL = '/?omg=lex';
+              _context9.next = 15;
+              return _this9.setAndFlush(indexController, 'omg', 'lex');
+
+            case 15:
+              assert.equal(appModelCount, 1, 'app model hook did not run again');
+              assert.equal(indexModelCount, 2, 'index model hook ran again due to refreshModel');
+
+            case 17:
+            case "end":
+              return _context9.stop();
           }
-        },
-
-        model(params) {
-          indexModelCount++;
-
-          if (indexModelCount === 1) {
-            assert.deepEqual(params, {
-              omg: 'lol'
-            }, 'params are correct on first pass');
-          } else if (indexModelCount === 2) {
-            assert.deepEqual(params, {
-              omg: 'lex'
-            }, 'params are correct on second pass');
-          }
-        }
-
-      }));
-      return this.visitAndAssert('/').then(() => {
-        assert.equal(appModelCount, 1, 'app model hook ran');
-        assert.equal(indexModelCount, 1, 'index model hook ran');
-        let indexController = this.getController('index');
-        this.expectedReplaceURL = '/?omg=lex';
-        this.setAndFlush(indexController, 'omg', 'lex');
-        assert.equal(appModelCount, 1, 'app model hook did not run again');
-        assert.equal(indexModelCount, 2, 'index model hook ran again due to refreshModel');
-      });
+        }, _callee9);
+      }))();
     }
 
     ['@test multiple QP value changes only cause a single model refresh'](assert) {
-      assert.expect(2);
-      this.setSingleQPController('index', 'alex', 'lol');
-      this.setSingleQPController('index', 'steely', 'lel');
-      let refreshCount = 0;
-      this.add('route:index', _routing.Route.extend({
-        queryParams: {
-          alex: {
-            refreshModel: true
-          },
-          steely: {
-            refreshModel: true
+      var _this10 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee10() {
+        var refreshCount, indexController;
+        return regeneratorRuntime.wrap(function _callee10$(_context10) {
+          while (1) switch (_context10.prev = _context10.next) {
+            case 0:
+              assert.expect(2);
+
+              _this10.setSingleQPController('index', 'alex', 'lol');
+
+              _this10.setSingleQPController('index', 'steely', 'lel');
+
+              refreshCount = 0;
+
+              _this10.add('route:index', _routing.Route.extend({
+                queryParams: {
+                  alex: {
+                    refreshModel: true
+                  },
+                  steely: {
+                    refreshModel: true
+                  }
+                },
+
+                refresh() {
+                  refreshCount++;
+                }
+
+              }));
+
+              _context10.next = 7;
+              return _this10.visitAndAssert('/');
+
+            case 7:
+              indexController = _this10.getController('index');
+              _context10.next = 10;
+              return _this10.setAndFlush(indexController, {
+                alex: 'fran',
+                steely: 'david'
+              });
+
+            case 10:
+              assert.equal(refreshCount, 1, 'index refresh hook only run once');
+
+            case 11:
+            case "end":
+              return _context10.stop();
           }
-        },
-
-        refresh() {
-          refreshCount++;
-        }
-
-      }));
-      return this.visitAndAssert('/').then(() => {
-        let indexController = this.getController('index');
-        (0, _runloop.run)(indexController, 'setProperties', {
-          alex: 'fran',
-          steely: 'david'
-        });
-        assert.equal(refreshCount, 1, 'index refresh hook only run once');
-      });
+        }, _callee10);
+      }))();
     }
 
     ['@test refreshModel does not cause a second transition during app boot '](assert) {
@@ -74911,189 +79738,349 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ['@test queryParams are updated when a controller property is set and the route is refreshed. Issue #13263  '](assert) {
-      this.addTemplate('application', '<button id="test-button" {{action \'increment\'}}>Increment</button><span id="test-value">{{foo}}</span>{{outlet}}');
-      this.setSingleQPController('application', 'foo', 1, {
-        actions: {
-          increment() {
-            this.incrementProperty('foo');
-            this.send('refreshRoute');
-          }
+      var _this11 = this;
 
-        }
-      });
-      this.add('route:application', _routing.Route.extend({
-        actions: {
-          refreshRoute() {
-            this.refresh();
-          }
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee11() {
+        return regeneratorRuntime.wrap(function _callee11$(_context11) {
+          while (1) switch (_context11.prev = _context11.next) {
+            case 0:
+              _this11.addTemplate('application', '<button id="test-button" {{action \'increment\'}}>Increment</button><span id="test-value">{{foo}}</span>{{outlet}}');
 
-        }
-      }));
-      return this.visitAndAssert('/').then(() => {
-        assert.equal((0, _internalTestHelpers.getTextOf)(document.getElementById('test-value')), '1');
-        (0, _runloop.run)(document.getElementById('test-button'), 'click');
-        assert.equal((0, _internalTestHelpers.getTextOf)(document.getElementById('test-value')), '2');
-        this.assertCurrentPath('/?foo=2');
-        (0, _runloop.run)(document.getElementById('test-button'), 'click');
-        assert.equal((0, _internalTestHelpers.getTextOf)(document.getElementById('test-value')), '3');
-        this.assertCurrentPath('/?foo=3');
-      });
+              _this11.setSingleQPController('application', 'foo', 1, {
+                actions: {
+                  increment() {
+                    this.incrementProperty('foo');
+                    this.send('refreshRoute');
+                  }
+
+                }
+              });
+
+              _this11.add('route:application', _routing.Route.extend({
+                actions: {
+                  refreshRoute() {
+                    this.refresh();
+                  }
+
+                }
+              }));
+
+              _context11.next = 5;
+              return _this11.visitAndAssert('/');
+
+            case 5:
+              assert.equal((0, _internalTestHelpers.getTextOf)(document.getElementById('test-value')), '1');
+              document.getElementById('test-button').click();
+              _context11.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              assert.equal((0, _internalTestHelpers.getTextOf)(document.getElementById('test-value')), '2');
+
+              _this11.assertCurrentPath('/?foo=2');
+
+              document.getElementById('test-button').click();
+              _context11.next = 14;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 14:
+              assert.equal((0, _internalTestHelpers.getTextOf)(document.getElementById('test-value')), '3');
+
+              _this11.assertCurrentPath('/?foo=3');
+
+            case 16:
+            case "end":
+              return _context11.stop();
+          }
+        }, _callee11, this);
+      }))();
     }
 
     ["@test Use Ember.get to retrieve query params 'refreshModel' configuration"](assert) {
-      assert.expect(7);
-      this.setSingleQPController('application', 'appomg', 'applol');
-      this.setSingleQPController('index', 'omg', 'lol');
-      let appModelCount = 0;
-      this.add('route:application', _routing.Route.extend({
-        model()
-        /* params */
-        {
-          appModelCount++;
-        }
+      var _this12 = this;
 
-      }));
-      let indexModelCount = 0;
-      this.add('route:index', _routing.Route.extend({
-        queryParams: _runtime.Object.create({
-          unknownProperty() {
-            return {
-              refreshModel: true
-            };
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee12() {
+        var appModelCount, indexModelCount, indexController;
+        return regeneratorRuntime.wrap(function _callee12$(_context12) {
+          while (1) switch (_context12.prev = _context12.next) {
+            case 0:
+              assert.expect(7);
+
+              _this12.setSingleQPController('application', 'appomg', 'applol');
+
+              _this12.setSingleQPController('index', 'omg', 'lol');
+
+              appModelCount = 0;
+
+              _this12.add('route:application', _routing.Route.extend({
+                model()
+                /* params */
+                {
+                  appModelCount++;
+                }
+
+              }));
+
+              indexModelCount = 0;
+              _context12.t0 = _this12;
+              _context12.t1 = _routing.Route;
+              _context12.t2 = _runtime.Object;
+              _context12.t3 = {
+                unknownProperty() {
+                  return {
+                    refreshModel: true
+                  };
+                }
+
+              };
+              _context12.t4 = _context12.t2.create.call(_context12.t2, _context12.t3);
+              _context12.t5 = {
+                queryParams: _context12.t4,
+
+                model(params) {
+                  indexModelCount++;
+
+                  if (indexModelCount === 1) {
+                    assert.deepEqual(params, {
+                      omg: 'lol'
+                    });
+                  } else if (indexModelCount === 2) {
+                    assert.deepEqual(params, {
+                      omg: 'lex'
+                    });
+                  }
+                }
+
+              };
+              _context12.t6 = _context12.t1.extend.call(_context12.t1, _context12.t5);
+
+              _context12.t0.add.call(_context12.t0, 'route:index', _context12.t6);
+
+              _context12.next = 16;
+              return _this12.visitAndAssert('/');
+
+            case 16:
+              assert.equal(appModelCount, 1);
+              assert.equal(indexModelCount, 1);
+              indexController = _this12.getController('index');
+              _context12.next = 21;
+              return _this12.setAndFlush(indexController, 'omg', 'lex');
+
+            case 21:
+              assert.equal(appModelCount, 1);
+              assert.equal(indexModelCount, 2);
+
+            case 23:
+            case "end":
+              return _context12.stop();
           }
-
-        }),
-
-        model(params) {
-          indexModelCount++;
-
-          if (indexModelCount === 1) {
-            assert.deepEqual(params, {
-              omg: 'lol'
-            });
-          } else if (indexModelCount === 2) {
-            assert.deepEqual(params, {
-              omg: 'lex'
-            });
-          }
-        }
-
-      }));
-      return this.visitAndAssert('/').then(() => {
-        assert.equal(appModelCount, 1);
-        assert.equal(indexModelCount, 1);
-        let indexController = this.getController('index');
-        this.setAndFlush(indexController, 'omg', 'lex');
-        assert.equal(appModelCount, 1);
-        assert.equal(indexModelCount, 2);
-      });
+        }, _callee12);
+      }))();
     }
 
     ['@test can use refreshModel even with URL changes that remove QPs from address bar'](assert) {
-      assert.expect(4);
-      this.setSingleQPController('index', 'omg', 'lol');
-      let indexModelCount = 0;
-      this.add('route:index', _routing.Route.extend({
-        queryParams: {
-          omg: {
-            refreshModel: true
+      var _this13 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee13() {
+        var indexModelCount, data, indexController;
+        return regeneratorRuntime.wrap(function _callee13$(_context13) {
+          while (1) switch (_context13.prev = _context13.next) {
+            case 0:
+              assert.expect(4);
+
+              _this13.setSingleQPController('index', 'omg', 'lol');
+
+              indexModelCount = 0;
+
+              _this13.add('route:index', _routing.Route.extend({
+                queryParams: {
+                  omg: {
+                    refreshModel: true
+                  }
+                },
+
+                model(params) {
+                  indexModelCount++;
+
+                  if (indexModelCount === 1) {
+                    data = 'foo';
+                  } else if (indexModelCount === 2) {
+                    data = 'lol';
+                  }
+
+                  assert.deepEqual(params, {
+                    omg: data
+                  }, 'index#model receives right data');
+                }
+
+              }));
+
+              _context13.next = 6;
+              return _this13.visitAndAssert('/?omg=foo');
+
+            case 6:
+              _context13.next = 8;
+              return _this13.transitionTo('/');
+
+            case 8:
+              indexController = _this13.getController('index');
+              assert.equal(indexController.get('omg'), 'lol');
+
+            case 10:
+            case "end":
+              return _context13.stop();
           }
-        },
-
-        model(params) {
-          indexModelCount++;
-          let data;
-
-          if (indexModelCount === 1) {
-            data = 'foo';
-          } else if (indexModelCount === 2) {
-            data = 'lol';
-          }
-
-          assert.deepEqual(params, {
-            omg: data
-          }, 'index#model receives right data');
-        }
-
-      }));
-      return this.visitAndAssert('/?omg=foo').then(() => {
-        this.transitionTo('/');
-        let indexController = this.getController('index');
-        assert.equal(indexController.get('omg'), 'lol');
-      });
+        }, _callee13);
+      }))();
     }
 
     ['@test can opt into a replace query by specifying replace:true in the Route config hash'](assert) {
-      assert.expect(2);
-      this.setSingleQPController('application', 'alex', 'matchneer');
-      this.add('route:application', _routing.Route.extend({
-        queryParams: {
-          alex: {
-            replace: true
+      var _this14 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee14() {
+        var appController;
+        return regeneratorRuntime.wrap(function _callee14$(_context14) {
+          while (1) switch (_context14.prev = _context14.next) {
+            case 0:
+              assert.expect(2);
+
+              _this14.setSingleQPController('application', 'alex', 'matchneer');
+
+              _this14.add('route:application', _routing.Route.extend({
+                queryParams: {
+                  alex: {
+                    replace: true
+                  }
+                }
+              }));
+
+              _context14.next = 5;
+              return _this14.visitAndAssert('/');
+
+            case 5:
+              appController = _this14.getController('application');
+              _this14.expectedReplaceURL = '/?alex=wallace';
+              _context14.next = 9;
+              return _this14.setAndFlush(appController, 'alex', 'wallace');
+
+            case 9:
+            case "end":
+              return _context14.stop();
           }
-        }
-      }));
-      return this.visitAndAssert('/').then(() => {
-        let appController = this.getController('application');
-        this.expectedReplaceURL = '/?alex=wallace';
-        this.setAndFlush(appController, 'alex', 'wallace');
-      });
+        }, _callee14);
+      }))();
     }
 
     ['@test Route query params config can be configured using property name instead of URL key'](assert) {
-      assert.expect(2);
-      this.add('controller:application', _controller.default.extend({
-        queryParams: [{
-          commitBy: 'commit_by'
-        }]
-      }));
-      this.add('route:application', _routing.Route.extend({
-        queryParams: {
-          commitBy: {
-            replace: true
+      var _this15 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee15() {
+        var appController;
+        return regeneratorRuntime.wrap(function _callee15$(_context15) {
+          while (1) switch (_context15.prev = _context15.next) {
+            case 0:
+              assert.expect(2);
+
+              _this15.add('controller:application', _controller.default.extend({
+                queryParams: [{
+                  commitBy: 'commit_by'
+                }]
+              }));
+
+              _this15.add('route:application', _routing.Route.extend({
+                queryParams: {
+                  commitBy: {
+                    replace: true
+                  }
+                }
+              }));
+
+              _context15.next = 5;
+              return _this15.visitAndAssert('/');
+
+            case 5:
+              appController = _this15.getController('application');
+              _this15.expectedReplaceURL = '/?commit_by=igor_seb';
+              _context15.next = 9;
+              return _this15.setAndFlush(appController, 'commitBy', 'igor_seb');
+
+            case 9:
+            case "end":
+              return _context15.stop();
           }
-        }
-      }));
-      return this.visitAndAssert('/').then(() => {
-        let appController = this.getController('application');
-        this.expectedReplaceURL = '/?commit_by=igor_seb';
-        this.setAndFlush(appController, 'commitBy', 'igor_seb');
-      });
+        }, _callee15);
+      }))();
     }
 
     ['@test An explicit replace:false on a changed QP always wins and causes a pushState'](assert) {
-      assert.expect(3);
-      this.add('controller:application', _controller.default.extend({
-        queryParams: ['alex', 'steely'],
-        alex: 'matchneer',
-        steely: 'dan'
-      }));
-      this.add('route:application', _routing.Route.extend({
-        queryParams: {
-          alex: {
-            replace: true
-          },
-          steely: {
-            replace: false
+      var _this16 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee16() {
+        var appController;
+        return regeneratorRuntime.wrap(function _callee16$(_context16) {
+          while (1) switch (_context16.prev = _context16.next) {
+            case 0:
+              assert.expect(3);
+
+              _this16.add('controller:application', _controller.default.extend({
+                queryParams: ['alex', 'steely'],
+                alex: 'matchneer',
+                steely: 'dan'
+              }));
+
+              _this16.add('route:application', _routing.Route.extend({
+                queryParams: {
+                  alex: {
+                    replace: true
+                  },
+                  steely: {
+                    replace: false
+                  }
+                }
+              }));
+
+              _context16.next = 5;
+              return _this16.visit('/');
+
+            case 5:
+              appController = _this16.getController('application');
+              _this16.expectedPushURL = '/?alex=wallace&steely=jan';
+              _context16.next = 9;
+              return _this16.setAndFlush(appController, {
+                alex: 'wallace',
+                steely: 'jan'
+              });
+
+            case 9:
+              _this16.expectedPushURL = '/?alex=wallace&steely=fran';
+              _context16.next = 12;
+              return _this16.setAndFlush(appController, {
+                steely: 'fran'
+              });
+
+            case 12:
+              _this16.expectedReplaceURL = '/?alex=sriracha&steely=fran';
+              _context16.next = 15;
+              return _this16.setAndFlush(appController, 'alex', 'sriracha');
+
+            case 15:
+            case "end":
+              return _context16.stop();
           }
-        }
-      }));
-      return this.visit('/').then(() => {
-        let appController = this.getController('application');
-        this.expectedPushURL = '/?alex=wallace&steely=jan';
-        (0, _runloop.run)(appController, 'setProperties', {
-          alex: 'wallace',
-          steely: 'jan'
-        });
-        this.expectedPushURL = '/?alex=wallace&steely=fran';
-        (0, _runloop.run)(appController, 'setProperties', {
-          steely: 'fran'
-        });
-        this.expectedReplaceURL = '/?alex=sriracha&steely=fran';
-        (0, _runloop.run)(appController, 'setProperties', {
-          alex: 'sriracha'
-        });
-      });
+        }, _callee16);
+      }))();
     }
 
     ['@test can opt into full transition by setting refreshModel in route queryParams when transitioning from child to parent'](assert) {
@@ -75125,76 +80112,154 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ["@test Use Ember.get to retrieve query params 'replace' configuration"](assert) {
-      assert.expect(2);
-      this.setSingleQPController('application', 'alex', 'matchneer');
-      this.add('route:application', _routing.Route.extend({
-        queryParams: _runtime.Object.create({
-          unknownProperty()
-          /* keyName */
-          {
-            // We are simulating all qps requiring refresh
-            return {
-              replace: true
-            };
-          }
+      var _this17 = this;
 
-        })
-      }));
-      return this.visitAndAssert('/').then(() => {
-        let appController = this.getController('application');
-        this.expectedReplaceURL = '/?alex=wallace';
-        this.setAndFlush(appController, 'alex', 'wallace');
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee17() {
+        var appController;
+        return regeneratorRuntime.wrap(function _callee17$(_context17) {
+          while (1) switch (_context17.prev = _context17.next) {
+            case 0:
+              assert.expect(2);
+
+              _this17.setSingleQPController('application', 'alex', 'matchneer');
+
+              _context17.t0 = _this17;
+              _context17.t1 = _routing.Route;
+              _context17.t2 = _runtime.Object;
+              _context17.t3 = {
+                unknownProperty()
+                /* keyName */
+                {
+                  // We are simulating all qps requiring refresh
+                  return {
+                    replace: true
+                  };
+                }
+
+              };
+              _context17.t4 = _context17.t2.create.call(_context17.t2, _context17.t3);
+              _context17.t5 = {
+                queryParams: _context17.t4
+              };
+              _context17.t6 = _context17.t1.extend.call(_context17.t1, _context17.t5);
+
+              _context17.t0.add.call(_context17.t0, 'route:application', _context17.t6);
+
+              _context17.next = 12;
+              return _this17.visitAndAssert('/');
+
+            case 12:
+              appController = _this17.getController('application');
+              _this17.expectedReplaceURL = '/?alex=wallace';
+              _context17.next = 16;
+              return _this17.setAndFlush(appController, 'alex', 'wallace');
+
+            case 16:
+            case "end":
+              return _context17.stop();
+          }
+        }, _callee17);
+      }))();
     }
 
     ['@test can override incoming QP values in setupController'](assert) {
-      assert.expect(3);
-      this.router.map(function () {
-        this.route('about');
-      });
-      this.setSingleQPController('index', 'omg', 'lol');
-      this.add('route:index', _routing.Route.extend({
-        setupController(controller) {
-          assert.ok(true, 'setupController called');
-          controller.set('omg', 'OVERRIDE');
-        },
+      var _this18 = this;
 
-        actions: {
-          queryParamsDidChange() {
-            assert.ok(false, "queryParamsDidChange shouldn't fire");
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee18() {
+        return regeneratorRuntime.wrap(function _callee18$(_context18) {
+          while (1) switch (_context18.prev = _context18.next) {
+            case 0:
+              assert.expect(3);
+
+              _this18.router.map(function () {
+                this.route('about');
+              });
+
+              _this18.setSingleQPController('index', 'omg', 'lol');
+
+              _this18.add('route:index', _routing.Route.extend({
+                setupController(controller) {
+                  assert.ok(true, 'setupController called');
+                  controller.set('omg', 'OVERRIDE');
+                },
+
+                actions: {
+                  queryParamsDidChange() {
+                    assert.ok(false, "queryParamsDidChange shouldn't fire");
+                  }
+
+                }
+              }));
+
+              _context18.next = 6;
+              return _this18.visitAndAssert('/about');
+
+            case 6:
+              _context18.next = 8;
+              return _this18.transitionTo('index');
+
+            case 8:
+              _this18.assertCurrentPath('/?omg=OVERRIDE');
+
+            case 9:
+            case "end":
+              return _context18.stop();
           }
-
-        }
-      }));
-      return this.visitAndAssert('/about').then(() => {
-        this.transitionTo('index');
-        this.assertCurrentPath('/?omg=OVERRIDE');
-      });
+        }, _callee18);
+      }))();
     }
 
     ['@test can override incoming QP array values in setupController'](assert) {
-      assert.expect(3);
-      this.router.map(function () {
-        this.route('about');
-      });
-      this.setSingleQPController('index', 'omg', ['lol']);
-      this.add('route:index', _routing.Route.extend({
-        setupController(controller) {
-          assert.ok(true, 'setupController called');
-          controller.set('omg', ['OVERRIDE']);
-        },
+      var _this19 = this;
 
-        actions: {
-          queryParamsDidChange() {
-            assert.ok(false, "queryParamsDidChange shouldn't fire");
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee19() {
+        return regeneratorRuntime.wrap(function _callee19$(_context19) {
+          while (1) switch (_context19.prev = _context19.next) {
+            case 0:
+              assert.expect(3);
+
+              _this19.router.map(function () {
+                this.route('about');
+              });
+
+              _this19.setSingleQPController('index', 'omg', ['lol']);
+
+              _this19.add('route:index', _routing.Route.extend({
+                setupController(controller) {
+                  assert.ok(true, 'setupController called');
+                  controller.set('omg', ['OVERRIDE']);
+                },
+
+                actions: {
+                  queryParamsDidChange() {
+                    assert.ok(false, "queryParamsDidChange shouldn't fire");
+                  }
+
+                }
+              }));
+
+              _context19.next = 6;
+              return _this19.visitAndAssert('/about');
+
+            case 6:
+              _context19.next = 8;
+              return _this19.transitionTo('index');
+
+            case 8:
+              _this19.assertCurrentPath('/?omg=' + encodeURIComponent(JSON.stringify(['OVERRIDE'])));
+
+            case 9:
+            case "end":
+              return _context19.stop();
           }
-
-        }
-      }));
-      return this.visitAndAssert('/about').then(() => {
-        this.transitionTo('index');
-        this.assertCurrentPath('/?omg=' + encodeURIComponent(JSON.stringify(['OVERRIDE'])));
-      });
+        }, _callee19);
+      }))();
     }
 
     ['@test URL transitions that remove QPs still register as QP changes'](assert) {
@@ -75231,93 +80296,201 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ['@test transitionTo supports query params']() {
-      this.setSingleQPController('index', 'foo', 'lol');
-      return this.visitAndAssert('/').then(() => {
-        this.transitionTo({
-          queryParams: {
-            foo: 'borf'
+      var _this20 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee20() {
+        return regeneratorRuntime.wrap(function _callee20$(_context20) {
+          while (1) switch (_context20.prev = _context20.next) {
+            case 0:
+              _this20.setSingleQPController('index', 'foo', 'lol');
+
+              _context20.next = 3;
+              return _this20.visitAndAssert('/');
+
+            case 3:
+              _context20.next = 5;
+              return _this20.transitionTo({
+                queryParams: {
+                  foo: 'borf'
+                }
+              });
+
+            case 5:
+              _this20.assertCurrentPath('/?foo=borf', 'shorthand supported');
+
+              _context20.next = 8;
+              return _this20.transitionTo({
+                queryParams: {
+                  'index:foo': 'blaf'
+                }
+              });
+
+            case 8:
+              _this20.assertCurrentPath('/?foo=blaf', 'longform supported');
+
+              _context20.next = 11;
+              return _this20.transitionTo({
+                queryParams: {
+                  'index:foo': false
+                }
+              });
+
+            case 11:
+              _this20.assertCurrentPath('/?foo=false', 'longform supported (bool)');
+
+              _context20.next = 14;
+              return _this20.transitionTo({
+                queryParams: {
+                  foo: false
+                }
+              });
+
+            case 14:
+              _this20.assertCurrentPath('/?foo=false', 'shorhand supported (bool)');
+
+            case 15:
+            case "end":
+              return _context20.stop();
           }
-        });
-        this.assertCurrentPath('/?foo=borf', 'shorthand supported');
-        this.transitionTo({
-          queryParams: {
-            'index:foo': 'blaf'
-          }
-        });
-        this.assertCurrentPath('/?foo=blaf', 'longform supported');
-        this.transitionTo({
-          queryParams: {
-            'index:foo': false
-          }
-        });
-        this.assertCurrentPath('/?foo=false', 'longform supported (bool)');
-        this.transitionTo({
-          queryParams: {
-            foo: false
-          }
-        });
-        this.assertCurrentPath('/?foo=false', 'shorhand supported (bool)');
-      });
+        }, _callee20);
+      }))();
     }
 
     ['@test transitionTo supports query params (multiple)']() {
-      this.add('controller:index', _controller.default.extend({
-        queryParams: ['foo', 'bar'],
-        foo: 'lol',
-        bar: 'wat'
-      }));
-      return this.visitAndAssert('/').then(() => {
-        this.transitionTo({
-          queryParams: {
-            foo: 'borf'
+      var _this21 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee21() {
+        return regeneratorRuntime.wrap(function _callee21$(_context21) {
+          while (1) switch (_context21.prev = _context21.next) {
+            case 0:
+              _this21.add('controller:index', _controller.default.extend({
+                queryParams: ['foo', 'bar'],
+                foo: 'lol',
+                bar: 'wat'
+              }));
+
+              _context21.next = 3;
+              return _this21.visitAndAssert('/');
+
+            case 3:
+              _context21.next = 5;
+              return _this21.transitionTo({
+                queryParams: {
+                  foo: 'borf'
+                }
+              });
+
+            case 5:
+              _this21.assertCurrentPath('/?foo=borf', 'shorthand supported');
+
+              _context21.next = 8;
+              return _this21.transitionTo({
+                queryParams: {
+                  'index:foo': 'blaf'
+                }
+              });
+
+            case 8:
+              _this21.assertCurrentPath('/?foo=blaf', 'longform supported');
+
+              _context21.next = 11;
+              return _this21.transitionTo({
+                queryParams: {
+                  'index:foo': false
+                }
+              });
+
+            case 11:
+              _this21.assertCurrentPath('/?foo=false', 'longform supported (bool)');
+
+              _context21.next = 14;
+              return _this21.transitionTo({
+                queryParams: {
+                  foo: false
+                }
+              });
+
+            case 14:
+              _this21.assertCurrentPath('/?foo=false', 'shorhand supported (bool)');
+
+            case 15:
+            case "end":
+              return _context21.stop();
           }
-        });
-        this.assertCurrentPath('/?foo=borf', 'shorthand supported');
-        this.transitionTo({
-          queryParams: {
-            'index:foo': 'blaf'
-          }
-        });
-        this.assertCurrentPath('/?foo=blaf', 'longform supported');
-        this.transitionTo({
-          queryParams: {
-            'index:foo': false
-          }
-        });
-        this.assertCurrentPath('/?foo=false', 'longform supported (bool)');
-        this.transitionTo({
-          queryParams: {
-            foo: false
-          }
-        });
-        this.assertCurrentPath('/?foo=false', 'shorhand supported (bool)');
-      });
+        }, _callee21);
+      }))();
     }
 
     ["@test setting controller QP to empty string doesn't generate null in URL"](assert) {
-      assert.expect(1);
-      this.setSingleQPController('index', 'foo', '123');
-      return this.visit('/').then(() => {
-        let controller = this.getController('index');
-        this.expectedPushURL = '/?foo=';
-        this.setAndFlush(controller, 'foo', '');
-      });
+      var _this22 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee22() {
+        var controller;
+        return regeneratorRuntime.wrap(function _callee22$(_context22) {
+          while (1) switch (_context22.prev = _context22.next) {
+            case 0:
+              assert.expect(1);
+
+              _this22.setSingleQPController('index', 'foo', '123');
+
+              _context22.next = 4;
+              return _this22.visit('/');
+
+            case 4:
+              controller = _this22.getController('index');
+              _this22.expectedPushURL = '/?foo=';
+              _context22.next = 8;
+              return _this22.setAndFlush(controller, 'foo', '');
+
+            case 8:
+            case "end":
+              return _context22.stop();
+          }
+        }, _callee22);
+      }))();
     }
 
     ["@test setting QP to empty string doesn't generate null in URL"](assert) {
-      assert.expect(1);
-      this.add('route:index', _routing.Route.extend({
-        queryParams: {
-          foo: {
-            defaultValue: '123'
+      var _this23 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee23() {
+        var controller;
+        return regeneratorRuntime.wrap(function _callee23$(_context23) {
+          while (1) switch (_context23.prev = _context23.next) {
+            case 0:
+              assert.expect(1);
+
+              _this23.add('route:index', _routing.Route.extend({
+                queryParams: {
+                  foo: {
+                    defaultValue: '123'
+                  }
+                }
+              }));
+
+              _context23.next = 4;
+              return _this23.visit('/');
+
+            case 4:
+              controller = _this23.getController('index');
+              _this23.expectedPushURL = '/?foo=';
+              _context23.next = 8;
+              return _this23.setAndFlush(controller, 'foo', '');
+
+            case 8:
+            case "end":
+              return _context23.stop();
           }
-        }
-      }));
-      return this.visit('/').then(() => {
-        let controller = this.getController('index');
-        this.expectedPushURL = '/?foo=';
-        this.setAndFlush(controller, 'foo', '');
-      });
+        }, _callee23);
+      }))();
     }
 
     ['@test A default boolean value deserializes QPs as booleans rather than strings'](assert) {
@@ -75350,45 +80523,103 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ['@test Array query params can be set'](assert) {
-      assert.expect(2);
-      this.router.map(function () {
-        this.route('home', {
-          path: '/'
-        });
-      });
-      this.setSingleQPController('home', 'foo', []);
-      return this.visit('/').then(() => {
-        let controller = this.getController('home');
-        this.setAndFlush(controller, 'foo', [1, 2]);
-        this.assertCurrentPath('/?foo=%5B1%2C2%5D');
-        this.setAndFlush(controller, 'foo', [3, 4]);
-        this.assertCurrentPath('/?foo=%5B3%2C4%5D');
-      });
+      var _this24 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee24() {
+        var controller;
+        return regeneratorRuntime.wrap(function _callee24$(_context24) {
+          while (1) switch (_context24.prev = _context24.next) {
+            case 0:
+              assert.expect(2);
+
+              _this24.router.map(function () {
+                this.route('home', {
+                  path: '/'
+                });
+              });
+
+              _this24.setSingleQPController('home', 'foo', []);
+
+              _context24.next = 5;
+              return _this24.visit('/');
+
+            case 5:
+              controller = _this24.getController('home');
+              _context24.next = 8;
+              return _this24.setAndFlush(controller, 'foo', [1, 2]);
+
+            case 8:
+              _this24.assertCurrentPath('/?foo=%5B1%2C2%5D');
+
+              _context24.next = 11;
+              return _this24.setAndFlush(controller, 'foo', [3, 4]);
+
+            case 11:
+              _this24.assertCurrentPath('/?foo=%5B3%2C4%5D');
+
+            case 12:
+            case "end":
+              return _context24.stop();
+          }
+        }, _callee24);
+      }))();
     }
 
     ['@test (de)serialization: arrays'](assert) {
-      assert.expect(4);
-      this.setSingleQPController('index', 'foo', [1]);
-      return this.visitAndAssert('/').then(() => {
-        this.transitionTo({
-          queryParams: {
-            foo: [2, 3]
+      var _this25 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee25() {
+        return regeneratorRuntime.wrap(function _callee25$(_context25) {
+          while (1) switch (_context25.prev = _context25.next) {
+            case 0:
+              assert.expect(4);
+
+              _this25.setSingleQPController('index', 'foo', [1]);
+
+              _context25.next = 4;
+              return _this25.visitAndAssert('/');
+
+            case 4:
+              _context25.next = 6;
+              return _this25.transitionTo({
+                queryParams: {
+                  foo: [2, 3]
+                }
+              });
+
+            case 6:
+              _this25.assertCurrentPath('/?foo=%5B2%2C3%5D', 'shorthand supported');
+
+              _context25.next = 9;
+              return _this25.transitionTo({
+                queryParams: {
+                  'index:foo': [4, 5]
+                }
+              });
+
+            case 9:
+              _this25.assertCurrentPath('/?foo=%5B4%2C5%5D', 'longform supported');
+
+              _context25.next = 12;
+              return _this25.transitionTo({
+                queryParams: {
+                  foo: []
+                }
+              });
+
+            case 12:
+              _this25.assertCurrentPath('/?foo=%5B%5D', 'longform supported');
+
+            case 13:
+            case "end":
+              return _context25.stop();
           }
-        });
-        this.assertCurrentPath('/?foo=%5B2%2C3%5D', 'shorthand supported');
-        this.transitionTo({
-          queryParams: {
-            'index:foo': [4, 5]
-          }
-        });
-        this.assertCurrentPath('/?foo=%5B4%2C5%5D', 'longform supported');
-        this.transitionTo({
-          queryParams: {
-            foo: []
-          }
-        });
-        this.assertCurrentPath('/?foo=%5B%5D', 'longform supported');
-      });
+        }, _callee25);
+      }))();
     }
 
     ['@test Url with array query param sets controller property to array'](assert) {
@@ -75401,64 +80632,152 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ['@test Array query params can be pushed/popped'](assert) {
-      assert.expect(17);
-      this.router.map(function () {
-        this.route('home', {
-          path: '/'
-        });
-      });
-      this.setSingleQPController('home', 'foo', (0, _runtime.A)());
-      return this.visitAndAssert('/').then(() => {
-        let controller = this.getController('home');
-        (0, _runloop.run)(controller.foo, 'pushObject', 1);
-        this.assertCurrentPath('/?foo=%5B1%5D');
-        assert.deepEqual(controller.foo, [1]);
-        (0, _runloop.run)(controller.foo, 'popObject');
-        this.assertCurrentPath('/');
-        assert.deepEqual(controller.foo, []);
-        (0, _runloop.run)(controller.foo, 'pushObject', 1);
-        this.assertCurrentPath('/?foo=%5B1%5D');
-        assert.deepEqual(controller.foo, [1]);
-        (0, _runloop.run)(controller.foo, 'popObject');
-        this.assertCurrentPath('/');
-        assert.deepEqual(controller.foo, []);
-        (0, _runloop.run)(controller.foo, 'pushObject', 1);
-        this.assertCurrentPath('/?foo=%5B1%5D');
-        assert.deepEqual(controller.foo, [1]);
-        (0, _runloop.run)(controller.foo, 'pushObject', 2);
-        this.assertCurrentPath('/?foo=%5B1%2C2%5D');
-        assert.deepEqual(controller.foo, [1, 2]);
-        (0, _runloop.run)(controller.foo, 'popObject');
-        this.assertCurrentPath('/?foo=%5B1%5D');
-        assert.deepEqual(controller.foo, [1]);
-        (0, _runloop.run)(controller.foo, 'unshiftObject', 'lol');
-        this.assertCurrentPath('/?foo=%5B%22lol%22%2C1%5D');
-        assert.deepEqual(controller.foo, ['lol', 1]);
-      });
+      var _this26 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee26() {
+        var controller;
+        return regeneratorRuntime.wrap(function _callee26$(_context26) {
+          while (1) switch (_context26.prev = _context26.next) {
+            case 0:
+              assert.expect(17);
+
+              _this26.router.map(function () {
+                this.route('home', {
+                  path: '/'
+                });
+              });
+
+              _this26.setSingleQPController('home', 'foo', (0, _runtime.A)());
+
+              _context26.next = 5;
+              return _this26.visitAndAssert('/');
+
+            case 5:
+              controller = _this26.getController('home');
+              controller.foo.pushObject(1);
+              _context26.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this26.assertCurrentPath('/?foo=%5B1%5D');
+
+              assert.deepEqual(controller.foo, [1]);
+              controller.foo.popObject();
+              _context26.next = 14;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 14:
+              _this26.assertCurrentPath('/');
+
+              assert.deepEqual(controller.foo, []);
+              controller.foo.pushObject(1);
+              _context26.next = 19;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 19:
+              _this26.assertCurrentPath('/?foo=%5B1%5D');
+
+              assert.deepEqual(controller.foo, [1]);
+              controller.foo.popObject();
+              _context26.next = 24;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 24:
+              _this26.assertCurrentPath('/');
+
+              assert.deepEqual(controller.foo, []);
+              controller.foo.pushObject(1);
+              _context26.next = 29;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 29:
+              _this26.assertCurrentPath('/?foo=%5B1%5D');
+
+              assert.deepEqual(controller.foo, [1]);
+              controller.foo.pushObject(2);
+              _context26.next = 34;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 34:
+              _this26.assertCurrentPath('/?foo=%5B1%2C2%5D');
+
+              assert.deepEqual(controller.foo, [1, 2]);
+              controller.foo.popObject();
+              _context26.next = 39;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 39:
+              _this26.assertCurrentPath('/?foo=%5B1%5D');
+
+              assert.deepEqual(controller.foo, [1]);
+              controller.foo.unshiftObject('lol');
+              _context26.next = 44;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 44:
+              _this26.assertCurrentPath('/?foo=%5B%22lol%22%2C1%5D');
+
+              assert.deepEqual(controller.foo, ['lol', 1]);
+
+            case 46:
+            case "end":
+              return _context26.stop();
+          }
+        }, _callee26);
+      }))();
     }
 
     ["@test Overwriting with array with same content shouldn't refire update"](assert) {
-      assert.expect(4);
-      this.router.map(function () {
-        this.route('home', {
-          path: '/'
-        });
-      });
-      let modelCount = 0;
-      this.add('route:home', _routing.Route.extend({
-        model() {
-          modelCount++;
-        }
+      var _this27 = this;
 
-      }));
-      this.setSingleQPController('home', 'foo', (0, _runtime.A)([1]));
-      return this.visitAndAssert('/').then(() => {
-        assert.equal(modelCount, 1);
-        let controller = this.getController('home');
-        this.setAndFlush(controller, 'model', (0, _runtime.A)([1]));
-        assert.equal(modelCount, 1);
-        this.assertCurrentPath('/');
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee27() {
+        var modelCount, controller;
+        return regeneratorRuntime.wrap(function _callee27$(_context27) {
+          while (1) switch (_context27.prev = _context27.next) {
+            case 0:
+              assert.expect(4);
+
+              _this27.router.map(function () {
+                this.route('home', {
+                  path: '/'
+                });
+              });
+
+              modelCount = 0;
+
+              _this27.add('route:home', _routing.Route.extend({
+                model() {
+                  modelCount++;
+                }
+
+              }));
+
+              _this27.setSingleQPController('home', 'foo', (0, _runtime.A)([1]));
+
+              _context27.next = 7;
+              return _this27.visitAndAssert('/');
+
+            case 7:
+              assert.equal(modelCount, 1);
+              controller = _this27.getController('home');
+              _context27.next = 11;
+              return _this27.setAndFlush(controller, 'model', (0, _runtime.A)([1]));
+
+            case 11:
+              assert.equal(modelCount, 1);
+
+              _this27.assertCurrentPath('/');
+
+            case 13:
+            case "end":
+              return _context27.stop();
+          }
+        }, _callee27);
+      }))();
     }
 
     ['@test Defaulting to params hash as the model should not result in that params object being watched'](assert) {
@@ -75484,28 +80803,70 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ['@test Setting bound query param property to null or undefined does not serialize to url'](assert) {
-      assert.expect(9);
-      this.router.map(function () {
-        this.route('home');
-      });
-      this.setSingleQPController('home', 'foo', [1, 2]);
-      return this.visitAndAssert('/home').then(() => {
-        var controller = this.getController('home');
-        assert.deepEqual(controller.get('foo'), [1, 2]);
-        this.assertCurrentPath('/home');
-        this.setAndFlush(controller, 'foo', (0, _runtime.A)([1, 3]));
-        this.assertCurrentPath('/home?foo=%5B1%2C3%5D');
-        return this.transitionTo('/home').then(() => {
-          assert.deepEqual(controller.get('foo'), [1, 2]);
-          this.assertCurrentPath('/home');
-          this.setAndFlush(controller, 'foo', null);
-          this.assertCurrentPath('/home', 'Setting property to null');
-          this.setAndFlush(controller, 'foo', (0, _runtime.A)([1, 3]));
-          this.assertCurrentPath('/home?foo=%5B1%2C3%5D');
-          this.setAndFlush(controller, 'foo', undefined);
-          this.assertCurrentPath('/home', 'Setting property to undefined');
-        });
-      });
+      var _this28 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee28() {
+        var controller;
+        return regeneratorRuntime.wrap(function _callee28$(_context28) {
+          while (1) switch (_context28.prev = _context28.next) {
+            case 0:
+              assert.expect(9);
+
+              _this28.router.map(function () {
+                this.route('home');
+              });
+
+              _this28.setSingleQPController('home', 'foo', [1, 2]);
+
+              _context28.next = 5;
+              return _this28.visitAndAssert('/home');
+
+            case 5:
+              controller = _this28.getController('home');
+              assert.deepEqual(controller.get('foo'), [1, 2]);
+
+              _this28.assertCurrentPath('/home');
+
+              _context28.next = 10;
+              return _this28.setAndFlush(controller, 'foo', (0, _runtime.A)([1, 3]));
+
+            case 10:
+              _this28.assertCurrentPath('/home?foo=%5B1%2C3%5D');
+
+              _context28.next = 13;
+              return _this28.transitionTo('/home');
+
+            case 13:
+              assert.deepEqual(controller.get('foo'), [1, 2]);
+
+              _this28.assertCurrentPath('/home');
+
+              _context28.next = 17;
+              return _this28.setAndFlush(controller, 'foo', null);
+
+            case 17:
+              _this28.assertCurrentPath('/home', 'Setting property to null');
+
+              _context28.next = 20;
+              return _this28.setAndFlush(controller, 'foo', (0, _runtime.A)([1, 3]));
+
+            case 20:
+              _this28.assertCurrentPath('/home?foo=%5B1%2C3%5D');
+
+              _context28.next = 23;
+              return _this28.setAndFlush(controller, 'foo', undefined);
+
+            case 23:
+              _this28.assertCurrentPath('/home', 'Setting property to undefined');
+
+            case 24:
+            case "end":
+              return _context28.stop();
+          }
+        }, _callee28);
+      }))();
     }
 
     ['@test {{link-to}} with null or undefined QPs does not get serialized into url'](assert) {
@@ -75551,33 +80912,59 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ['@test opting into replace does not affect transitions between routes'](assert) {
-      assert.expect(5);
-      this.addTemplate('application', "{{link-to 'Foo' 'foo' id='foo-link'}}{{link-to 'Bar' 'bar' id='bar-no-qp-link'}}{{link-to 'Bar' 'bar' (query-params raytiley='isthebest') id='bar-link'}}{{outlet}}");
-      this.router.map(function () {
-        this.route('foo');
-        this.route('bar');
-      });
-      this.setSingleQPController('bar', 'raytiley', 'israd');
-      this.add('route:bar', _routing.Route.extend({
-        queryParams: {
-          raytiley: {
-            replace: true
+      var _this29 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee29() {
+        var controller;
+        return regeneratorRuntime.wrap(function _callee29$(_context29) {
+          while (1) switch (_context29.prev = _context29.next) {
+            case 0:
+              assert.expect(5);
+
+              _this29.addTemplate('application', "{{link-to 'Foo' 'foo' id='foo-link'}}{{link-to 'Bar' 'bar' id='bar-no-qp-link'}}{{link-to 'Bar' 'bar' (query-params raytiley='isthebest') id='bar-link'}}{{outlet}}");
+
+              _this29.router.map(function () {
+                this.route('foo');
+                this.route('bar');
+              });
+
+              _this29.setSingleQPController('bar', 'raytiley', 'israd');
+
+              _this29.add('route:bar', _routing.Route.extend({
+                queryParams: {
+                  raytiley: {
+                    replace: true
+                  }
+                }
+              }));
+
+              _context29.next = 7;
+              return _this29.visit('/');
+
+            case 7:
+              controller = _this29.getController('bar');
+              _this29.expectedPushURL = '/foo';
+              (0, _runloop.run)(document.getElementById('foo-link'), 'click');
+              _this29.expectedPushURL = '/bar';
+              (0, _runloop.run)(document.getElementById('bar-no-qp-link'), 'click');
+              _this29.expectedReplaceURL = '/bar?raytiley=woot';
+              _context29.next = 15;
+              return _this29.setAndFlush(controller, 'raytiley', 'woot');
+
+            case 15:
+              _this29.expectedPushURL = '/foo';
+              (0, _runloop.run)(document.getElementById('foo-link'), 'click');
+              _this29.expectedPushURL = '/bar?raytiley=isthebest';
+              (0, _runloop.run)(document.getElementById('bar-link'), 'click');
+
+            case 19:
+            case "end":
+              return _context29.stop();
           }
-        }
-      }));
-      return this.visit('/').then(() => {
-        let controller = this.getController('bar');
-        this.expectedPushURL = '/foo';
-        (0, _runloop.run)(document.getElementById('foo-link'), 'click');
-        this.expectedPushURL = '/bar';
-        (0, _runloop.run)(document.getElementById('bar-no-qp-link'), 'click');
-        this.expectedReplaceURL = '/bar?raytiley=woot';
-        this.setAndFlush(controller, 'raytiley', 'woot');
-        this.expectedPushURL = '/foo';
-        (0, _runloop.run)(document.getElementById('foo-link'), 'click');
-        this.expectedPushURL = '/bar?raytiley=isthebest';
-        (0, _runloop.run)(document.getElementById('bar-link'), 'click');
-      });
+        }, _callee29);
+      }))();
     }
 
     ["@test undefined isn't serialized or deserialized into a string"](assert) {
@@ -75622,17 +81009,17 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
     }
 
     ["@test warn user that Route's queryParams configuration must be an Object, not an Array"](assert) {
-      var _this2 = this;
+      var _this30 = this;
 
       return _asyncToGenerator(
       /*#__PURE__*/
-      regeneratorRuntime.mark(function _callee2() {
-        return regeneratorRuntime.wrap(function _callee2$(_context2) {
-          while (1) switch (_context2.prev = _context2.next) {
+      regeneratorRuntime.mark(function _callee30() {
+        return regeneratorRuntime.wrap(function _callee30$(_context30) {
+          while (1) switch (_context30.prev = _context30.next) {
             case 0:
               assert.expect(1);
 
-              _this2.add('route:application', _routing.Route.extend({
+              _this30.add('route:application', _routing.Route.extend({
                 queryParams: [{
                   commitBy: {
                     replace: true
@@ -75640,44 +81027,104 @@ enifed("ember/tests/routing/query_params_test", ["@ember/controller", "@ember/st
                 }]
               }));
 
-              _context2.next = 4;
-              return assert.rejectsAssertion(_this2.visit('/'), 'You passed in `[{"commitBy":{"replace":true}}]` as the value for `queryParams` but `queryParams` cannot be an Array');
+              _context30.next = 4;
+              return assert.rejectsAssertion(_this30.visit('/'), 'You passed in `[{"commitBy":{"replace":true}}]` as the value for `queryParams` but `queryParams` cannot be an Array');
 
             case 4:
             case "end":
-              return _context2.stop();
+              return _context30.stop();
           }
-        }, _callee2);
+        }, _callee30);
       }))();
     }
 
     ['@test handle route names that clash with Object.prototype properties'](assert) {
-      assert.expect(1);
-      this.router.map(function () {
-        this.route('constructor');
-      });
-      this.add('route:constructor', _routing.Route.extend({
-        queryParams: {
-          foo: {
-            defaultValue: '123'
+      var _this31 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee31() {
+        var controller;
+        return regeneratorRuntime.wrap(function _callee31$(_context31) {
+          while (1) switch (_context31.prev = _context31.next) {
+            case 0:
+              assert.expect(1);
+
+              _this31.router.map(function () {
+                this.route('constructor');
+              });
+
+              _this31.add('route:constructor', _routing.Route.extend({
+                queryParams: {
+                  foo: {
+                    defaultValue: '123'
+                  }
+                }
+              }));
+
+              _context31.next = 5;
+              return _this31.visit('/');
+
+            case 5:
+              _context31.next = 7;
+              return _this31.transitionTo('constructor', {
+                queryParams: {
+                  foo: '999'
+                }
+              });
+
+            case 7:
+              controller = _this31.getController('constructor');
+              assert.equal((0, _metal.get)(controller, 'foo'), '999');
+
+            case 9:
+            case "end":
+              return _context31.stop();
           }
-        }
-      }));
-      return this.visit('/').then(() => {
-        this.transitionTo('constructor', {
-          queryParams: {
-            foo: '999'
-          }
-        });
-        let controller = this.getController('constructor');
-        assert.equal((0, _metal.get)(controller, 'foo'), '999');
-      });
+        }, _callee31);
+      }))();
     }
 
   });
 });
-enifed("ember/tests/routing/query_params_test/model_dependent_state_with_query_params_test", ["@ember/controller", "@ember/-internals/runtime", "@ember/-internals/routing", "@ember/runloop", "@ember/-internals/metal", "internal-test-helpers"], function (_controller, _runtime, _routing, _runloop, _metal, _internalTestHelpers) {
+enifed("ember/tests/routing/query_params_test/model_dependent_state_with_query_params_test", ["@ember/controller", "@ember/-internals/runtime", "@ember/-internals/routing", "@ember/-internals/metal", "internal-test-helpers"], function (_controller, _runtime, _routing, _metal, _internalTestHelpers) {
   "use strict";
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   class ModelDependentQPTestCase extends _internalTestHelpers.QueryParamTestCase {
     boot() {
@@ -75699,250 +81146,465 @@ enifed("ember/tests/routing/query_params_test/model_dependent_state_with_query_p
     }
 
     queryParamsStickyTest1(urlPrefix) {
-      let assert = this.assert;
-      assert.expect(14);
-      return this.boot().then(() => {
-        (0, _runloop.run)(this.$link1, 'click');
-        this.assertCurrentPath(urlPrefix + "/a-1");
-        this.setAndFlush(this.controller, 'q', 'lol');
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3");
-        (0, _runloop.run)(this.$link2, 'click');
-        assert.equal(this.controller.get('q'), 'wat');
-        assert.equal(this.controller.get('z'), 0);
-        assert.deepEqual(this.controller.get('model'), {
-          id: 'a-2'
-        });
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3");
-      });
+      var _this = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var assert;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              assert = _this.assert;
+              assert.expect(14);
+              _context.next = 4;
+              return _this.boot();
+
+            case 4:
+              _this.$link1.click();
+
+              _context.next = 7;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 7:
+              _this.assertCurrentPath(urlPrefix + "/a-1");
+
+              _context.next = 10;
+              return _this.setAndFlush(_this.controller, 'q', 'lol');
+
+            case 10:
+              assert.equal(_this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
+              assert.equal(_this.$link2.getAttribute('href'), urlPrefix + "/a-2");
+              assert.equal(_this.$link3.getAttribute('href'), urlPrefix + "/a-3");
+
+              _this.$link2.click();
+
+              _context.next = 16;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 16:
+              assert.equal(_this.controller.get('q'), 'wat');
+              assert.equal(_this.controller.get('z'), 0);
+              assert.deepEqual(_this.controller.get('model'), {
+                id: 'a-2'
+              });
+              assert.equal(_this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
+              assert.equal(_this.$link2.getAttribute('href'), urlPrefix + "/a-2");
+              assert.equal(_this.$link3.getAttribute('href'), urlPrefix + "/a-3");
+
+            case 22:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     queryParamsStickyTest2(urlPrefix) {
-      let assert = this.assert;
-      assert.expect(24);
-      return this.boot().then(() => {
-        this.expectedModelHookParams = {
-          id: 'a-1',
-          q: 'lol',
-          z: 0
-        };
-        this.transitionTo(urlPrefix + "/a-1?q=lol");
-        assert.deepEqual(this.controller.get('model'), {
-          id: 'a-1'
-        });
-        assert.equal(this.controller.get('q'), 'lol');
-        assert.equal(this.controller.get('z'), 0);
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3");
-        this.expectedModelHookParams = {
-          id: 'a-2',
-          q: 'lol',
-          z: 0
-        };
-        this.transitionTo(urlPrefix + "/a-2?q=lol");
-        assert.deepEqual(this.controller.get('model'), {
-          id: 'a-2'
-        }, "controller's model changed to a-2");
-        assert.equal(this.controller.get('q'), 'lol');
-        assert.equal(this.controller.get('z'), 0);
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3");
-        this.expectedModelHookParams = {
-          id: 'a-3',
-          q: 'lol',
-          z: 123
-        };
-        this.transitionTo(urlPrefix + "/a-3?q=lol&z=123");
-        assert.equal(this.controller.get('q'), 'lol');
-        assert.equal(this.controller.get('z'), 123);
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3?q=lol&z=123");
-      });
+      var _this2 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var assert;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              assert = _this2.assert;
+              assert.expect(24);
+              _context2.next = 4;
+              return _this2.boot();
+
+            case 4:
+              _this2.expectedModelHookParams = {
+                id: 'a-1',
+                q: 'lol',
+                z: 0
+              };
+              _context2.next = 7;
+              return _this2.transitionTo(urlPrefix + "/a-1?q=lol");
+
+            case 7:
+              assert.deepEqual(_this2.controller.get('model'), {
+                id: 'a-1'
+              });
+              assert.equal(_this2.controller.get('q'), 'lol');
+              assert.equal(_this2.controller.get('z'), 0);
+              assert.equal(_this2.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
+              assert.equal(_this2.$link2.getAttribute('href'), urlPrefix + "/a-2");
+              assert.equal(_this2.$link3.getAttribute('href'), urlPrefix + "/a-3");
+              _this2.expectedModelHookParams = {
+                id: 'a-2',
+                q: 'lol',
+                z: 0
+              };
+              _context2.next = 16;
+              return _this2.transitionTo(urlPrefix + "/a-2?q=lol");
+
+            case 16:
+              assert.deepEqual(_this2.controller.get('model'), {
+                id: 'a-2'
+              }, "controller's model changed to a-2");
+              assert.equal(_this2.controller.get('q'), 'lol');
+              assert.equal(_this2.controller.get('z'), 0);
+              assert.equal(_this2.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
+              assert.equal(_this2.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
+              assert.equal(_this2.$link3.getAttribute('href'), urlPrefix + "/a-3");
+              _this2.expectedModelHookParams = {
+                id: 'a-3',
+                q: 'lol',
+                z: 123
+              };
+              _context2.next = 25;
+              return _this2.transitionTo(urlPrefix + "/a-3?q=lol&z=123");
+
+            case 25:
+              assert.equal(_this2.controller.get('q'), 'lol');
+              assert.equal(_this2.controller.get('z'), 123);
+              assert.equal(_this2.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
+              assert.equal(_this2.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
+              assert.equal(_this2.$link3.getAttribute('href'), urlPrefix + "/a-3?q=lol&z=123");
+
+            case 30:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
     }
 
     queryParamsStickyTest3(urlPrefix, articleLookup) {
-      let assert = this.assert;
-      assert.expect(32);
-      this.addTemplate('application', "{{#each articles as |a|}} {{link-to 'Article' '" + articleLookup + "' a.id id=a.id}} {{/each}}");
-      return this.boot().then(() => {
-        this.expectedModelHookParams = {
-          id: 'a-1',
-          q: 'wat',
-          z: 0
-        };
-        this.transitionTo(articleLookup, 'a-1');
-        assert.deepEqual(this.controller.get('model'), {
-          id: 'a-1'
-        });
-        assert.equal(this.controller.get('q'), 'wat');
-        assert.equal(this.controller.get('z'), 0);
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3");
-        this.expectedModelHookParams = {
-          id: 'a-2',
-          q: 'lol',
-          z: 0
-        };
-        this.transitionTo(articleLookup, 'a-2', {
-          queryParams: {
-            q: 'lol'
+      var _this3 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        var assert;
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              assert = _this3.assert;
+              assert.expect(32);
+
+              _this3.addTemplate('application', "{{#each articles as |a|}} {{link-to 'Article' '" + articleLookup + "' a.id id=a.id}} {{/each}}");
+
+              _context3.next = 5;
+              return _this3.boot();
+
+            case 5:
+              _this3.expectedModelHookParams = {
+                id: 'a-1',
+                q: 'wat',
+                z: 0
+              };
+              _context3.next = 8;
+              return _this3.transitionTo(articleLookup, 'a-1');
+
+            case 8:
+              assert.deepEqual(_this3.controller.get('model'), {
+                id: 'a-1'
+              });
+              assert.equal(_this3.controller.get('q'), 'wat');
+              assert.equal(_this3.controller.get('z'), 0);
+              assert.equal(_this3.$link1.getAttribute('href'), urlPrefix + "/a-1");
+              assert.equal(_this3.$link2.getAttribute('href'), urlPrefix + "/a-2");
+              assert.equal(_this3.$link3.getAttribute('href'), urlPrefix + "/a-3");
+              _this3.expectedModelHookParams = {
+                id: 'a-2',
+                q: 'lol',
+                z: 0
+              };
+              _context3.next = 17;
+              return _this3.transitionTo(articleLookup, 'a-2', {
+                queryParams: {
+                  q: 'lol'
+                }
+              });
+
+            case 17:
+              assert.deepEqual(_this3.controller.get('model'), {
+                id: 'a-2'
+              });
+              assert.equal(_this3.controller.get('q'), 'lol');
+              assert.equal(_this3.controller.get('z'), 0);
+              assert.equal(_this3.$link1.getAttribute('href'), urlPrefix + "/a-1");
+              assert.equal(_this3.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
+              assert.equal(_this3.$link3.getAttribute('href'), urlPrefix + "/a-3");
+              _this3.expectedModelHookParams = {
+                id: 'a-3',
+                q: 'hay',
+                z: 0
+              };
+              _context3.next = 26;
+              return _this3.transitionTo(articleLookup, 'a-3', {
+                queryParams: {
+                  q: 'hay'
+                }
+              });
+
+            case 26:
+              assert.deepEqual(_this3.controller.get('model'), {
+                id: 'a-3'
+              });
+              assert.equal(_this3.controller.get('q'), 'hay');
+              assert.equal(_this3.controller.get('z'), 0);
+              assert.equal(_this3.$link1.getAttribute('href'), urlPrefix + "/a-1");
+              assert.equal(_this3.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
+              assert.equal(_this3.$link3.getAttribute('href'), urlPrefix + "/a-3?q=hay");
+              _this3.expectedModelHookParams = {
+                id: 'a-2',
+                q: 'lol',
+                z: 1
+              };
+              _context3.next = 35;
+              return _this3.transitionTo(articleLookup, 'a-2', {
+                queryParams: {
+                  z: 1
+                }
+              });
+
+            case 35:
+              assert.deepEqual(_this3.controller.get('model'), {
+                id: 'a-2'
+              });
+              assert.equal(_this3.controller.get('q'), 'lol');
+              assert.equal(_this3.controller.get('z'), 1);
+              assert.equal(_this3.$link1.getAttribute('href'), urlPrefix + "/a-1");
+              assert.equal(_this3.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol&z=1");
+              assert.equal(_this3.$link3.getAttribute('href'), urlPrefix + "/a-3?q=hay");
+
+            case 41:
+            case "end":
+              return _context3.stop();
           }
-        });
-        assert.deepEqual(this.controller.get('model'), {
-          id: 'a-2'
-        });
-        assert.equal(this.controller.get('q'), 'lol');
-        assert.equal(this.controller.get('z'), 0);
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3");
-        this.expectedModelHookParams = {
-          id: 'a-3',
-          q: 'hay',
-          z: 0
-        };
-        this.transitionTo(articleLookup, 'a-3', {
-          queryParams: {
-            q: 'hay'
-          }
-        });
-        assert.deepEqual(this.controller.get('model'), {
-          id: 'a-3'
-        });
-        assert.equal(this.controller.get('q'), 'hay');
-        assert.equal(this.controller.get('z'), 0);
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3?q=hay");
-        this.expectedModelHookParams = {
-          id: 'a-2',
-          q: 'lol',
-          z: 1
-        };
-        this.transitionTo(articleLookup, 'a-2', {
-          queryParams: {
-            z: 1
-          }
-        });
-        assert.deepEqual(this.controller.get('model'), {
-          id: 'a-2'
-        });
-        assert.equal(this.controller.get('q'), 'lol');
-        assert.equal(this.controller.get('z'), 1);
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol&z=1");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3?q=hay");
-      });
+        }, _callee3);
+      }))();
     }
 
     queryParamsStickyTest4(urlPrefix, articleLookup) {
-      let assert = this.assert;
-      assert.expect(24);
-      this.setupApplication();
-      this.reopenController(articleLookup, {
-        queryParams: {
-          q: {
-            scope: 'controller'
+      var _this4 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        var assert;
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              assert = _this4.assert;
+              assert.expect(24);
+
+              _this4.setupApplication();
+
+              _this4.reopenController(articleLookup, {
+                queryParams: {
+                  q: {
+                    scope: 'controller'
+                  }
+                }
+              });
+
+              _context4.next = 6;
+              return _this4.visitApplication();
+
+            case 6:
+              _this4.$link1.click();
+
+              _context4.next = 9;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 9:
+              _this4.assertCurrentPath(urlPrefix + "/a-1");
+
+              _context4.next = 12;
+              return _this4.setAndFlush(_this4.controller, 'q', 'lol');
+
+            case 12:
+              assert.equal(_this4.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
+              assert.equal(_this4.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
+              assert.equal(_this4.$link3.getAttribute('href'), urlPrefix + "/a-3?q=lol");
+
+              _this4.$link2.click();
+
+              _context4.next = 18;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 18:
+              assert.equal(_this4.controller.get('q'), 'lol');
+              assert.equal(_this4.controller.get('z'), 0);
+              assert.deepEqual(_this4.controller.get('model'), {
+                id: 'a-2'
+              });
+              assert.equal(_this4.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
+              assert.equal(_this4.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
+              assert.equal(_this4.$link3.getAttribute('href'), urlPrefix + "/a-3?q=lol");
+              _this4.expectedModelHookParams = {
+                id: 'a-3',
+                q: 'haha',
+                z: 123
+              };
+              _context4.next = 27;
+              return _this4.transitionTo(urlPrefix + "/a-3?q=haha&z=123");
+
+            case 27:
+              assert.deepEqual(_this4.controller.get('model'), {
+                id: 'a-3'
+              });
+              assert.equal(_this4.controller.get('q'), 'haha');
+              assert.equal(_this4.controller.get('z'), 123);
+              assert.equal(_this4.$link1.getAttribute('href'), urlPrefix + "/a-1?q=haha");
+              assert.equal(_this4.$link2.getAttribute('href'), urlPrefix + "/a-2?q=haha");
+              assert.equal(_this4.$link3.getAttribute('href'), urlPrefix + "/a-3?q=haha&z=123");
+              _context4.next = 35;
+              return _this4.setAndFlush(_this4.controller, 'q', 'woot');
+
+            case 35:
+              assert.equal(_this4.$link1.getAttribute('href'), urlPrefix + "/a-1?q=woot");
+              assert.equal(_this4.$link2.getAttribute('href'), urlPrefix + "/a-2?q=woot");
+              assert.equal(_this4.$link3.getAttribute('href'), urlPrefix + "/a-3?q=woot&z=123");
+
+            case 38:
+            case "end":
+              return _context4.stop();
           }
-        }
-      });
-      return this.visitApplication().then(() => {
-        (0, _runloop.run)(this.$link1, 'click');
-        this.assertCurrentPath(urlPrefix + "/a-1");
-        this.setAndFlush(this.controller, 'q', 'lol');
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3?q=lol");
-        (0, _runloop.run)(this.$link2, 'click');
-        assert.equal(this.controller.get('q'), 'lol');
-        assert.equal(this.controller.get('z'), 0);
-        assert.deepEqual(this.controller.get('model'), {
-          id: 'a-2'
-        });
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=lol");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2?q=lol");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3?q=lol");
-        this.expectedModelHookParams = {
-          id: 'a-3',
-          q: 'haha',
-          z: 123
-        };
-        this.transitionTo(urlPrefix + "/a-3?q=haha&z=123");
-        assert.deepEqual(this.controller.get('model'), {
-          id: 'a-3'
-        });
-        assert.equal(this.controller.get('q'), 'haha');
-        assert.equal(this.controller.get('z'), 123);
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=haha");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2?q=haha");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3?q=haha&z=123");
-        this.setAndFlush(this.controller, 'q', 'woot');
-        assert.equal(this.$link1.getAttribute('href'), urlPrefix + "/a-1?q=woot");
-        assert.equal(this.$link2.getAttribute('href'), urlPrefix + "/a-2?q=woot");
-        assert.equal(this.$link3.getAttribute('href'), urlPrefix + "/a-3?q=woot&z=123");
-      });
+        }, _callee4);
+      }))();
     }
 
     queryParamsStickyTest5(urlPrefix, commentsLookupKey) {
-      let assert = this.assert;
-      assert.expect(12);
-      return this.boot().then(() => {
-        this.transitionTo(commentsLookupKey, 'a-1');
-        let commentsCtrl = this.getController(commentsLookupKey);
-        assert.equal(commentsCtrl.get('page'), 1);
-        this.assertCurrentPath(urlPrefix + "/a-1/comments");
-        this.setAndFlush(commentsCtrl, 'page', 2);
-        this.assertCurrentPath(urlPrefix + "/a-1/comments?page=2");
-        this.setAndFlush(commentsCtrl, 'page', 3);
-        this.assertCurrentPath(urlPrefix + "/a-1/comments?page=3");
-        this.transitionTo(commentsLookupKey, 'a-2');
-        assert.equal(commentsCtrl.get('page'), 1);
-        this.assertCurrentPath(urlPrefix + "/a-2/comments");
-        this.transitionTo(commentsLookupKey, 'a-1');
-        assert.equal(commentsCtrl.get('page'), 3);
-        this.assertCurrentPath(urlPrefix + "/a-1/comments?page=3");
-      });
+      var _this5 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var assert, commentsCtrl;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              assert = _this5.assert;
+              assert.expect(12);
+              _context5.next = 4;
+              return _this5.boot();
+
+            case 4:
+              _context5.next = 6;
+              return _this5.transitionTo(commentsLookupKey, 'a-1');
+
+            case 6:
+              commentsCtrl = _this5.getController(commentsLookupKey);
+              assert.equal(commentsCtrl.get('page'), 1);
+
+              _this5.assertCurrentPath(urlPrefix + "/a-1/comments");
+
+              _context5.next = 11;
+              return _this5.setAndFlush(commentsCtrl, 'page', 2);
+
+            case 11:
+              _this5.assertCurrentPath(urlPrefix + "/a-1/comments?page=2");
+
+              _context5.next = 14;
+              return _this5.setAndFlush(commentsCtrl, 'page', 3);
+
+            case 14:
+              _this5.assertCurrentPath(urlPrefix + "/a-1/comments?page=3");
+
+              _context5.next = 17;
+              return _this5.transitionTo(commentsLookupKey, 'a-2');
+
+            case 17:
+              assert.equal(commentsCtrl.get('page'), 1);
+
+              _this5.assertCurrentPath(urlPrefix + "/a-2/comments");
+
+              _context5.next = 21;
+              return _this5.transitionTo(commentsLookupKey, 'a-1');
+
+            case 21:
+              assert.equal(commentsCtrl.get('page'), 3);
+
+              _this5.assertCurrentPath(urlPrefix + "/a-1/comments?page=3");
+
+            case 23:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
     }
 
     queryParamsStickyTest6(urlPrefix, articleLookup, commentsLookup) {
-      let assert = this.assert;
-      assert.expect(13);
-      this.setupApplication();
-      this.reopenRoute(articleLookup, {
-        resetController(controller, isExiting) {
-          this.controllerFor(commentsLookup).set('page', 1);
+      var _this6 = this;
 
-          if (isExiting) {
-            controller.set('q', 'imdone');
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        var assert, commentsCtrl;
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              assert = _this6.assert;
+              assert.expect(13);
+
+              _this6.setupApplication();
+
+              _this6.reopenRoute(articleLookup, {
+                resetController(controller, isExiting) {
+                  this.controllerFor(commentsLookup).set('page', 1);
+
+                  if (isExiting) {
+                    controller.set('q', 'imdone');
+                  }
+                }
+
+              });
+
+              _this6.addTemplate('about', "{{link-to 'A' '" + commentsLookup + "' 'a-1' id='one'}} {{link-to 'B' '" + commentsLookup + "' 'a-2' id='two'}}");
+
+              _context6.next = 7;
+              return _this6.visitApplication();
+
+            case 7:
+              _context6.next = 9;
+              return _this6.transitionTo(commentsLookup, 'a-1');
+
+            case 9:
+              commentsCtrl = _this6.getController(commentsLookup);
+              assert.equal(commentsCtrl.get('page'), 1);
+
+              _this6.assertCurrentPath(urlPrefix + "/a-1/comments");
+
+              _context6.next = 14;
+              return _this6.setAndFlush(commentsCtrl, 'page', 2);
+
+            case 14:
+              _this6.assertCurrentPath(urlPrefix + "/a-1/comments?page=2");
+
+              _context6.next = 17;
+              return _this6.transitionTo(commentsLookup, 'a-2');
+
+            case 17:
+              assert.equal(commentsCtrl.get('page'), 1);
+              assert.equal(_this6.controller.get('q'), 'wat');
+              _context6.next = 21;
+              return _this6.transitionTo(commentsLookup, 'a-1');
+
+            case 21:
+              _this6.assertCurrentPath(urlPrefix + "/a-1/comments");
+
+              assert.equal(commentsCtrl.get('page'), 1);
+              _context6.next = 25;
+              return _this6.transitionTo('about');
+
+            case 25:
+              assert.equal(document.getElementById('one').getAttribute('href'), urlPrefix + "/a-1/comments?q=imdone");
+              assert.equal(document.getElementById('two').getAttribute('href'), urlPrefix + "/a-2/comments");
+
+            case 27:
+            case "end":
+              return _context6.stop();
           }
-        }
-
-      });
-      this.addTemplate('about', "{{link-to 'A' '" + commentsLookup + "' 'a-1' id='one'}} {{link-to 'B' '" + commentsLookup + "' 'a-2' id='two'}}");
-      return this.visitApplication().then(() => {
-        this.transitionTo(commentsLookup, 'a-1');
-        let commentsCtrl = this.getController(commentsLookup);
-        assert.equal(commentsCtrl.get('page'), 1);
-        this.assertCurrentPath(urlPrefix + "/a-1/comments");
-        this.setAndFlush(commentsCtrl, 'page', 2);
-        this.assertCurrentPath(urlPrefix + "/a-1/comments?page=2");
-        this.transitionTo(commentsLookup, 'a-2');
-        assert.equal(commentsCtrl.get('page'), 1);
-        assert.equal(this.controller.get('q'), 'wat');
-        this.transitionTo(commentsLookup, 'a-1');
-        this.assertCurrentPath(urlPrefix + "/a-1/comments");
-        assert.equal(commentsCtrl.get('page'), 1);
-        this.transitionTo('about');
-        assert.equal(document.getElementById('one').getAttribute('href'), urlPrefix + "/a-1/comments?q=imdone");
-        assert.equal(document.getElementById('two').getAttribute('href'), urlPrefix + "/a-2/comments");
-      });
+        }, _callee6, this);
+      }))();
     }
 
   }
@@ -76234,453 +81896,565 @@ enifed("ember/tests/routing/query_params_test/model_dependent_state_with_query_p
     }
 
     ["@test query params have 'model' stickiness by default"](assert) {
-      assert.expect(59);
-      return this.boot().then(() => {
-        (0, _runloop.run)(this.links['s-1-a-1'], 'click');
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-1'
-        });
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-1'
-        });
-        this.assertCurrentPath('/site/s-1/a/a-1');
-        this.setAndFlush(this.article_controller, 'q', 'lol');
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?q=lol');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
-        this.setAndFlush(this.site_controller, 'country', 'us');
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?country=us&q=lol');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?country=us');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?country=us');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?q=lol');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
-        (0, _runloop.run)(this.links['s-1-a-2'], 'click');
-        assert.equal(this.site_controller.get('country'), 'us');
-        assert.equal(this.article_controller.get('q'), 'wat');
-        assert.equal(this.article_controller.get('z'), 0);
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-1'
-        });
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-2'
-        });
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?country=us&q=lol');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?country=us');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?country=us');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?q=lol');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
-        (0, _runloop.run)(this.links['s-2-a-2'], 'click');
-        assert.equal(this.site_controller.get('country'), 'au');
-        assert.equal(this.article_controller.get('q'), 'wat');
-        assert.equal(this.article_controller.get('z'), 0);
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-2'
-        });
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-2'
-        });
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?country=us&q=lol');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?country=us');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?country=us');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?q=lol');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
-      });
+      var _this7 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee7() {
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
+          while (1) switch (_context7.prev = _context7.next) {
+            case 0:
+              assert.expect(59);
+              _context7.next = 3;
+              return _this7.boot();
+
+            case 3:
+              _this7.links['s-1-a-1'].click();
+
+              _context7.next = 6;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 6:
+              assert.deepEqual(_this7.site_controller.get('model'), {
+                id: 's-1'
+              });
+              assert.deepEqual(_this7.article_controller.get('model'), {
+                id: 'a-1'
+              });
+
+              _this7.assertCurrentPath('/site/s-1/a/a-1');
+
+              _context7.next = 11;
+              return _this7.setAndFlush(_this7.article_controller, 'q', 'lol');
+
+            case 11:
+              assert.equal(_this7.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
+              assert.equal(_this7.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2');
+              assert.equal(_this7.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
+              assert.equal(_this7.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?q=lol');
+              assert.equal(_this7.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
+              assert.equal(_this7.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
+              assert.equal(_this7.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
+              assert.equal(_this7.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
+              assert.equal(_this7.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
+              _context7.next = 22;
+              return _this7.setAndFlush(_this7.site_controller, 'country', 'us');
+
+            case 22:
+              assert.equal(_this7.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?country=us&q=lol');
+              assert.equal(_this7.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?country=us');
+              assert.equal(_this7.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?country=us');
+              assert.equal(_this7.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?q=lol');
+              assert.equal(_this7.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
+              assert.equal(_this7.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
+              assert.equal(_this7.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
+              assert.equal(_this7.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
+              assert.equal(_this7.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
+
+              _this7.links['s-1-a-2'].click();
+
+              _context7.next = 34;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 34:
+              assert.equal(_this7.site_controller.get('country'), 'us');
+              assert.equal(_this7.article_controller.get('q'), 'wat');
+              assert.equal(_this7.article_controller.get('z'), 0);
+              assert.deepEqual(_this7.site_controller.get('model'), {
+                id: 's-1'
+              });
+              assert.deepEqual(_this7.article_controller.get('model'), {
+                id: 'a-2'
+              });
+              assert.equal(_this7.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?country=us&q=lol');
+              assert.equal(_this7.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?country=us');
+              assert.equal(_this7.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?country=us');
+              assert.equal(_this7.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?q=lol');
+              assert.equal(_this7.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
+              assert.equal(_this7.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
+              assert.equal(_this7.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
+              assert.equal(_this7.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
+              assert.equal(_this7.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
+
+              _this7.links['s-2-a-2'].click();
+
+              _context7.next = 51;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 51:
+              assert.equal(_this7.site_controller.get('country'), 'au');
+              assert.equal(_this7.article_controller.get('q'), 'wat');
+              assert.equal(_this7.article_controller.get('z'), 0);
+              assert.deepEqual(_this7.site_controller.get('model'), {
+                id: 's-2'
+              });
+              assert.deepEqual(_this7.article_controller.get('model'), {
+                id: 'a-2'
+              });
+              assert.equal(_this7.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?country=us&q=lol');
+              assert.equal(_this7.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?country=us');
+              assert.equal(_this7.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?country=us');
+              assert.equal(_this7.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?q=lol');
+              assert.equal(_this7.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
+              assert.equal(_this7.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
+              assert.equal(_this7.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
+              assert.equal(_this7.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
+              assert.equal(_this7.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
+
+            case 65:
+            case "end":
+              return _context7.stop();
+          }
+        }, _callee7);
+      }))();
     }
 
     ["@test query params have 'model' stickiness by default (url changes)"](assert) {
-      assert.expect(88);
-      return this.boot().then(() => {
-        this.expectedSiteModelHookParams = {
-          site_id: 's-1',
-          country: 'au'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-1',
-          q: 'lol',
-          z: 0
-        };
-        this.transitionTo('/site/s-1/a/a-1?q=lol');
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-1'
-        }, "site controller's model is s-1");
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-1'
-        }, "article controller's model is a-1");
-        assert.equal(this.site_controller.get('country'), 'au');
-        assert.equal(this.article_controller.get('q'), 'lol');
-        assert.equal(this.article_controller.get('z'), 0);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?q=lol');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
-        this.expectedSiteModelHookParams = {
-          site_id: 's-2',
-          country: 'us'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-1',
-          q: 'lol',
-          z: 0
-        };
-        this.transitionTo('/site/s-2/a/a-1?country=us&q=lol');
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-2'
-        }, "site controller's model is s-2");
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-1'
-        }, "article controller's model is a-1");
-        assert.equal(this.site_controller.get('country'), 'us');
-        assert.equal(this.article_controller.get('q'), 'lol');
-        assert.equal(this.article_controller.get('z'), 0);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=lol');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
-        this.expectedSiteModelHookParams = {
-          site_id: 's-2',
-          country: 'us'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-2',
-          q: 'lol',
-          z: 0
-        };
-        this.transitionTo('/site/s-2/a/a-2?country=us&q=lol');
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-2'
-        }, "site controller's model is s-2");
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-2'
-        }, "article controller's model is a-2");
-        assert.equal(this.site_controller.get('country'), 'us');
-        assert.equal(this.article_controller.get('q'), 'lol');
-        assert.equal(this.article_controller.get('z'), 0);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=lol');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
-        this.expectedSiteModelHookParams = {
-          site_id: 's-2',
-          country: 'us'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-3',
-          q: 'lol',
-          z: 123
-        };
-        this.transitionTo('/site/s-2/a/a-3?country=us&q=lol&z=123');
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-2'
-        }, "site controller's model is s-2");
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-3'
-        }, "article controller's model is a-3");
-        assert.equal(this.site_controller.get('country'), 'us');
-        assert.equal(this.article_controller.get('q'), 'lol');
-        assert.equal(this.article_controller.get('z'), 123);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=lol&z=123');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=lol');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us&q=lol&z=123');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?q=lol&z=123');
-        this.expectedSiteModelHookParams = {
-          site_id: 's-3',
-          country: 'nz'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-3',
-          q: 'lol',
-          z: 123
-        };
-        this.transitionTo('/site/s-3/a/a-3?country=nz&q=lol&z=123');
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-3'
-        }, "site controller's model is s-3");
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-3'
-        }, "article controller's model is a-3");
-        assert.equal(this.site_controller.get('country'), 'nz');
-        assert.equal(this.article_controller.get('q'), 'lol');
-        assert.equal(this.article_controller.get('z'), 123);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=lol&z=123');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=lol');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us&q=lol&z=123');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?country=nz&q=lol');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?country=nz&q=lol');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?country=nz&q=lol&z=123');
-      });
+      var _this8 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee8() {
+        return regeneratorRuntime.wrap(function _callee8$(_context8) {
+          while (1) switch (_context8.prev = _context8.next) {
+            case 0:
+              assert.expect(88);
+              _context8.next = 3;
+              return _this8.boot();
+
+            case 3:
+              _this8.expectedSiteModelHookParams = {
+                site_id: 's-1',
+                country: 'au'
+              };
+              _this8.expectedArticleModelHookParams = {
+                article_id: 'a-1',
+                q: 'lol',
+                z: 0
+              };
+              _context8.next = 7;
+              return _this8.transitionTo('/site/s-1/a/a-1?q=lol');
+
+            case 7:
+              assert.deepEqual(_this8.site_controller.get('model'), {
+                id: 's-1'
+              }, "site controller's model is s-1");
+              assert.deepEqual(_this8.article_controller.get('model'), {
+                id: 'a-1'
+              }, "article controller's model is a-1");
+              assert.equal(_this8.site_controller.get('country'), 'au');
+              assert.equal(_this8.article_controller.get('q'), 'lol');
+              assert.equal(_this8.article_controller.get('z'), 0);
+              assert.equal(_this8.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
+              assert.equal(_this8.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2');
+              assert.equal(_this8.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
+              assert.equal(_this8.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?q=lol');
+              assert.equal(_this8.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
+              assert.equal(_this8.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
+              assert.equal(_this8.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
+              assert.equal(_this8.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
+              assert.equal(_this8.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
+              _this8.expectedSiteModelHookParams = {
+                site_id: 's-2',
+                country: 'us'
+              };
+              _this8.expectedArticleModelHookParams = {
+                article_id: 'a-1',
+                q: 'lol',
+                z: 0
+              };
+              _context8.next = 25;
+              return _this8.transitionTo('/site/s-2/a/a-1?country=us&q=lol');
+
+            case 25:
+              assert.deepEqual(_this8.site_controller.get('model'), {
+                id: 's-2'
+              }, "site controller's model is s-2");
+              assert.deepEqual(_this8.article_controller.get('model'), {
+                id: 'a-1'
+              }, "article controller's model is a-1");
+              assert.equal(_this8.site_controller.get('country'), 'us');
+              assert.equal(_this8.article_controller.get('q'), 'lol');
+              assert.equal(_this8.article_controller.get('z'), 0);
+              assert.equal(_this8.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
+              assert.equal(_this8.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2');
+              assert.equal(_this8.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
+              assert.equal(_this8.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=lol');
+              assert.equal(_this8.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us');
+              assert.equal(_this8.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us');
+              assert.equal(_this8.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
+              assert.equal(_this8.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
+              assert.equal(_this8.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
+              _this8.expectedSiteModelHookParams = {
+                site_id: 's-2',
+                country: 'us'
+              };
+              _this8.expectedArticleModelHookParams = {
+                article_id: 'a-2',
+                q: 'lol',
+                z: 0
+              };
+              _context8.next = 43;
+              return _this8.transitionTo('/site/s-2/a/a-2?country=us&q=lol');
+
+            case 43:
+              assert.deepEqual(_this8.site_controller.get('model'), {
+                id: 's-2'
+              }, "site controller's model is s-2");
+              assert.deepEqual(_this8.article_controller.get('model'), {
+                id: 'a-2'
+              }, "article controller's model is a-2");
+              assert.equal(_this8.site_controller.get('country'), 'us');
+              assert.equal(_this8.article_controller.get('q'), 'lol');
+              assert.equal(_this8.article_controller.get('z'), 0);
+              assert.equal(_this8.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
+              assert.equal(_this8.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol');
+              assert.equal(_this8.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
+              assert.equal(_this8.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=lol');
+              assert.equal(_this8.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol');
+              assert.equal(_this8.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us');
+              assert.equal(_this8.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
+              assert.equal(_this8.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol');
+              assert.equal(_this8.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
+              _this8.expectedSiteModelHookParams = {
+                site_id: 's-2',
+                country: 'us'
+              };
+              _this8.expectedArticleModelHookParams = {
+                article_id: 'a-3',
+                q: 'lol',
+                z: 123
+              };
+              _context8.next = 61;
+              return _this8.transitionTo('/site/s-2/a/a-3?country=us&q=lol&z=123');
+
+            case 61:
+              assert.deepEqual(_this8.site_controller.get('model'), {
+                id: 's-2'
+              }, "site controller's model is s-2");
+              assert.deepEqual(_this8.article_controller.get('model'), {
+                id: 'a-3'
+              }, "article controller's model is a-3");
+              assert.equal(_this8.site_controller.get('country'), 'us');
+              assert.equal(_this8.article_controller.get('q'), 'lol');
+              assert.equal(_this8.article_controller.get('z'), 123);
+              assert.equal(_this8.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
+              assert.equal(_this8.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol');
+              assert.equal(_this8.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=lol&z=123');
+              assert.equal(_this8.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=lol');
+              assert.equal(_this8.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol');
+              assert.equal(_this8.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us&q=lol&z=123');
+              assert.equal(_this8.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=lol');
+              assert.equal(_this8.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol');
+              assert.equal(_this8.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?q=lol&z=123');
+              _this8.expectedSiteModelHookParams = {
+                site_id: 's-3',
+                country: 'nz'
+              };
+              _this8.expectedArticleModelHookParams = {
+                article_id: 'a-3',
+                q: 'lol',
+                z: 123
+              };
+              _context8.next = 79;
+              return _this8.transitionTo('/site/s-3/a/a-3?country=nz&q=lol&z=123');
+
+            case 79:
+              assert.deepEqual(_this8.site_controller.get('model'), {
+                id: 's-3'
+              }, "site controller's model is s-3");
+              assert.deepEqual(_this8.article_controller.get('model'), {
+                id: 'a-3'
+              }, "article controller's model is a-3");
+              assert.equal(_this8.site_controller.get('country'), 'nz');
+              assert.equal(_this8.article_controller.get('q'), 'lol');
+              assert.equal(_this8.article_controller.get('z'), 123);
+              assert.equal(_this8.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=lol');
+              assert.equal(_this8.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol');
+              assert.equal(_this8.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=lol&z=123');
+              assert.equal(_this8.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=lol');
+              assert.equal(_this8.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol');
+              assert.equal(_this8.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us&q=lol&z=123');
+              assert.equal(_this8.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?country=nz&q=lol');
+              assert.equal(_this8.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?country=nz&q=lol');
+              assert.equal(_this8.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?country=nz&q=lol&z=123');
+
+            case 93:
+            case "end":
+              return _context8.stop();
+          }
+        }, _callee8);
+      }))();
     }
 
     ["@test query params have 'model' stickiness by default (params-based transitions)"](assert) {
-      assert.expect(118);
-      return this.boot().then(() => {
-        this.expectedSiteModelHookParams = {
-          site_id: 's-1',
-          country: 'au'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-1',
-          q: 'wat',
-          z: 0
-        };
-        this.transitionTo('site.article', 's-1', 'a-1');
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-1'
-        });
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-1'
-        });
-        assert.equal(this.site_controller.get('country'), 'au');
-        assert.equal(this.article_controller.get('q'), 'wat');
-        assert.equal(this.article_controller.get('z'), 0);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
-        this.expectedSiteModelHookParams = {
-          site_id: 's-1',
-          country: 'au'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-2',
-          q: 'lol',
-          z: 0
-        };
-        this.transitionTo('site.article', 's-1', 'a-2', {
-          queryParams: {
-            q: 'lol'
+      var _this9 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee9() {
+        return regeneratorRuntime.wrap(function _callee9$(_context9) {
+          while (1) switch (_context9.prev = _context9.next) {
+            case 0:
+              assert.expect(118);
+              _context9.next = 3;
+              return _this9.boot();
+
+            case 3:
+              _this9.expectedSiteModelHookParams = {
+                site_id: 's-1',
+                country: 'au'
+              };
+              _this9.expectedArticleModelHookParams = {
+                article_id: 'a-1',
+                q: 'wat',
+                z: 0
+              };
+              _context9.next = 7;
+              return _this9.transitionTo('site.article', 's-1', 'a-1');
+
+            case 7:
+              assert.deepEqual(_this9.site_controller.get('model'), {
+                id: 's-1'
+              });
+              assert.deepEqual(_this9.article_controller.get('model'), {
+                id: 'a-1'
+              });
+              assert.equal(_this9.site_controller.get('country'), 'au');
+              assert.equal(_this9.article_controller.get('q'), 'wat');
+              assert.equal(_this9.article_controller.get('z'), 0);
+              assert.equal(_this9.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1');
+              assert.equal(_this9.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2');
+              assert.equal(_this9.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
+              assert.equal(_this9.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1');
+              assert.equal(_this9.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2');
+              assert.equal(_this9.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
+              assert.equal(_this9.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1');
+              assert.equal(_this9.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2');
+              assert.equal(_this9.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
+              _this9.expectedSiteModelHookParams = {
+                site_id: 's-1',
+                country: 'au'
+              };
+              _this9.expectedArticleModelHookParams = {
+                article_id: 'a-2',
+                q: 'lol',
+                z: 0
+              };
+              _context9.next = 25;
+              return _this9.transitionTo('site.article', 's-1', 'a-2', {
+                queryParams: {
+                  q: 'lol'
+                }
+              });
+
+            case 25:
+              assert.deepEqual(_this9.site_controller.get('model'), {
+                id: 's-1'
+              });
+              assert.deepEqual(_this9.article_controller.get('model'), {
+                id: 'a-2'
+              });
+              assert.equal(_this9.site_controller.get('country'), 'au');
+              assert.equal(_this9.article_controller.get('q'), 'lol');
+              assert.equal(_this9.article_controller.get('z'), 0);
+              assert.equal(_this9.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1');
+              assert.equal(_this9.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol');
+              assert.equal(_this9.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
+              assert.equal(_this9.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1');
+              assert.equal(_this9.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?q=lol');
+              assert.equal(_this9.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
+              assert.equal(_this9.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1');
+              assert.equal(_this9.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol');
+              assert.equal(_this9.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
+              _this9.expectedSiteModelHookParams = {
+                site_id: 's-1',
+                country: 'au'
+              };
+              _this9.expectedArticleModelHookParams = {
+                article_id: 'a-3',
+                q: 'hay',
+                z: 0
+              };
+              _context9.next = 43;
+              return _this9.transitionTo('site.article', 's-1', 'a-3', {
+                queryParams: {
+                  q: 'hay'
+                }
+              });
+
+            case 43:
+              assert.deepEqual(_this9.site_controller.get('model'), {
+                id: 's-1'
+              });
+              assert.deepEqual(_this9.article_controller.get('model'), {
+                id: 'a-3'
+              });
+              assert.equal(_this9.site_controller.get('country'), 'au');
+              assert.equal(_this9.article_controller.get('q'), 'hay');
+              assert.equal(_this9.article_controller.get('z'), 0);
+              assert.equal(_this9.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1');
+              assert.equal(_this9.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol');
+              assert.equal(_this9.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=hay');
+              assert.equal(_this9.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1');
+              assert.equal(_this9.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?q=lol');
+              assert.equal(_this9.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?q=hay');
+              assert.equal(_this9.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1');
+              assert.equal(_this9.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol');
+              assert.equal(_this9.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?q=hay');
+              _this9.expectedSiteModelHookParams = {
+                site_id: 's-1',
+                country: 'au'
+              };
+              _this9.expectedArticleModelHookParams = {
+                article_id: 'a-2',
+                q: 'lol',
+                z: 1
+              };
+              _context9.next = 61;
+              return _this9.transitionTo('site.article', 's-1', 'a-2', {
+                queryParams: {
+                  z: 1
+                }
+              });
+
+            case 61:
+              assert.deepEqual(_this9.site_controller.get('model'), {
+                id: 's-1'
+              });
+              assert.deepEqual(_this9.article_controller.get('model'), {
+                id: 'a-2'
+              });
+              assert.equal(_this9.site_controller.get('country'), 'au');
+              assert.equal(_this9.article_controller.get('q'), 'lol');
+              assert.equal(_this9.article_controller.get('z'), 1);
+              assert.equal(_this9.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1');
+              assert.equal(_this9.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol&z=1');
+              assert.equal(_this9.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=hay');
+              assert.equal(_this9.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1');
+              assert.equal(_this9.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?q=lol&z=1');
+              assert.equal(_this9.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?q=hay');
+              assert.equal(_this9.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1');
+              assert.equal(_this9.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol&z=1');
+              assert.equal(_this9.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?q=hay');
+              _this9.expectedSiteModelHookParams = {
+                site_id: 's-2',
+                country: 'us'
+              };
+              _this9.expectedArticleModelHookParams = {
+                article_id: 'a-2',
+                q: 'lol',
+                z: 1
+              };
+              _context9.next = 79;
+              return _this9.transitionTo('site.article', 's-2', 'a-2', {
+                queryParams: {
+                  country: 'us'
+                }
+              });
+
+            case 79:
+              assert.deepEqual(_this9.site_controller.get('model'), {
+                id: 's-2'
+              });
+              assert.deepEqual(_this9.article_controller.get('model'), {
+                id: 'a-2'
+              });
+              assert.equal(_this9.site_controller.get('country'), 'us');
+              assert.equal(_this9.article_controller.get('q'), 'lol');
+              assert.equal(_this9.article_controller.get('z'), 1);
+              assert.equal(_this9.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1');
+              assert.equal(_this9.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol&z=1');
+              assert.equal(_this9.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=hay');
+              assert.equal(_this9.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us');
+              assert.equal(_this9.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol&z=1');
+              assert.equal(_this9.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us&q=hay');
+              assert.equal(_this9.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1');
+              assert.equal(_this9.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol&z=1');
+              assert.equal(_this9.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?q=hay');
+              _this9.expectedSiteModelHookParams = {
+                site_id: 's-2',
+                country: 'us'
+              };
+              _this9.expectedArticleModelHookParams = {
+                article_id: 'a-1',
+                q: 'yeah',
+                z: 0
+              };
+              _context9.next = 97;
+              return _this9.transitionTo('site.article', 's-2', 'a-1', {
+                queryParams: {
+                  q: 'yeah'
+                }
+              });
+
+            case 97:
+              assert.deepEqual(_this9.site_controller.get('model'), {
+                id: 's-2'
+              });
+              assert.deepEqual(_this9.article_controller.get('model'), {
+                id: 'a-1'
+              });
+              assert.equal(_this9.site_controller.get('country'), 'us');
+              assert.equal(_this9.article_controller.get('q'), 'yeah');
+              assert.equal(_this9.article_controller.get('z'), 0);
+              assert.equal(_this9.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=yeah');
+              assert.equal(_this9.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol&z=1');
+              assert.equal(_this9.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=hay');
+              assert.equal(_this9.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=yeah');
+              assert.equal(_this9.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol&z=1');
+              assert.equal(_this9.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us&q=hay');
+              assert.equal(_this9.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=yeah');
+              assert.equal(_this9.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol&z=1');
+              assert.equal(_this9.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?q=hay');
+              _this9.expectedSiteModelHookParams = {
+                site_id: 's-3',
+                country: 'nz'
+              };
+              _this9.expectedArticleModelHookParams = {
+                article_id: 'a-3',
+                q: 'hay',
+                z: 3
+              };
+              _context9.next = 115;
+              return _this9.transitionTo('site.article', 's-3', 'a-3', {
+                queryParams: {
+                  country: 'nz',
+                  z: 3
+                }
+              });
+
+            case 115:
+              assert.deepEqual(_this9.site_controller.get('model'), {
+                id: 's-3'
+              });
+              assert.deepEqual(_this9.article_controller.get('model'), {
+                id: 'a-3'
+              });
+              assert.equal(_this9.site_controller.get('country'), 'nz');
+              assert.equal(_this9.article_controller.get('q'), 'hay');
+              assert.equal(_this9.article_controller.get('z'), 3);
+              assert.equal(_this9.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=yeah');
+              assert.equal(_this9.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol&z=1');
+              assert.equal(_this9.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=hay&z=3');
+              assert.equal(_this9.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=yeah');
+              assert.equal(_this9.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol&z=1');
+              assert.equal(_this9.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us&q=hay&z=3');
+              assert.equal(_this9.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?country=nz&q=yeah');
+              assert.equal(_this9.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?country=nz&q=lol&z=1');
+              assert.equal(_this9.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?country=nz&q=hay&z=3');
+
+            case 129:
+            case "end":
+              return _context9.stop();
           }
-        });
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-1'
-        });
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-2'
-        });
-        assert.equal(this.site_controller.get('country'), 'au');
-        assert.equal(this.article_controller.get('q'), 'lol');
-        assert.equal(this.article_controller.get('z'), 0);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?q=lol');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3');
-        this.expectedSiteModelHookParams = {
-          site_id: 's-1',
-          country: 'au'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-3',
-          q: 'hay',
-          z: 0
-        };
-        this.transitionTo('site.article', 's-1', 'a-3', {
-          queryParams: {
-            q: 'hay'
-          }
-        });
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-1'
-        });
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-3'
-        });
-        assert.equal(this.site_controller.get('country'), 'au');
-        assert.equal(this.article_controller.get('q'), 'hay');
-        assert.equal(this.article_controller.get('z'), 0);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=hay');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?q=lol');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?q=hay');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?q=hay');
-        this.expectedSiteModelHookParams = {
-          site_id: 's-1',
-          country: 'au'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-2',
-          q: 'lol',
-          z: 1
-        };
-        this.transitionTo('site.article', 's-1', 'a-2', {
-          queryParams: {
-            z: 1
-          }
-        });
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-1'
-        });
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-2'
-        });
-        assert.equal(this.site_controller.get('country'), 'au');
-        assert.equal(this.article_controller.get('q'), 'lol');
-        assert.equal(this.article_controller.get('z'), 1);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol&z=1');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=hay');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?q=lol&z=1');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?q=hay');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol&z=1');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?q=hay');
-        this.expectedSiteModelHookParams = {
-          site_id: 's-2',
-          country: 'us'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-2',
-          q: 'lol',
-          z: 1
-        };
-        this.transitionTo('site.article', 's-2', 'a-2', {
-          queryParams: {
-            country: 'us'
-          }
-        });
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-2'
-        });
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-2'
-        });
-        assert.equal(this.site_controller.get('country'), 'us');
-        assert.equal(this.article_controller.get('q'), 'lol');
-        assert.equal(this.article_controller.get('z'), 1);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol&z=1');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=hay');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol&z=1');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us&q=hay');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol&z=1');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?q=hay');
-        this.expectedSiteModelHookParams = {
-          site_id: 's-2',
-          country: 'us'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-1',
-          q: 'yeah',
-          z: 0
-        };
-        this.transitionTo('site.article', 's-2', 'a-1', {
-          queryParams: {
-            q: 'yeah'
-          }
-        });
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-2'
-        });
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-1'
-        });
-        assert.equal(this.site_controller.get('country'), 'us');
-        assert.equal(this.article_controller.get('q'), 'yeah');
-        assert.equal(this.article_controller.get('z'), 0);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=yeah');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol&z=1');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=hay');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=yeah');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol&z=1');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us&q=hay');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?q=yeah');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?q=lol&z=1');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?q=hay');
-        this.expectedSiteModelHookParams = {
-          site_id: 's-3',
-          country: 'nz'
-        };
-        this.expectedArticleModelHookParams = {
-          article_id: 'a-3',
-          q: 'hay',
-          z: 3
-        };
-        this.transitionTo('site.article', 's-3', 'a-3', {
-          queryParams: {
-            country: 'nz',
-            z: 3
-          }
-        });
-        assert.deepEqual(this.site_controller.get('model'), {
-          id: 's-3'
-        });
-        assert.deepEqual(this.article_controller.get('model'), {
-          id: 'a-3'
-        });
-        assert.equal(this.site_controller.get('country'), 'nz');
-        assert.equal(this.article_controller.get('q'), 'hay');
-        assert.equal(this.article_controller.get('z'), 3);
-        assert.equal(this.links['s-1-a-1'].getAttribute('href'), '/site/s-1/a/a-1?q=yeah');
-        assert.equal(this.links['s-1-a-2'].getAttribute('href'), '/site/s-1/a/a-2?q=lol&z=1');
-        assert.equal(this.links['s-1-a-3'].getAttribute('href'), '/site/s-1/a/a-3?q=hay&z=3');
-        assert.equal(this.links['s-2-a-1'].getAttribute('href'), '/site/s-2/a/a-1?country=us&q=yeah');
-        assert.equal(this.links['s-2-a-2'].getAttribute('href'), '/site/s-2/a/a-2?country=us&q=lol&z=1');
-        assert.equal(this.links['s-2-a-3'].getAttribute('href'), '/site/s-2/a/a-3?country=us&q=hay&z=3');
-        assert.equal(this.links['s-3-a-1'].getAttribute('href'), '/site/s-3/a/a-1?country=nz&q=yeah');
-        assert.equal(this.links['s-3-a-2'].getAttribute('href'), '/site/s-3/a/a-2?country=nz&q=lol&z=1');
-        assert.equal(this.links['s-3-a-3'].getAttribute('href'), '/site/s-3/a/a-3?country=nz&q=hay&z=3');
-      });
+        }, _callee9);
+      }))();
     }
 
   });
 });
-enifed("ember/tests/routing/query_params_test/overlapping_query_params_test", ["@ember/controller", "@ember/-internals/routing", "@ember/runloop", "@ember/-internals/metal", "internal-test-helpers"], function (_controller, _routing, _runloop, _metal, _internalTestHelpers) {
+enifed("ember/tests/routing/query_params_test/overlapping_query_params_test", ["@ember/controller", "@ember/-internals/routing", "@ember/-internals/metal", "internal-test-helpers"], function (_controller, _routing, _metal, _internalTestHelpers) {
   "use strict";
 
   function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
@@ -76730,157 +82504,70 @@ enifed("ember/tests/routing/query_params_test/overlapping_query_params_test", ["
     }
 
     ['@test can remap same-named qp props'](assert) {
-      assert.expect(7);
-      this.setMappedQPController('parent');
-      this.setMappedQPController('parent.child', 'page', 'childPage');
-      return this.setupBase().then(() => {
-        this.assertCurrentPath('/parent/child');
-        let parentController = this.getController('parent');
-        let parentChildController = this.getController('parent.child');
-        this.setAndFlush(parentController, 'page', 2);
-        this.assertCurrentPath('/parent/child?parentPage=2');
-        this.setAndFlush(parentController, 'page', 1);
-        this.assertCurrentPath('/parent/child');
-        this.setAndFlush(parentChildController, 'page', 2);
-        this.assertCurrentPath('/parent/child?childPage=2');
-        this.setAndFlush(parentChildController, 'page', 1);
-        this.assertCurrentPath('/parent/child');
-        (0, _runloop.run)(() => {
-          parentController.set('page', 2);
-          parentChildController.set('page', 2);
-        });
-        this.assertCurrentPath('/parent/child?childPage=2&parentPage=2');
-        (0, _runloop.run)(() => {
-          parentController.set('page', 1);
-          parentChildController.set('page', 1);
-        });
-        this.assertCurrentPath('/parent/child');
-      });
-    }
-
-    ['@test query params can be either controller property or url key'](assert) {
-      assert.expect(3);
-      this.setMappedQPController('parent');
-      return this.setupBase().then(() => {
-        this.assertCurrentPath('/parent/child');
-        this.transitionTo('parent.child', {
-          queryParams: {
-            page: 2
-          }
-        });
-        this.assertCurrentPath('/parent/child?parentPage=2');
-        this.transitionTo('parent.child', {
-          queryParams: {
-            parentPage: 3
-          }
-        });
-        this.assertCurrentPath('/parent/child?parentPage=3');
-      });
-    }
-
-    ['@test query param matching a url key and controller property'](assert) {
-      assert.expect(3);
-      this.setMappedQPController('parent', 'page', 'parentPage');
-      this.setMappedQPController('parent.child', 'index', 'page');
-      return this.setupBase().then(() => {
-        this.transitionTo('parent.child', {
-          queryParams: {
-            page: 2
-          }
-        });
-        this.assertCurrentPath('/parent/child?parentPage=2');
-        this.transitionTo('parent.child', {
-          queryParams: {
-            parentPage: 3
-          }
-        });
-        this.assertCurrentPath('/parent/child?parentPage=3');
-        this.transitionTo('parent.child', {
-          queryParams: {
-            index: 2,
-            page: 2
-          }
-        });
-        this.assertCurrentPath('/parent/child?page=2&parentPage=2');
-      });
-    }
-
-    ['@test query param matching same property on two controllers use the urlKey higher in the chain'](assert) {
-      assert.expect(4);
-      this.setMappedQPController('parent', 'page', 'parentPage');
-      this.setMappedQPController('parent.child', 'page', 'childPage');
-      return this.setupBase().then(() => {
-        this.transitionTo('parent.child', {
-          queryParams: {
-            page: 2
-          }
-        });
-        this.assertCurrentPath('/parent/child?parentPage=2');
-        this.transitionTo('parent.child', {
-          queryParams: {
-            parentPage: 3
-          }
-        });
-        this.assertCurrentPath('/parent/child?parentPage=3');
-        this.transitionTo('parent.child', {
-          queryParams: {
-            childPage: 2,
-            page: 2
-          }
-        });
-        this.assertCurrentPath('/parent/child?childPage=2&parentPage=2');
-        this.transitionTo('parent.child', {
-          queryParams: {
-            childPage: 3,
-            parentPage: 4
-          }
-        });
-        this.assertCurrentPath('/parent/child?childPage=3&parentPage=4');
-      });
-    }
-
-    ['@test query params does not error when a query parameter exists for route instances that share a controller'](assert) {
-      assert.expect(1);
-
-      let parentController = _controller.default.extend({
-        queryParams: {
-          page: 'page'
-        }
-      });
-
-      this.add('controller:parent', parentController);
-      this.add('route:parent.child', _routing.Route.extend({
-        controllerName: 'parent'
-      }));
-      return this.setupBase('/parent').then(() => {
-        this.transitionTo('parent.child', {
-          queryParams: {
-            page: 2
-          }
-        });
-        this.assertCurrentPath('/parent/child?page=2');
-      });
-    }
-
-    ['@test query params in the same route hierarchy with the same url key get auto-scoped'](assert) {
       var _this = this;
 
       return _asyncToGenerator(
       /*#__PURE__*/
       regeneratorRuntime.mark(function _callee() {
+        var parentController, parentChildController;
         return regeneratorRuntime.wrap(function _callee$(_context) {
           while (1) switch (_context.prev = _context.next) {
             case 0:
-              assert.expect(1);
+              assert.expect(7);
 
               _this.setMappedQPController('parent');
 
-              _this.setMappedQPController('parent.child');
+              _this.setMappedQPController('parent.child', 'page', 'childPage');
 
               _context.next = 5;
-              return assert.rejectsAssertion(_this.setupBase(), "You're not allowed to have more than one controller property map to the same query param key, but both `parent:page` and `parent.child:page` map to `parentPage`. You can fix this by mapping one of the controller properties to a different query param key via the `as` config option, e.g. `page: { as: 'other-page' }`");
+              return _this.setupBase();
 
             case 5:
+              _this.assertCurrentPath('/parent/child');
+
+              parentController = _this.getController('parent');
+              parentChildController = _this.getController('parent.child');
+              _context.next = 10;
+              return _this.setAndFlush(parentController, 'page', 2);
+
+            case 10:
+              _this.assertCurrentPath('/parent/child?parentPage=2');
+
+              _context.next = 13;
+              return _this.setAndFlush(parentController, 'page', 1);
+
+            case 13:
+              _this.assertCurrentPath('/parent/child');
+
+              _context.next = 16;
+              return _this.setAndFlush(parentChildController, 'page', 2);
+
+            case 16:
+              _this.assertCurrentPath('/parent/child?childPage=2');
+
+              _context.next = 19;
+              return _this.setAndFlush(parentChildController, 'page', 1);
+
+            case 19:
+              _this.assertCurrentPath('/parent/child');
+
+              parentController.set('page', 2);
+              parentChildController.set('page', 2);
+              _context.next = 24;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 24:
+              _this.assertCurrentPath('/parent/child?childPage=2&parentPage=2');
+
+              parentController.set('page', 1);
+              parentChildController.set('page', 1);
+              _context.next = 29;
+              return (0, _internalTestHelpers.runLoopSettled)();
+
+            case 29:
+              _this.assertCurrentPath('/parent/child');
+
+            case 30:
             case "end":
               return _context.stop();
           }
@@ -76888,33 +82575,306 @@ enifed("ember/tests/routing/query_params_test/overlapping_query_params_test", ["
       }))();
     }
 
+    ['@test query params can be either controller property or url key'](assert) {
+      var _this2 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              assert.expect(3);
+
+              _this2.setMappedQPController('parent');
+
+              _context2.next = 4;
+              return _this2.setupBase();
+
+            case 4:
+              _this2.assertCurrentPath('/parent/child');
+
+              _context2.next = 7;
+              return _this2.transitionTo('parent.child', {
+                queryParams: {
+                  page: 2
+                }
+              });
+
+            case 7:
+              _this2.assertCurrentPath('/parent/child?parentPage=2');
+
+              _context2.next = 10;
+              return _this2.transitionTo('parent.child', {
+                queryParams: {
+                  parentPage: 3
+                }
+              });
+
+            case 10:
+              _this2.assertCurrentPath('/parent/child?parentPage=3');
+
+            case 11:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2);
+      }))();
+    }
+
+    ['@test query param matching a url key and controller property'](assert) {
+      var _this3 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              assert.expect(3);
+
+              _this3.setMappedQPController('parent', 'page', 'parentPage');
+
+              _this3.setMappedQPController('parent.child', 'index', 'page');
+
+              _context3.next = 5;
+              return _this3.setupBase();
+
+            case 5:
+              _context3.next = 7;
+              return _this3.transitionTo('parent.child', {
+                queryParams: {
+                  page: 2
+                }
+              });
+
+            case 7:
+              _this3.assertCurrentPath('/parent/child?parentPage=2');
+
+              _context3.next = 10;
+              return _this3.transitionTo('parent.child', {
+                queryParams: {
+                  parentPage: 3
+                }
+              });
+
+            case 10:
+              _this3.assertCurrentPath('/parent/child?parentPage=3');
+
+              _context3.next = 13;
+              return _this3.transitionTo('parent.child', {
+                queryParams: {
+                  index: 2,
+                  page: 2
+                }
+              });
+
+            case 13:
+              _this3.assertCurrentPath('/parent/child?page=2&parentPage=2');
+
+            case 14:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
+    }
+
+    ['@test query param matching same property on two controllers use the urlKey higher in the chain'](assert) {
+      var _this4 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              assert.expect(4);
+
+              _this4.setMappedQPController('parent', 'page', 'parentPage');
+
+              _this4.setMappedQPController('parent.child', 'page', 'childPage');
+
+              _context4.next = 5;
+              return _this4.setupBase();
+
+            case 5:
+              _context4.next = 7;
+              return _this4.transitionTo('parent.child', {
+                queryParams: {
+                  page: 2
+                }
+              });
+
+            case 7:
+              _this4.assertCurrentPath('/parent/child?parentPage=2');
+
+              _context4.next = 10;
+              return _this4.transitionTo('parent.child', {
+                queryParams: {
+                  parentPage: 3
+                }
+              });
+
+            case 10:
+              _this4.assertCurrentPath('/parent/child?parentPage=3');
+
+              _context4.next = 13;
+              return _this4.transitionTo('parent.child', {
+                queryParams: {
+                  childPage: 2,
+                  page: 2
+                }
+              });
+
+            case 13:
+              _this4.assertCurrentPath('/parent/child?childPage=2&parentPage=2');
+
+              _context4.next = 16;
+              return _this4.transitionTo('parent.child', {
+                queryParams: {
+                  childPage: 3,
+                  parentPage: 4
+                }
+              });
+
+            case 16:
+              _this4.assertCurrentPath('/parent/child?childPage=3&parentPage=4');
+
+            case 17:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
+    }
+
+    ['@test query params does not error when a query parameter exists for route instances that share a controller'](assert) {
+      var _this5 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee5() {
+        var parentController;
+        return regeneratorRuntime.wrap(function _callee5$(_context5) {
+          while (1) switch (_context5.prev = _context5.next) {
+            case 0:
+              assert.expect(1);
+              parentController = _controller.default.extend({
+                queryParams: {
+                  page: 'page'
+                }
+              });
+
+              _this5.add('controller:parent', parentController);
+
+              _this5.add('route:parent.child', _routing.Route.extend({
+                controllerName: 'parent'
+              }));
+
+              _context5.next = 6;
+              return _this5.setupBase('/parent');
+
+            case 6:
+              _context5.next = 8;
+              return _this5.transitionTo('parent.child', {
+                queryParams: {
+                  page: 2
+                }
+              });
+
+            case 8:
+              _this5.assertCurrentPath('/parent/child?page=2');
+
+            case 9:
+            case "end":
+              return _context5.stop();
+          }
+        }, _callee5);
+      }))();
+    }
+
+    ['@test query params in the same route hierarchy with the same url key get auto-scoped'](assert) {
+      var _this6 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee6() {
+        return regeneratorRuntime.wrap(function _callee6$(_context6) {
+          while (1) switch (_context6.prev = _context6.next) {
+            case 0:
+              assert.expect(1);
+
+              _this6.setMappedQPController('parent');
+
+              _this6.setMappedQPController('parent.child');
+
+              _context6.next = 5;
+              return assert.rejectsAssertion(_this6.setupBase(), "You're not allowed to have more than one controller property map to the same query param key, but both `parent:page` and `parent.child:page` map to `parentPage`. You can fix this by mapping one of the controller properties to a different query param key via the `as` config option, e.g. `page: { as: 'other-page' }`");
+
+            case 5:
+            case "end":
+              return _context6.stop();
+          }
+        }, _callee6);
+      }))();
+    }
+
     ['@test Support shared but overridable mixin pattern'](assert) {
-      assert.expect(7);
+      var _this7 = this;
 
-      let HasPage = _metal.Mixin.create({
-        queryParams: 'page',
-        page: 1
-      });
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee7() {
+        var HasPage, parentController, parentChildController;
+        return regeneratorRuntime.wrap(function _callee7$(_context7) {
+          while (1) switch (_context7.prev = _context7.next) {
+            case 0:
+              assert.expect(7);
+              HasPage = _metal.Mixin.create({
+                queryParams: 'page',
+                page: 1
+              });
 
-      this.add('controller:parent', _controller.default.extend(HasPage, {
-        queryParams: {
-          page: 'yespage'
-        }
-      }));
-      this.add('controller:parent.child', _controller.default.extend(HasPage));
-      return this.setupBase().then(() => {
-        this.assertCurrentPath('/parent/child');
-        let parentController = this.getController('parent');
-        let parentChildController = this.getController('parent.child');
-        this.setAndFlush(parentChildController, 'page', 2);
-        this.assertCurrentPath('/parent/child?page=2');
-        assert.equal(parentController.get('page'), 1);
-        assert.equal(parentChildController.get('page'), 2);
-        this.setAndFlush(parentController, 'page', 2);
-        this.assertCurrentPath('/parent/child?page=2&yespage=2');
-        assert.equal(parentController.get('page'), 2);
-        assert.equal(parentChildController.get('page'), 2);
-      });
+              _this7.add('controller:parent', _controller.default.extend(HasPage, {
+                queryParams: {
+                  page: 'yespage'
+                }
+              }));
+
+              _this7.add('controller:parent.child', _controller.default.extend(HasPage));
+
+              _context7.next = 6;
+              return _this7.setupBase();
+
+            case 6:
+              _this7.assertCurrentPath('/parent/child');
+
+              parentController = _this7.getController('parent');
+              parentChildController = _this7.getController('parent.child');
+              _context7.next = 11;
+              return _this7.setAndFlush(parentChildController, 'page', 2);
+
+            case 11:
+              _this7.assertCurrentPath('/parent/child?page=2');
+
+              assert.equal(parentController.get('page'), 1);
+              assert.equal(parentChildController.get('page'), 2);
+              _context7.next = 16;
+              return _this7.setAndFlush(parentController, 'page', 2);
+
+            case 16:
+              _this7.assertCurrentPath('/parent/child?page=2&yespage=2');
+
+              assert.equal(parentController.get('page'), 2);
+              assert.equal(parentChildController.get('page'), 2);
+
+            case 19:
+            case "end":
+              return _context7.stop();
+          }
+        }, _callee7);
+      }))();
     }
 
   });
@@ -77782,6 +83742,42 @@ enifed("ember/tests/routing/router_service_test/currenturl_lifecycle_test", ["@e
 enifed("ember/tests/routing/router_service_test/events_test", ["internal-test-helpers", "@ember/service", "@ember/-internals/routing", "@ember/runloop"], function (_internalTestHelpers, _service, _routing, _runloop) {
   "use strict";
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   (0, _internalTestHelpers.moduleFor)('Router Service - events', class extends _internalTestHelpers.RouterTestCase {
     '@test initial render'(assert) {
       assert.expect(12);
@@ -78452,31 +84448,63 @@ enifed("ember/tests/routing/router_service_test/events_test", ["internal-test-he
     }
 
     '@test willTransition events are deprecated on routes'() {
-      this.add('route:application', _routing.Route.extend({
-        init() {
-          this._super(...arguments);
+      var _this = this;
 
-          this.on('willTransition', () => {});
-        }
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        var _args = arguments;
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              _this.add('route:application', _routing.Route.extend({
+                init() {
+                  this._super(..._args);
 
-      }));
-      expectDeprecation(() => {
-        return this.visit('/');
-      }, 'You attempted to listen to the "willTransition" event which is deprecated. Please inject the router service and listen to the "routeWillChange" event.');
+                  this.on('willTransition', () => {});
+                }
+
+              }));
+
+              _context.next = 3;
+              return expectDeprecationAsync(() => _this.visit('/'), 'You attempted to listen to the "willTransition" event which is deprecated. Please inject the router service and listen to the "routeWillChange" event.');
+
+            case 3:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee, this);
+      }))();
     }
 
     '@test didTransition events are deprecated on routes'() {
-      this.add('route:application', _routing.Route.extend({
-        init() {
-          this._super(...arguments);
+      var _this2 = this;
 
-          this.on('didTransition', () => {});
-        }
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee2() {
+        var _args2 = arguments;
+        return regeneratorRuntime.wrap(function _callee2$(_context2) {
+          while (1) switch (_context2.prev = _context2.next) {
+            case 0:
+              _this2.add('route:application', _routing.Route.extend({
+                init() {
+                  this._super(..._args2);
 
-      }));
-      expectDeprecation(() => {
-        return this.visit('/');
-      }, 'You attempted to listen to the "didTransition" event which is deprecated. Please inject the router service and listen to the "routeDidChange" event.');
+                  this.on('didTransition', () => {});
+                }
+
+              }));
+
+              _context2.next = 3;
+              return expectDeprecationAsync(() => _this2.visit('/'), 'You attempted to listen to the "didTransition" event which is deprecated. Please inject the router service and listen to the "routeDidChange" event.');
+
+            case 3:
+            case "end":
+              return _context2.stop();
+          }
+        }, _callee2, this);
+      }))();
     }
 
     '@test other events are not deprecated on routes'() {
@@ -78522,9 +84550,23 @@ enifed("ember/tests/routing/router_service_test/events_test", ["internal-test-he
     }
 
     '@test willTransition hook is deprecated'() {
-      expectDeprecation(() => {
-        return this.visit('/');
-      }, 'You attempted to override the "willTransition" method which is deprecated. Please inject the router service and listen to the "routeWillChange" event.');
+      var _this3 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee3() {
+        return regeneratorRuntime.wrap(function _callee3$(_context3) {
+          while (1) switch (_context3.prev = _context3.next) {
+            case 0:
+              _context3.next = 2;
+              return expectDeprecationAsync(() => _this3.visit('/'), 'You attempted to override the "willTransition" method which is deprecated. Please inject the router service and listen to the "routeWillChange" event.');
+
+            case 2:
+            case "end":
+              return _context3.stop();
+          }
+        }, _callee3);
+      }))();
     }
 
   });
@@ -78540,9 +84582,23 @@ enifed("ember/tests/routing/router_service_test/events_test", ["internal-test-he
     }
 
     '@test didTransition hook is deprecated'() {
-      expectDeprecation(() => {
-        return this.visit('/');
-      }, 'You attempted to override the "didTransition" method which is deprecated. Please inject the router service and listen to the "routeDidChange" event.');
+      var _this4 = this;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee4() {
+        return regeneratorRuntime.wrap(function _callee4$(_context4) {
+          while (1) switch (_context4.prev = _context4.next) {
+            case 0:
+              _context4.next = 2;
+              return expectDeprecationAsync(() => _this4.visit('/'), 'You attempted to override the "didTransition" method which is deprecated. Please inject the router service and listen to the "routeDidChange" event.');
+
+            case 2:
+            case "end":
+              return _context4.stop();
+          }
+        }, _callee4);
+      }))();
     }
 
   });
@@ -79557,6 +85613,10 @@ enifed("ember/tests/routing/substates_test", ["@ember/-internals/runtime", "@emb
       this.addTemplate('index', 'INDEX');
     }
 
+    visit(...args) {
+      return (0, _internalTestHelpers.runTask)(() => super.visit(...args));
+    }
+
     getController(name) {
       return this.applicationInstance.lookup("controller:" + name);
     }
@@ -80003,7 +86063,7 @@ enifed("ember/tests/routing/substates_test", ["@ember/-internals/runtime", "@emb
 
               _context.t0.add.call(_context.t0, 'route:mom', _context.t3);
 
-              promise = _this.visit('/grandma/mom').then(() => {
+              promise = (0, _internalTestHelpers.runTask)(() => _this.visit('/grandma/mom')).then(() => {
                 text = _this.$('#app').text();
                 assert.equal(text, 'GRANDMA MOM', "Grandma.mom loaded text is displayed");
                 assert.equal(_this.currentPath, 'grandma.mom.index', "currentPath reflects final state");
@@ -80502,7 +86562,7 @@ enifed("ember/tests/routing/substates_test", ["@ember/-internals/runtime", "@emb
 
               _context9.t8.add.call(_context9.t8, 'route:mom.sally', _context9.t11);
 
-              promise = _this9.visit('/grandma/mom/sally').then(() => {
+              promise = (0, _internalTestHelpers.runTask)(() => _this9.visit('/grandma/mom/sally')).then(() => {
                 text = _this9.$('#app').text();
                 assert.equal(text, 'GRANDMA MOM SALLY', "Sally template displayed");
               });
@@ -80528,7 +86588,7 @@ enifed("ember/tests/routing/substates_test", ["@ember/-internals/runtime", "@emb
       return _asyncToGenerator(
       /*#__PURE__*/
       regeneratorRuntime.mark(function _callee10() {
-        var deferred;
+        var deferred, promise;
         return regeneratorRuntime.wrap(function _callee10$(_context10) {
           while (1) switch (_context10.prev = _context10.next) {
             case 0:
@@ -80559,19 +86619,19 @@ enifed("ember/tests/routing/substates_test", ["@ember/-internals/runtime", "@emb
 
               _context10.t0.add.call(_context10.t0, 'route:grandma.puppies', _context10.t3);
 
-              return _context10.abrupt("return", _this10.visit('/grandma/mom/sally').then(() => {
-                assert.equal(_this10.currentPath, 'grandma.mom.sally', 'Initial route fully loaded');
+              _context10.next = 12;
+              return _this10.visit('/grandma/mom/sally');
 
-                let promise = _this10.visit('/grandma/puppies').then(() => {
-                  assert.equal(_this10.currentPath, 'grandma.puppies', 'Finished transition');
-                });
+            case 12:
+              assert.equal(_this10.currentPath, 'grandma.mom.sally', 'Initial route fully loaded');
+              promise = (0, _internalTestHelpers.runTask)(() => _this10.visit('/grandma/puppies')).then(() => {
+                assert.equal(_this10.currentPath, 'grandma.puppies', 'Finished transition');
+              });
+              assert.equal(_this10.currentPath, 'grandma.loading', "in pivot route's child loading state");
+              deferred.resolve();
+              return _context10.abrupt("return", promise);
 
-                assert.equal(_this10.currentPath, 'grandma.loading', "in pivot route's child loading state");
-                deferred.resolve();
-                return promise;
-              }));
-
-            case 11:
+            case 17:
             case "end":
               return _context10.stop();
           }
@@ -80701,7 +86761,7 @@ enifed("ember/tests/routing/substates_test", ["@ember/-internals/runtime", "@emb
 
               _context12.t0.add.call(_context12.t0, 'route:memere.index', _context12.t3);
 
-              promise = _this12.visit('/grandma').then(() => {
+              promise = (0, _internalTestHelpers.runTask)(() => _this12.visit('/grandma')).then(() => {
                 assert.equal(_this12.currentPath, 'memere.index', 'Transition should be complete');
               });
               memereController = _this12.getController('memere');
@@ -82188,37 +88248,42 @@ enifed("internal-test-helpers/lib/ember-dev/setup-qunit", ["exports", "@ember/de
       var _ref = _asyncToGenerator(
       /*#__PURE__*/
       regeneratorRuntime.mark(function _callee(promise, expected, message) {
-        var threw;
+        var error, prevOnError;
         return regeneratorRuntime.wrap(function _callee$(_context) {
           while (1) switch (_context.prev = _context.next) {
             case 0:
-              threw = false;
-              _context.prev = 1;
-              _context.next = 4;
+              prevOnError = Ember.onerror;
+
+              Ember.onerror = e => {
+                error = e;
+              };
+
+              _context.prev = 2;
+              _context.next = 5;
               return promise;
 
-            case 4:
+            case 5:
               _context.next = 10;
               break;
 
-            case 6:
-              _context.prev = 6;
-              _context.t0 = _context["catch"](1);
-              threw = true;
-              QUnit.assert.throws(() => {
-                throw _context.t0;
-              }, expected, message);
+            case 7:
+              _context.prev = 7;
+              _context.t0 = _context["catch"](2);
+              error = _context.t0;
 
             case 10:
-              if (!threw) {
-                QUnit.assert.ok(false, "expected an error to be thrown: " + expected);
-              }
+              QUnit.assert.throws(() => {
+                if (error) {
+                  throw error;
+                }
+              }, expected, message);
+              Ember.onerror = prevOnError;
 
-            case 11:
+            case 12:
             case "end":
               return _context.stop();
           }
-        }, _callee, null, [[1, 6]]);
+        }, _callee, null, [[2, 7]]);
       }));
 
       return function (_x, _x2, _x3) {
@@ -83260,7 +89325,7 @@ enifed("internal-test-helpers/lib/test-cases/abstract-application", ["exports", 
           while (1) switch (_context.prev = _context.next) {
             case 0:
               _context.next = 2;
-              return (0, _run.runTask)(() => _this._ensureInstance(options).then(instance => instance.visit(url)));
+              return _this._ensureInstance(options).then(instance => instance.visit(url));
 
             case 2:
               instance = _context.sent;
@@ -83735,6 +89800,42 @@ enifed("internal-test-helpers/lib/test-cases/application", ["exports", "internal
 
   _exports.default = void 0;
 
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
+
   class ApplicationTestCase extends _testResolverApplication.default {
     constructor() {
       super(...arguments);
@@ -83764,9 +89865,28 @@ enifed("internal-test-helpers/lib/test-cases/application", ["exports", "internal
     }
 
     transitionTo() {
-      return (0, _run.runTask)(() => {
-        return this.appRouter.transitionTo(...arguments);
-      });
+      var _this = this,
+          _arguments = arguments;
+
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              _context.next = 2;
+              return _this.appRouter.transitionTo(..._arguments);
+
+            case 2:
+              _context.next = 4;
+              return (0, _run.runLoopSettled)();
+
+            case 4:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
   }
@@ -83859,10 +89979,46 @@ enifed("internal-test-helpers/lib/test-cases/default-resolver-application", ["ex
 
   _exports.default = DefaultResolverApplicationTestCase;
 });
-enifed("internal-test-helpers/lib/test-cases/query-param", ["exports", "@ember/controller", "@ember/-internals/routing", "@ember/runloop", "internal-test-helpers/lib/test-cases/application"], function (_exports, _controller, _routing, _runloop, _application) {
+enifed("internal-test-helpers/lib/test-cases/query-param", ["exports", "@ember/controller", "@ember/-internals/routing", "internal-test-helpers/lib/test-cases/application", "internal-test-helpers/lib/run"], function (_exports, _controller, _routing, _application, _run) {
   "use strict";
 
   _exports.default = void 0;
+
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
+    try {
+      var info = gen[key](arg);
+      var value = info.value;
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
+    }
+  }
+
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+          args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
+        }
+
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
+        }
+
+        _next(undefined);
+      });
+    };
+  }
 
   class QueryParamTestCase extends _application.default {
     constructor() {
@@ -83921,7 +90077,27 @@ enifed("internal-test-helpers/lib/test-cases/query-param", ["exports", "@ember/c
     }
 
     setAndFlush(obj, prop, value) {
-      return (0, _runloop.run)(obj, 'set', prop, value);
+      return _asyncToGenerator(
+      /*#__PURE__*/
+      regeneratorRuntime.mark(function _callee() {
+        return regeneratorRuntime.wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              if (typeof prop === 'object') {
+                obj.setProperties(prop);
+              } else {
+                obj.set(prop, value);
+              }
+
+              _context.next = 3;
+              return (0, _run.runLoopSettled)();
+
+            case 3:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee);
+      }))();
     }
 
     assertCurrentPath(path, message = "current path equals '" + path + "'") {
